@@ -4,7 +4,7 @@ Solver base class.
 
 import numpy as np
 
-from dyson import default_log
+from dyson import default_log, init_logging
 
 
 class BaseSolver:
@@ -14,6 +14,10 @@ class BaseSolver:
 
     def __init__(self, *args, **kwargs):
         self.log = kwargs.pop("log", default_log)
+        init_logging(self.log)
+        self.log.info("")
+        self.log.info("%s", self.__class__.__name__)
+        self.log.info("%s", "*" * len(self.__class__.__name__))
 
         # Check all the arguments have now been consumed:
         if len(kwargs):
@@ -23,14 +27,19 @@ class BaseSolver:
     def kernel(self, *args, **kwargs):
         """
         Driver function. Classes inheriting the `BaseSolver` should
-        implement `_kernel`, which is called by this function.
+        implement `_kernel`, which is called by this function. If
+        the solver has a `_cache`, this function clears it.
         """
 
-        out = self._kernel(self, *args, **kwargs)
+        out = self._kernel(*args, **kwargs)
+
+        # Clear the cache if it is used:
+        if hasattr(self, "_cache"):
+            self._cache.clear()
 
         return out
 
-    def flag_converged(self, converged):
+    def flag_convergence(self, converged):
         """Preset logging for convergence message.
         """
 
