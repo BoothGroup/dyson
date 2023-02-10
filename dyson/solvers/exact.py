@@ -4,6 +4,7 @@ Exact eigensolver on the dense upfolded matrix.
 
 import numpy as np
 
+from dyson import util
 from dyson.solvers import BaseSolver
 
 
@@ -33,7 +34,7 @@ class Exact(BaseSolver):
         once projected into the physical space.
     """
 
-    class __init__(self, matrix, **kwargs):
+    def __init__(self, matrix, **kwargs):
         # Input:
         self.matrix = matrix
 
@@ -41,13 +42,21 @@ class Exact(BaseSolver):
         self.hermitian = kwargs.pop("hermitian", True)
 
         # Base class:
-        super().__init__(*args, **kwargs)
+        super().__init__(matrix, **kwargs)
+
+        # Logging:
+        self.log.info("Options:")
+        self.log.info(" > hermitian:  %s", self.hermitian)
 
     def _kernel(self):
         if self.hermitian:
-            return self._kernel_hermitian()
+            eigvals, eigvecs = self._kernel_hermitian()
         else:
-            return self._kernel_nonhermitian()
+            eigvals, eigvecs = self._kernel_nonhermitian()
+
+        self.log.info(util.print_eigenvalues(eigvals))
+
+        return eigvals, eigvecs
 
     def _kernel_hermitian(self):
         return np.linalg.eigh(self.matrix)
