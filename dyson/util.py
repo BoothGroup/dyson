@@ -56,7 +56,7 @@ def print_dyson_orbitals(eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_
     lines += [
             "{:>4s} {:^20s} {:^33s} {:^33s}".format("", "", "Weight", ""),
             "{:>4s} {:^20s} {:^33s} {:^33s}".format(
-                "Orb", "Energy", "-" * 33, "Dominant physical states",
+                "Orb", "Energy", "-" * 33, "Dominant physical contributions",
             ),
             "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format("", "", "Physical", "Auxiliary", ""),
             "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format(
@@ -65,9 +65,8 @@ def print_dyson_orbitals(eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_
     ]
 
     mask = np.linalg.norm(eigvecs[:nphys], axis=0)**2 > phys_threshold
-    eigvals, eigvecs = eigvals[mask], eigvecs[:, mask]
-
-    inds = np.argsort(np.abs(eigvals.real)) if abs_sort else np.argsort(eigvals.real)
+    inds = np.arange(eigvals.size)[mask]
+    inds = inds[np.argsort(np.abs(eigvals[inds].real)) if abs_sort else np.argsort(eigvals[inds].real)]
     for i in inds[:min(nroots, len(eigvals))]:
         v = eigvecs[:, i]
         phys = np.linalg.norm(np.abs(v[:nphys]))**2
@@ -80,6 +79,9 @@ def print_dyson_orbitals(eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_
         lines.append("%4d %20s %16.3g %16.3g %33s" % (
             i, format_value(eigvals[i]), phys, aux, chars,
         ))
+
+    if nroots < len(inds):
+        lines.append(" ...")
 
     lines += ["-" * 93]
 
