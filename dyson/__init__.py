@@ -34,15 +34,15 @@ class NullLogger(logging.Logger):
         pass
 
 
-HEADER = """      _                       
-     | |                      
-   __| |_   _ ___  ___  _ __  
-  / _` | | | / __|/ _ \| '_ \ 
- | (_| | |_| \__ \ (_) | | | |
-  \__,_|\__, |___/\___/|_| |_|
-         __/ |                
-        |___/                 
-%s"""
+HEADER = """     _                           
+    | |                          
+  __| | _   _  ___   ___   _ __  
+ / _` || | | |/ __| / _ \ | '_ \ 
+| (_| || |_| |\__ \| (_) || | | |
+ \__,_| \__, ||___/ \___/ |_| |_|
+         __/ |                   
+        |___/  %s
+"""
 
 
 def init_logging(log):
@@ -53,7 +53,7 @@ def init_logging(log):
 
     # Print header
     header_size = max([len(line) for line in HEADER.split("\n")])
-    log.info(HEADER % (" " * (header_size - len(__version__)) + __version__))
+    log.info(HEADER % (" " * (18 - len(__version__)) + __version__))
 
     # Print versions of dependencies and ebcc
     def get_git_hash(directory):
@@ -79,3 +79,11 @@ def init_logging(log):
     log.info("")
 
     globals()["_DYSON_LOG_INITIALISED"] = True
+
+
+# -- Other imports:
+
+from dyson.solvers.exact import Exact
+from dyson.solvers.self_consistent import SelfConsistent, DiagonalSelfConsistent
+from dyson.solvers.davidson import Davidson
+from dyson.solvers.block_lanczos_direct import BlockLanczosDirectSymm
