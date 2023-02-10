@@ -4,6 +4,7 @@ Self-consistent eigensolver on the downfolded matrix.
 
 import numpy as np
 
+from dyson import util
 from dyson.solvers import BaseSolver
 
 
@@ -13,6 +14,8 @@ class SelfConsistent(BaseSolver):
 
     Input
     -----
+    static : numpy.ndarray
+        Static part of the matrix (i.e. self-energy).
     function : callable
         Function returning the matrix (i.e. self-energy) at a given
         argument (i.e. frequency). Input arguments are `argument`.
@@ -52,16 +55,28 @@ class SelfConsistent(BaseSolver):
 
     # TODO: Can probably use a newton solver as C* Σ(w) C - w = 0
 
-    def __init__(self, function, **kwargs):
+    def __init__(self, static, function, **kwargs):
         # Input:
+        self.static = static
         self.function = function
 
         # Parameters:
         self.guess = kwargs.pop("guess", 0.0)
         self.target = kwargs.pop("target", "mindif")
+        self.max_cycle = kwargs.pop("max_cycle", 50)
+        self.conv_tol = kwargs.pop("conv_tol", 1e-8)
+        self.hermitian = kwargs.pop("hermitian", True)
 
         # Base class:
-        super().__init__(*args, **kwargs)
+        super().__init__(function, **kwargs)
+
+        # Logging:
+        self.log.info("Options:")
+        self.log.info(" > guess:  %s", self.guess)
+        self.log.info(" > target:  %s", self.target) 
+        self.log.info(" > max_cycle:  %s", self.max_cycle) 
+        self.log.info(" > conv_tol:  %s", self.conv_tol) 
+        self.log.info(" > hermitian:  %s", self.hermitian)
 
     def picker(self, roots):
         if isinstance(self.target, int):
@@ -75,6 +90,8 @@ class SelfConsistent(BaseSolver):
                 root = np.min(np.abs(roots - self.guess))
             else:
                 raise ValueError("`target = %s`" % self.target)
+
+        return root
 
     def eig(self, matrix):
         if self.hermitian:
@@ -92,21 +109,33 @@ class SelfConsistent(BaseSolver):
         root = self.guess
         root_prev = None
 
-        for cycle in range(1, self.max_cycle+1):
-            matrix = self.function(root)
-            roots = self.eigvals(matrix)
+        self.log.info("-" * 38)
+        self.log.info("%4s %16s %16s", "Iter", "Root", "Delta")
+        self.log.info("%4s %16s %16s", "-" * 4, "-" * 16, "-" * 16)
 
-            root_prev = root
+        for cycle in range(1, self.max_cycle+1):
+            matrix = self.static + self.function(root)
+            roots = self.eigvals(matrix)
             root = self.picker(roots)
 
-            if abs(root - root_prev) < self.conv_tol:
-                break
+            if cycle > 1:
+                self.log.info("%4d %16.8f %16.3g", cycle, root, abs(root - root_prev))
+                if abs(root - root_prev) < self.conv_tol:
+                    break
+            else:
+                self.log.info("%4d %16.8f", cycle, root)
 
-        converged = abs(root - root_prev) < conv_tol
+            root_prev = root
+
+        self.log.info("%4s %16s %16s", "-" * 4, "-" * 16, "-" * 16)
+
+        converged = abs(root - root_prev) < self.conv_tol
         self.flag_convergence(converged)
 
-        matrix = self.function(root)
+        matrix = self.static + self.function(root)
         eigvals, eigvecs = self.eig(matrix)
+
+        self.log.info(util.print_eigenvalues(eigvals))
 
         return eigvals, eigvecs
 
@@ -159,4 +188,5 @@ class DiagonalSelfConsistent(BaseSolver):
         Dyson orbitals.
     """
 
-    pass
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError  # TODO
