@@ -3,6 +3,7 @@ Exact eigensolver on the dense upfolded matrix.
 """
 
 import numpy as np
+import scipy.linalg
 
 from dyson import util
 from dyson.solvers import BaseSolver
@@ -23,6 +24,9 @@ class Exact(BaseSolver):
         If `True`, the input matrix is assumed to be hermitian,
         otherwise it is assumed to be non-hermitian. Default value
         is `True`.
+    overlap : numpy.ndarray, optional
+        If provided, use as part of a generalised eigenvalue problem.
+        Default value is `None`.
 
     Returns
     -------
@@ -40,6 +44,7 @@ class Exact(BaseSolver):
 
         # Parameters:
         self.hermitian = kwargs.pop("hermitian", True)
+        self.overlap = kwargs.pop("overlap", None)
 
         # Base class:
         super().__init__(matrix, **kwargs)
@@ -47,6 +52,7 @@ class Exact(BaseSolver):
         # Logging:
         self.log.info("Options:")
         self.log.info(" > hermitian:  %s", self.hermitian)
+        self.log.info(" > overlap:  %s", None if not self.generalised else type(self.overlap))
 
     def _kernel(self):
         if self.hermitian:
@@ -59,7 +65,17 @@ class Exact(BaseSolver):
         return eigvals, eigvecs
 
     def _kernel_hermitian(self):
-        return np.linalg.eigh(self.matrix)
+        if self.generalised:
+            return np.linalg.eigh(self.matrix)
+        else:
+            return scipy.linalg.eigh(self.matrix, b=self.overlap)
 
     def _kernel_nonhermitian(self):
-        return np.linalg.eig(self.matrix)
+        if self.generalised:
+            return np.linalg.eig(self.matrix)
+        else:
+            return scipy.linalg.eig(self.matrix, b=self.overlap)
+
+    @property
+    def generalised(self):
+        return self.overlap is not None
