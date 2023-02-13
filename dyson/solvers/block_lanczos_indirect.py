@@ -1,0 +1,325 @@
+"""
+Moment-conserving block Lanczos eigensolver, conserving moments
+of the solution to the input matrix.
+"""
+
+import numpy as np
+import warnings
+
+from dyson import util
+from dyson.solvers import BaseSolver
+
+
+class RecurrenceCoefficients:
+    """
+    Recurrence coefficients container.
+    """
+
+    def __init__(self, shape, hermitian=True, force_orthogonality=True, dtype=np.float64):
+        self.hermitian = hermitian
+        self.zero = np.zeros(shape, dtype=dtype)
+        self.data = {}
+
+    def __getitem__(self, key):
+        i, j = key
+
+        if i == j == 1:
+            return np.eye(self.zero.shape[0])
+
+        if i < 1 or j < 1 or i < j:
+            # Zero order Lanczos vectors are zero
+            return self.zero
+        else:
+            # Return ∑ Σ^{j-1} Q_{1} C_{i,j}
+            return self.data[i, j]
+
+    def __setitem__(self, key, val):
+        i, j = key
+
+        self.data[i, j] = val
+
+
+class BlockLanczosIndirectSymm(BaseSolver):
+    """
+    Moment-conserving block Lanczos eigensolver, conserving the
+    moments of the solution to the input matrix.
+
+    Input
+    -----
+    moments : numpy.ndarray
+        Moments of the solution to the input matrix (i.e. Green's
+        function).
+
+    Parameters
+    ----------
+    max_cycle : int, optional
+        Maximum number of iterations. If `None`, perform as many as
+        the inputted number of moments permits. Default value is
+        `None`.
+
+    Returns
+    -------
+    eigvals : numpy.ndarray
+        Eigenvalues of the matrix, representing the energies of the
+        Green's function.
+    eigvecs : numpy.ndarray
+        Eigenvectors of the matrix, which provide the Dyson orbitals
+        once projected into the physical space.
+    """
+
+    def __init__(self, moments, **kwargs):
+        # Input:
+        self.moments = moments
+
+        # Parameters:
+        self.max_cycle = kwargs.pop("max_cycle", None)
+        self.hermitian = True
+
+        max_cycle_limit = (len(moments) - 2) // 2
+        if self.max_cycle is None:
+            self.max_cycle = max_cycle_limit
+        if self.max_cycle > max_cycle_limit:
+            raise ValueError(
+                    "`max_cycle` cannot be more than (M-2)/2, where "
+                    "M is the number of inputted moments."
+            )
+
+        # Base class:
+        super().__init__(moments, **kwargs)
+
+        # Logging:
+        self.log.info("Options:")
+        self.log.info(" > max_cycle:  %s", self.max_cycle) 
+        self.log.info(" > hermitian:  %s", self.hermitian)
+
+        # Caching:
+        self._cache = {}
+        self.coefficients = RecurrenceCoefficients(
+                self.moments[0].shape,
+                hermitian=True,
+                dtype=np.result_type(*self.moments),
+        )
+        self.on_diagonal = {}
+        self.off_diagonal = {}
+        self.orth = None
+        self.iteration = None
+
+    @util.cache
+    def orthogonalised_moment(self, n):
+        """
+        Compute an orthogonalised moment.
+        """
+
+        orth = self.orth
+        if orth is None:
+            orth = util.matrix_power(self.moments[0], -0.5, hermitian=True)
+
+        return np.linalg.multi_dot((
+                orth,
+                self.moments[n],
+                orth,
+        ))
+
+    def initialise_recurrence(self):
+        """
+        Initialise the recurrences - performs the 'zeroth' iteration.
+
+        This iteration is essentially equivalent to solving a generalised
+        eigenvalue problem on the Fock matrix in the physical space.
+        """
+
+        self.log.info("-" * 89)
+        self.log.info("{:^4s} {:^16s} {:^33s} {:^33}".format(
+            "", "", "Norm of matrix", "Norm of removed space",
+        ))
+        self.log.info("{:^4s} {:^16s} {:^33s} {:^33}".format(
+            "Iter", "Moment error", "-" * 33, "-" * 33,
+        ))
+        self.log.info(
+                "%4s %16s %16s %16s %16s %16s",
+                "", "", "On-diagonal", "Off-diagonal", "Square root", "Inv. square root",
+        )
+        self.log.info(
+                "%4s %16s %16s %16s %16s %16s",
+                "-" * 4, "-" * 16, "-" * 16, "-" * 16, "-" * 16, "-" * 16,
+        )
+
+        self.iteration = 0
+
+        # Calculate the orthogonalisation matrix
+        self.orth, error_inv_sqrt = util.matrix_power(
+                self.moments[0],
+                -0.5,
+                hermitian=True,
+                return_error=True,
+        )
+
+        # Add zero matrix to out-of-bounds off-diagonal to simplify logic
+        self.off_diagonal[-1] = self.coefficients.zero
+
+        # Zeroth order on-diagonal block is the orthogonalised first
+        # moment (equal to the orthogonalised static part of the
+        # matrix corresponding to the solution moments)
+        self.on_diagonal[0] = self.orthogonalised_moment(1)
+
+        # Check the error in the moments up to this iteration
+        energies, eigvecs = self.get_eigenfunctions(iteration=self.iteration)
+        dyson_orbitals = eigvecs[:self.nphys]
+        left = dyson_orbitals.copy()
+        moments_recovered = []
+        for n in range(2 * self.iteration + 2):
+            moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
+            left = left * energies[None]
+        error_moments = util.scaled_error(
+                np.array(moments_recovered),
+                self.moments[:2 * self.iteration + 2],
+        )
+
+        # Logging
+        self.log.info(
+                "%4d %16.3g %16.3g %16s %16s %16.3g",
+                0,
+                error_moments,
+                np.linalg.norm(self.on_diagonal[0]),
+                "",
+                "",
+                error_inv_sqrt,
+        )
+
+    def recurrence_iteration(self):
+        """
+        Perform an iteration of the recurrence for hermitian systems.
+        """
+
+        self.iteration += 1
+        i = self.iteration - 1
+
+        if self.iteration > self.max_cycle:
+            raise ValueError(
+                    "Cannot perform more iterations than permitted "
+                    "by `max_cycle` or (M-2)/2 where M is the number "
+                    "of inputted moments."
+            )
+
+        # Find the square of the next off-diagonal block
+        off_diagonal_squared = self.coefficients.zero.copy()
+        for j in range(i+2):
+            for k in range(i+1):
+                off_diagonal_squared += np.linalg.multi_dot((
+                    self.coefficients[i+1, k+1].T.conj(),
+                    self.orthogonalised_moment(j+k+1),
+                    self.coefficients[i+1, j],
+                ))
+
+        off_diagonal_squared -= np.dot(
+                self.on_diagonal[i],
+                self.on_diagonal[i],
+        )
+        if i:
+            off_diagonal_squared -= np.dot(
+                    self.off_diagonal[i-1],
+                    self.off_diagonal[i-1],
+            )
+
+        # Get the next off-diagonal block
+        self.off_diagonal[i], error_sqrt = util.matrix_power(
+                off_diagonal_squared,
+                0.5,
+                hermitian=True,
+                return_error=True,
+        )
+
+        # Get the inverse of the off-diagonal block
+        off_diagonal_inv, error_inv_sqrt = util.matrix_power(
+                off_diagonal_squared,
+                -0.5,
+                hermitian=True,
+                return_error=True,
+        )
+
+        for j in range(i+2):
+            residual = (
+                    + self.coefficients[i+1, j]
+                    - np.dot(self.coefficients[i+1, j+1], self.on_diagonal[i])
+                    - np.dot(self.coefficients[i, j+1], self.off_diagonal[i-1])
+            )
+            self.coefficients[i+2, j+1] = np.dot(residual, off_diagonal_inv)
+
+        self.on_diagonal[i+1] = self.coefficients.zero.copy()
+        for j in range(i+2):
+            for k in range(i+2):
+                self.on_diagonal[i+1] += np.linalg.multi_dot((
+                    self.coefficients[i+2, k+1].T.conj(),
+                    self.orthogonalised_moment(j+k+1),
+                    self.coefficients[i+2, j+1],
+                ))
+
+        # Check the error in the moments up to this iteration
+        energies, eigvecs = self.get_eigenfunctions(iteration=self.iteration)
+        dyson_orbitals = eigvecs[:self.nphys]
+        left = dyson_orbitals.copy()
+        moments_recovered = []
+        for n in range(2 * self.iteration + 2):
+            moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
+            left = left * energies[None]
+        error_moments = util.scaled_error(
+                np.array(moments_recovered),
+                self.moments[:2 * self.iteration + 2],
+        )
+
+        # Logging
+        self.log.info(
+                "%4d %16.3g %16.3g %16.3g %16.3g %16.3g",
+                self.iteration,
+                error_moments,
+                np.linalg.norm(self.on_diagonal[i+1]),
+                np.linalg.norm(self.off_diagonal[i]),
+                error_sqrt,
+                error_inv_sqrt,
+        )
+        if self.iteration == self.max_cycle:
+            self.log.info("-" * 89)
+
+    def get_eigenfunctions(self, iteration=None):
+        """
+        Return the eigenfunctions.
+        """
+
+        if iteration is None:
+            iteration = self.iteration
+
+        h_tri = util.build_block_tridiagonal(
+                [self.on_diagonal[i] for i in range(iteration+1)],
+                [self.off_diagonal[i] for i in range(iteration)],
+        )
+
+        eigvals, eigvecs = np.linalg.eigh(h_tri)
+        dyson_orbitals = np.dot(self.orth, eigvecs[:self.nphys])
+
+        eigvecs = np.eye(eigvals.size).astype(dyson_orbitals.dtype)
+        eigvecs[:self.nphys] = dyson_orbitals
+
+        return eigvals, eigvecs
+
+    def _kernel(self, iteration=None):
+        if self.iteration is None:
+            self.initialise_recurrence()
+        if iteration is None:
+            iteration = self.max_cycle
+        while self.iteration < iteration:
+            self.recurrence_iteration()
+
+        self.log.info("Block Lanczos moment recurrence completed to iteration %d.", self.iteration)
+
+        if iteration is None:
+            iteration = self.max_cycle
+
+        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+
+        self.log.info(util.print_dyson_orbitals(eigvals, eigvecs, self.nphys))
+
+        return eigvals, eigvecs
+
+    @property
+    def nphys(self):
+        return self.moments[0].shape[0]
