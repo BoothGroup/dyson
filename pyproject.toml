@@ -58,7 +58,7 @@ target-version = [
 include = "dyson"
 exclude = """
 /(
-    | */__pycache__
+    | __pycache__
     | .git
 )/
 """
@@ -71,7 +71,7 @@ src_paths = [
 	"dyson",
 ]
 skip_glob = [
-    "*/__pycache__/*",
+    "*__pycache__*",
 ]
 
 [tool.coverage.run]

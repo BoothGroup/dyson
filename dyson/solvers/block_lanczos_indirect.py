@@ -3,8 +3,9 @@ Moment-conserving block Lanczos eigensolver, conserving moments
 of the solution to the input matrix.
 """
 
-import numpy as np
 import warnings
+
+import numpy as np
 
 from dyson import util
 from dyson.solvers import BaseSolver
@@ -80,8 +81,8 @@ class BlockLanczosIndirectSymm(BaseSolver):
             self.max_cycle = max_cycle_limit
         if self.max_cycle > max_cycle_limit:
             raise ValueError(
-                    "`max_cycle` cannot be more than (M-2)/2, where "
-                    "M is the number of inputted moments."
+                "`max_cycle` cannot be more than (M-2)/2, where "
+                "M is the number of inputted moments."
             )
 
         # Base class:
@@ -89,15 +90,15 @@ class BlockLanczosIndirectSymm(BaseSolver):
 
         # Logging:
         self.log.info("Options:")
-        self.log.info(" > max_cycle:  %s", self.max_cycle) 
+        self.log.info(" > max_cycle:  %s", self.max_cycle)
         self.log.info(" > hermitian:  %s", self.hermitian)
 
         # Caching:
         self._cache = {}
         self.coefficients = RecurrenceCoefficients(
-                self.moments[0].shape,
-                hermitian=True,
-                dtype=np.result_type(*self.moments),
+            self.moments[0].shape,
+            hermitian=True,
+            dtype=np.result_type(*self.moments),
         )
         self.on_diagonal = {}
         self.off_diagonal = {}
@@ -114,11 +115,13 @@ class BlockLanczosIndirectSymm(BaseSolver):
         if orth is None:
             orth = util.matrix_power(self.moments[0], -0.5, hermitian=True)
 
-        return np.linalg.multi_dot((
+        return np.linalg.multi_dot(
+            (
                 orth,
                 self.moments[n],
                 orth,
-        ))
+            )
+        )
 
     def initialise_recurrence(self):
         """
@@ -129,29 +132,49 @@ class BlockLanczosIndirectSymm(BaseSolver):
         """
 
         self.log.info("-" * 89)
-        self.log.info("{:^4s} {:^16s} {:^33s} {:^33}".format(
-            "", "", "Norm of matrix", "Norm of removed space",
-        ))
-        self.log.info("{:^4s} {:^16s} {:^33s} {:^33}".format(
-            "Iter", "Moment error", "-" * 33, "-" * 33,
-        ))
         self.log.info(
-                "%4s %16s %16s %16s %16s %16s",
-                "", "", "On-diagonal", "Off-diagonal", "Square root", "Inv. square root",
+            "{:^4s} {:^16s} {:^33s} {:^33}".format(
+                "",
+                "",
+                "Norm of matrix",
+                "Norm of removed space",
+            )
         )
         self.log.info(
-                "%4s %16s %16s %16s %16s %16s",
-                "-" * 4, "-" * 16, "-" * 16, "-" * 16, "-" * 16, "-" * 16,
+            "{:^4s} {:^16s} {:^33s} {:^33}".format(
+                "Iter",
+                "Moment error",
+                "-" * 33,
+                "-" * 33,
+            )
+        )
+        self.log.info(
+            "%4s %16s %16s %16s %16s %16s",
+            "",
+            "",
+            "On-diagonal",
+            "Off-diagonal",
+            "Square root",
+            "Inv. square root",
+        )
+        self.log.info(
+            "%4s %16s %16s %16s %16s %16s",
+            "-" * 4,
+            "-" * 16,
+            "-" * 16,
+            "-" * 16,
+            "-" * 16,
+            "-" * 16,
         )
 
         self.iteration = 0
 
         # Calculate the orthogonalisation matrix
         self.orth, error_inv_sqrt = util.matrix_power(
-                self.moments[0],
-                -0.5,
-                hermitian=True,
-                return_error=True,
+            self.moments[0],
+            -0.5,
+            hermitian=True,
+            return_error=True,
         )
 
         # Add zero matrix to out-of-bounds off-diagonal to simplify logic
@@ -164,26 +187,26 @@ class BlockLanczosIndirectSymm(BaseSolver):
 
         # Check the error in the moments up to this iteration
         energies, eigvecs = self.get_eigenfunctions(iteration=self.iteration)
-        dyson_orbitals = eigvecs[:self.nphys]
+        dyson_orbitals = eigvecs[: self.nphys]
         left = dyson_orbitals.copy()
         moments_recovered = []
         for n in range(2 * self.iteration + 2):
             moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
             left = left * energies[None]
         error_moments = util.scaled_error(
-                np.array(moments_recovered),
-                self.moments[:2 * self.iteration + 2],
+            np.array(moments_recovered),
+            self.moments[: 2 * self.iteration + 2],
         )
 
         # Logging
         self.log.info(
-                "%4d %16.3g %16.3g %16s %16s %16.3g",
-                0,
-                error_moments,
-                np.linalg.norm(self.on_diagonal[0]),
-                "",
-                "",
-                error_inv_sqrt,
+            "%4d %16.3g %16.3g %16s %16s %16.3g",
+            0,
+            error_moments,
+            np.linalg.norm(self.on_diagonal[0]),
+            "",
+            "",
+            error_inv_sqrt,
         )
 
     def recurrence_iteration(self):
@@ -196,86 +219,90 @@ class BlockLanczosIndirectSymm(BaseSolver):
 
         if self.iteration > self.max_cycle:
             raise ValueError(
-                    "Cannot perform more iterations than permitted "
-                    "by `max_cycle` or (M-2)/2 where M is the number "
-                    "of inputted moments."
+                "Cannot perform more iterations than permitted "
+                "by `max_cycle` or (M-2)/2 where M is the number "
+                "of inputted moments."
             )
 
         # Find the square of the next off-diagonal block
         off_diagonal_squared = self.coefficients.zero.copy()
-        for j in range(i+2):
-            for k in range(i+1):
-                off_diagonal_squared += np.linalg.multi_dot((
-                    self.coefficients[i+1, k+1].T.conj(),
-                    self.orthogonalised_moment(j+k+1),
-                    self.coefficients[i+1, j],
-                ))
+        for j in range(i + 2):
+            for k in range(i + 1):
+                off_diagonal_squared += np.linalg.multi_dot(
+                    (
+                        self.coefficients[i + 1, k + 1].T.conj(),
+                        self.orthogonalised_moment(j + k + 1),
+                        self.coefficients[i + 1, j],
+                    )
+                )
 
         off_diagonal_squared -= np.dot(
-                self.on_diagonal[i],
-                self.on_diagonal[i],
+            self.on_diagonal[i],
+            self.on_diagonal[i],
         )
         if i:
             off_diagonal_squared -= np.dot(
-                    self.off_diagonal[i-1],
-                    self.off_diagonal[i-1],
+                self.off_diagonal[i - 1],
+                self.off_diagonal[i - 1],
             )
 
         # Get the next off-diagonal block
         self.off_diagonal[i], error_sqrt = util.matrix_power(
-                off_diagonal_squared,
-                0.5,
-                hermitian=True,
-                return_error=True,
+            off_diagonal_squared,
+            0.5,
+            hermitian=True,
+            return_error=True,
         )
 
         # Get the inverse of the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
-                off_diagonal_squared,
-                -0.5,
-                hermitian=True,
-                return_error=True,
+            off_diagonal_squared,
+            -0.5,
+            hermitian=True,
+            return_error=True,
         )
 
-        for j in range(i+2):
+        for j in range(i + 2):
             residual = (
-                    + self.coefficients[i+1, j]
-                    - np.dot(self.coefficients[i+1, j+1], self.on_diagonal[i])
-                    - np.dot(self.coefficients[i, j+1], self.off_diagonal[i-1])
+                +self.coefficients[i + 1, j]
+                - np.dot(self.coefficients[i + 1, j + 1], self.on_diagonal[i])
+                - np.dot(self.coefficients[i, j + 1], self.off_diagonal[i - 1])
             )
-            self.coefficients[i+2, j+1] = np.dot(residual, off_diagonal_inv)
+            self.coefficients[i + 2, j + 1] = np.dot(residual, off_diagonal_inv)
 
-        self.on_diagonal[i+1] = self.coefficients.zero.copy()
-        for j in range(i+2):
-            for k in range(i+2):
-                self.on_diagonal[i+1] += np.linalg.multi_dot((
-                    self.coefficients[i+2, k+1].T.conj(),
-                    self.orthogonalised_moment(j+k+1),
-                    self.coefficients[i+2, j+1],
-                ))
+        self.on_diagonal[i + 1] = self.coefficients.zero.copy()
+        for j in range(i + 2):
+            for k in range(i + 2):
+                self.on_diagonal[i + 1] += np.linalg.multi_dot(
+                    (
+                        self.coefficients[i + 2, k + 1].T.conj(),
+                        self.orthogonalised_moment(j + k + 1),
+                        self.coefficients[i + 2, j + 1],
+                    )
+                )
 
         # Check the error in the moments up to this iteration
         energies, eigvecs = self.get_eigenfunctions(iteration=self.iteration)
-        dyson_orbitals = eigvecs[:self.nphys]
+        dyson_orbitals = eigvecs[: self.nphys]
         left = dyson_orbitals.copy()
         moments_recovered = []
         for n in range(2 * self.iteration + 2):
             moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
             left = left * energies[None]
         error_moments = util.scaled_error(
-                np.array(moments_recovered),
-                self.moments[:2 * self.iteration + 2],
+            np.array(moments_recovered),
+            self.moments[: 2 * self.iteration + 2],
         )
 
         # Logging
         self.log.info(
-                "%4d %16.3g %16.3g %16.3g %16.3g %16.3g",
-                self.iteration,
-                error_moments,
-                np.linalg.norm(self.on_diagonal[i+1]),
-                np.linalg.norm(self.off_diagonal[i]),
-                error_sqrt,
-                error_inv_sqrt,
+            "%4d %16.3g %16.3g %16.3g %16.3g %16.3g",
+            self.iteration,
+            error_moments,
+            np.linalg.norm(self.on_diagonal[i + 1]),
+            np.linalg.norm(self.off_diagonal[i]),
+            error_sqrt,
+            error_inv_sqrt,
         )
         if self.iteration == self.max_cycle:
             self.log.info("-" * 89)
@@ -289,15 +316,15 @@ class BlockLanczosIndirectSymm(BaseSolver):
             iteration = self.iteration
 
         h_tri = util.build_block_tridiagonal(
-                [self.on_diagonal[i] for i in range(iteration+1)],
-                [self.off_diagonal[i] for i in range(iteration)],
+            [self.on_diagonal[i] for i in range(iteration + 1)],
+            [self.off_diagonal[i] for i in range(iteration)],
         )
 
         eigvals, eigvecs = np.linalg.eigh(h_tri)
-        dyson_orbitals = np.dot(self.orth, eigvecs[:self.nphys])
+        dyson_orbitals = np.dot(self.orth, eigvecs[: self.nphys])
 
         eigvecs = np.eye(eigvals.size).astype(dyson_orbitals.dtype)
-        eigvecs[:self.nphys] = dyson_orbitals
+        eigvecs[: self.nphys] = dyson_orbitals
 
         return eigvals, eigvecs
 

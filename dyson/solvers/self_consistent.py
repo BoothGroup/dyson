@@ -73,9 +73,9 @@ class SelfConsistent(BaseSolver):
         # Logging:
         self.log.info("Options:")
         self.log.info(" > guess:  %s", self.guess)
-        self.log.info(" > target:  %s", self.target) 
-        self.log.info(" > max_cycle:  %s", self.max_cycle) 
-        self.log.info(" > conv_tol:  %s", self.conv_tol) 
+        self.log.info(" > target:  %s", self.target)
+        self.log.info(" > max_cycle:  %s", self.max_cycle)
+        self.log.info(" > conv_tol:  %s", self.conv_tol)
         self.log.info(" > hermitian:  %s", self.hermitian)
 
     def picker(self, roots):
@@ -113,7 +113,7 @@ class SelfConsistent(BaseSolver):
         self.log.info("%4s %16s %16s", "Iter", "Root", "Delta")
         self.log.info("%4s %16s %16s", "-" * 4, "-" * 16, "-" * 16)
 
-        for cycle in range(1, self.max_cycle+1):
+        for cycle in range(1, self.max_cycle + 1):
             matrix = self.static + self.function(root)
             roots = self.eigvals(matrix)
             root = self.picker(roots)

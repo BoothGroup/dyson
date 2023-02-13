@@ -40,11 +40,9 @@ class BaseSolver:
         return out
 
     def flag_convergence(self, converged):
-        """Preset logging for convergence message.
-        """
+        """Preset logging for convergence message."""
 
         if converged:
             self.log.info("Successfully converged.")
         else:
             self.log.info("Failed to converge.")
-

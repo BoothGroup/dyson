@@ -86,10 +86,10 @@ class Davidson(BaseSolver):
 
         # Logging:
         self.log.info("Options:")
-        self.log.info(" > nroots:  %s", self.nroots) 
-        self.log.info(" > max_cycle:  %s", self.max_cycle) 
-        self.log.info(" > max_space:  %s", self.max_space) 
-        self.log.info(" > conv_tol:  %s", self.conv_tol) 
+        self.log.info(" > nroots:  %s", self.nroots)
+        self.log.info(" > max_cycle:  %s", self.max_cycle)
+        self.log.info(" > max_space:  %s", self.max_space)
+        self.log.info(" > conv_tol:  %s", self.conv_tol)
         self.log.info(" > hermitian:  %s", self.hermitian)
 
     def _kernel(self):
@@ -109,19 +109,19 @@ class Davidson(BaseSolver):
         if guess is None:
             args = np.argsort(np.abs(self.diagonal))
             guess = np.zeros((self.nroots, self.diagonal.size))
-            for root, idx in enumerate(args[:self.nroots]):
+            for root, idx in enumerate(args[: self.nroots]):
                 guess[root, idx] = 1.0
 
         convs, eigvals, eigvecs = lib.davidson1(
-                lambda vs: [self.matvec(v) for v in vs],
-                guess,
-                self.diagonal,
-                pick=self.picker,
-                tol=self.conv_tol,
-                max_cycle=self.max_cycle,
-                max_space=self.max_space,
-                nroots=self.nroots,
-                verbose=0,
+            lambda vs: [self.matvec(v) for v in vs],
+            guess,
+            self.diagonal,
+            pick=self.picker,
+            tol=self.conv_tol,
+            max_cycle=self.max_cycle,
+            max_space=self.max_space,
+            nroots=self.nroots,
+            verbose=0,
         )
         eigvals = np.array(eigvals)
         eigvecs = np.array(eigvecs).T
@@ -139,15 +139,15 @@ class Davidson(BaseSolver):
                 guess[root, guess] = 1.0
 
         convs, eigvals, eigvecs = lib.davidson_nosym1(
-                lambda vs: [self.matvec(v) for v in vs],
-                guess,
-                self.diagonal,
-                pick=self.picker,
-                tol=self.conv_tol,
-                max_cycle=self.max_cycle,
-                max_space=self.max_space,
-                nroots=self.nroots,
-                verbose=0,
+            lambda vs: [self.matvec(v) for v in vs],
+            guess,
+            self.diagonal,
+            pick=self.picker,
+            tol=self.conv_tol,
+            max_cycle=self.max_cycle,
+            max_space=self.max_space,
+            nroots=self.nroots,
+            verbose=0,
         )
         eigvals = np.array(eigvals)
         eigvecs = np.array(eigvecs).T

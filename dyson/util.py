@@ -3,6 +3,7 @@ Utility functions.
 """
 
 import warnings
+
 import numpy as np
 
 
@@ -28,12 +29,12 @@ def print_eigenvalues(eigvals, nroots=5, abs_sort=True, header=True):
         lines += ["{:^25s}".format("Eigenvalue summary")]
         lines += ["-" * 25]
     lines += [
-            "%4s %20s" % ("Root", "Value"),
-            "%4s %20s" % ("-" * 4, "-" * 20),
+        "%4s %20s" % ("Root", "Value"),
+        "%4s %20s" % ("-" * 4, "-" * 20),
     ]
 
     inds = np.argsort(np.abs(eigvals.real)) if abs_sort else np.argsort(eigvals.real)
-    for i in inds[:min(nroots, len(eigvals))]:
+    for i in inds[: min(nroots, len(eigvals))]:
         lines.append("%4d %20s" % (i, format_value(eigvals[i])))
 
     if nroots < len(eigvals):
@@ -44,7 +45,9 @@ def print_eigenvalues(eigvals, nroots=5, abs_sort=True, header=True):
     return "\n".join(lines)
 
 
-def print_dyson_orbitals(eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_threshold=1e-8, header=True):
+def print_dyson_orbitals(
+    eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_threshold=1e-8, header=True
+):
     """
     Returns a string summarising the projection of some eigenfunctions
     into the physical space, resulting in Dyson orbitals.
@@ -55,31 +58,47 @@ def print_dyson_orbitals(eigvals, eigvecs, nphys, nroots=5, abs_sort=True, phys_
         lines += ["{:^93s}".format("Dyson orbital summary")]
         lines += ["-" * 93]
     lines += [
-            "{:>4s} {:^20s} {:^33s} {:^33s}".format("", "", "Weight", ""),
-            "{:>4s} {:^20s} {:^33s} {:^33s}".format(
-                "Orb", "Energy", "-" * 33, "Dominant physical contributions",
-            ),
-            "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format("", "", "Physical", "Auxiliary", ""),
-            "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format(
-                "-" * 4, "-" * 20, "-" * 16, "-" * 16, "-" * 33,
-            ),
+        "{:>4s} {:^20s} {:^33s} {:^33s}".format("", "", "Weight", ""),
+        "{:>4s} {:^20s} {:^33s} {:^33s}".format(
+            "Orb",
+            "Energy",
+            "-" * 33,
+            "Dominant physical contributions",
+        ),
+        "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format("", "", "Physical", "Auxiliary", ""),
+        "{:>4s} {:^20s} {:>16s} {:>16s} {:>16s}".format(
+            "-" * 4,
+            "-" * 20,
+            "-" * 16,
+            "-" * 16,
+            "-" * 33,
+        ),
     ]
 
-    mask = np.linalg.norm(eigvecs[:nphys], axis=0)**2 > phys_threshold
+    mask = np.linalg.norm(eigvecs[:nphys], axis=0) ** 2 > phys_threshold
     inds = np.arange(eigvals.size)[mask]
-    inds = inds[np.argsort(np.abs(eigvals[inds].real)) if abs_sort else np.argsort(eigvals[inds].real)]
-    for i in inds[:min(nroots, len(eigvals))]:
+    inds = inds[
+        np.argsort(np.abs(eigvals[inds].real)) if abs_sort else np.argsort(eigvals[inds].real)
+    ]
+    for i in inds[: min(nroots, len(eigvals))]:
         v = eigvecs[:, i]
-        phys = np.linalg.norm(np.abs(v[:nphys]))**2
-        aux = np.linalg.norm(np.abs(v[nphys:]))**2
+        phys = np.linalg.norm(np.abs(v[:nphys])) ** 2
+        aux = np.linalg.norm(np.abs(v[nphys:])) ** 2
         chars = []
-        for j in np.argsort(np.abs(v[:nphys])**2):
-            if eigvecs[j, i]**2 > 0.2:
-                chars.append("%d (%.2f)" % (j, np.abs(eigvecs[j, i])**2))
+        for j in np.argsort(np.abs(v[:nphys]) ** 2):
+            if eigvecs[j, i] ** 2 > 0.2:
+                chars.append("%d (%.2f)" % (j, np.abs(eigvecs[j, i]) ** 2))
         chars = ", ".join(chars)
-        lines.append("%4d %20s %16.3g %16.3g %33s" % (
-            i, format_value(eigvals[i]), phys, aux, chars,
-        ))
+        lines.append(
+            "%4d %20s %16.3g %16.3g %33s"
+            % (
+                i,
+                format_value(eigvals[i]),
+                phys,
+                aux,
+                chars,
+            )
+        )
 
     if nroots < len(inds):
         lines.append(" ...")
@@ -135,7 +154,7 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
         power = power + 0.0j
         eigvecs_right = np.linalg.inv(eigvecs)
 
-    left = eigvecs[:, mask] * eigvals[mask][None]**power
+    left = eigvecs[:, mask] * eigvals[mask][None] ** power
     right = eigvecs_right[mask]
     m_pow = np.dot(left, right)
 
@@ -167,12 +186,20 @@ def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=
     if off_diagonal_lower is None:
         off_diagonal_lower = [m.T.conj() for m in off_diagonal_upper]
 
-    m = np.block([[
-        on_diagonal[i] if i == j else
-        off_diagonal_upper[j] if j == i-1 else
-        off_diagonal_lower[i] if i == j-1 else zero
-        for j in range(len(on_diagonal))]
-        for i in range(len(on_diagonal))]
+    m = np.block(
+        [
+            [
+                on_diagonal[i]
+                if i == j
+                else off_diagonal_upper[j]
+                if j == i - 1
+                else off_diagonal_lower[i]
+                if i == j - 1
+                else zero
+                for j in range(len(on_diagonal))
+            ]
+            for i in range(len(on_diagonal))
+        ]
     )
 
     return m

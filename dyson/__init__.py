@@ -83,8 +83,8 @@ def init_logging(log):
 
 # -- Other imports:
 
-from dyson.solvers.exact import Exact
-from dyson.solvers.self_consistent import SelfConsistent, DiagonalSelfConsistent
-from dyson.solvers.davidson import Davidson
 from dyson.solvers.block_lanczos_direct import BlockLanczosDirectSymm
 from dyson.solvers.block_lanczos_indirect import BlockLanczosIndirectSymm
+from dyson.solvers.davidson import Davidson
+from dyson.solvers.exact import Exact
+from dyson.solvers.self_consistent import DiagonalSelfConsistent, SelfConsistent
