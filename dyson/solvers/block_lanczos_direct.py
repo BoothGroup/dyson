@@ -187,7 +187,14 @@ class BlockLanczosDirectSymm(BaseSolver):
         )
 
         # Populate the other orthogonalised moments
+        orth, error_inv_sqrt = util.matrix_power(
+                self.moments[0],
+                -0.5,
+                hermitian=True,
+                return_error=True,
+        )
         for n in range(2 * self.max_cycle + 2):
+            # FIXME orth recalculated n+1 times
             self.coefficients[1, 1, n] = self.orthogonalised_moment(n)
 
         # First order on-diagonal block is the orthogonalised first
@@ -207,12 +214,13 @@ class BlockLanczosDirectSymm(BaseSolver):
 
         # Logging
         self.log.info(
-                "%4d %16.3g %16.3g %16.3g %16.3g",
+                "%4d %16.3g %16.3g %16.3g %16.3g %16.3g",
                 0,
                 error_moments,
                 np.linalg.norm(self.on_diagonal[1]),
                 np.linalg.norm(self.off_diagonal[0]),
                 error_sqrt,
+                error_inv_sqrt,
         )
 
     def recurrence_iteration(self):
@@ -236,7 +244,7 @@ class BlockLanczosDirectSymm(BaseSolver):
                 - util.hermi_sum(self.coefficient_times_off_diagonal(i, i-1, 1))
                 - np.dot(self.coefficients[i, i, 1], self.coefficients[i, i, 1])
         )
-        if i > 1:
+        if self.iteration > 1:
             off_diagonal_squared += np.dot(self.off_diagonal[i-1], self.off_diagonal[i-1])
 
         # Get the next off-diagonal block
@@ -255,7 +263,7 @@ class BlockLanczosDirectSymm(BaseSolver):
                 return_error=True,
         )
 
-        for n in range(2 * (self.max_cycle - i + 1)):
+        for n in range(2 * (self.max_cycle - self.iteration + 1)):
             residual = (
                     + self.coefficients[i, i, n+1]
                     - self.coefficient_times_off_diagonal(i, i-1, n).T.conj()
@@ -327,10 +335,8 @@ class BlockLanczosDirectSymm(BaseSolver):
                 [self.off_diagonal[i] for i in range(iteration+1)],
         )
 
-        nphys = self.static.shape[0]
-
-        energies, rotated_couplings = np.linalg.eigh(h_tri[nphys:, nphys:])
-        couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[:nphys])
+        energies, rotated_couplings = np.linalg.eigh(h_tri[self.nphys:, self.nphys:])
+        couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[:self.nphys])
 
         return energies, couplings
 
@@ -367,7 +373,30 @@ class BlockLanczosDirectSymm(BaseSolver):
 
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
 
-        nphys = self.static.shape[0]
-        self.log.info(util.print_dyson_orbitals(eigvals, eigvecs, nphys))
+        self.log.info(util.print_dyson_orbitals(eigvals, eigvecs, self.nphys))
 
         return eigvals, eigvecs
+
+    @property
+    def nphys(self):
+        return self.static.shape[0]
+
+
+def BlockLanczosDirect(static, moments, **kwargs):
+    """
+    Wrapper to construct a solver based on the Hermiticity of the
+    input, either by the `hermitian` keyword argument or by the
+    structure of the input matrices.
+    """
+
+    if "hermitian" in kwargs:
+        hermitian = kwargs.pop("hermitian")
+    else:
+        hermitian = all(np.allclose(m, m.T.conj()) for m in [static, *moments])
+
+    if hermitian:
+        return BlockLanczosDirectSymm(static, moments, **kwargs)
+    else:
+        raise NotImplementedError
+
+BlockLanczosDirect.__doc__ = BlockLanczosDirectSymm.__doc__
