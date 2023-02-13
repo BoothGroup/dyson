@@ -2,6 +2,7 @@
 Utility functions.
 """
 
+import warnings
 import numpy as np
 
 
@@ -112,22 +113,24 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
     """
 
     if hermitian:
+        assert np.allclose(m, m.T.conj())
         eigvals, eigvecs = np.linalg.eigh(m)
     else:
         eigvals, eigvecs = np.linalg.eig(m)
 
-    if np.abs(power) < 1:
+    if power < 0:
+        # Remove singularities
         mask = np.abs(eigvals) > threshold
     else:
         mask = np.ones_like(eigvals, dtype=bool)
 
     if hermitian and not np.iscomplexobj(m):
-        if np.abs(power) < 0:
+        if np.abs(power) < 1:
             mask = np.logical_and(mask, eigvals > 0)
-        eigvecs_right = (eigvecs.T)
+        eigvecs_right = eigvecs.T.conj()
     elif hermitian and np.iscomplexobj(m):
         power = power + 0.0j
-        eigvecs_right = (eigvecs.T.conj())
+        eigvecs_right = eigvecs.T.conj()
     else:
         power = power + 0.0j
         eigvecs_right = np.linalg.inv(eigvecs)
