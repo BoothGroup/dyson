@@ -87,7 +87,7 @@ class SelfConsistent(BaseSolver):
             elif self.target == "max":
                 root = np.max(roots)
             elif self.target == "mindif":
-                root = np.min(np.abs(roots - self.guess))
+                root = roots[np.argmin(np.abs(roots - self.guess))]
             else:
                 raise ValueError("`target = %s`" % self.target)
 
