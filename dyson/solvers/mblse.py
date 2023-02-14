@@ -154,6 +154,29 @@ class MBLSE_Symm(BaseSolver):
             )
         )
 
+    def _check_moment_error(self, iteration=None):
+        """
+        Check the error in the moments at a given iteration.
+        """
+
+        if iteration is None:
+            iteration = self.iteration
+
+        energies, couplings = self.get_auxiliaries(iteration=iteration)
+
+        left = couplings.copy()
+        moments_recovered = []
+        for n in range(2 * iteration + 2):
+            moments_recovered.append(np.dot(left, couplings.T.conj()))
+            left = left * energies[None]
+
+        error_moments = util.scaled_error(
+            np.array(moments_recovered),
+            self.moments[: 2 * iteration + 2],
+        )
+
+        return error_moments
+
     def initialise_recurrence(self):
         """
         Initialise the recurrences - performs the 'zeroth' iteration.
@@ -225,15 +248,7 @@ class MBLSE_Symm(BaseSolver):
         self.on_diagonal[1] = self.coefficients[1, 1, 1]
 
         # Check the error in the moments up to this iteration
-        energies, couplings = self.get_auxiliaries(iteration=0)
-        moments_recovered = [
-            np.dot(couplings, couplings.T.conj()),
-            np.dot(couplings * energies[None], couplings.T.conj()),
-        ]
-        error_moments = util.scaled_error(
-            np.array(moments_recovered),
-            self.moments[:2],
-        )
+        error_moments = self._check_moment_error(iteration=0)
 
         # Logging
         self.log.info(
@@ -325,16 +340,7 @@ class MBLSE_Symm(BaseSolver):
         self.on_diagonal[i + 1] = self.coefficients[i + 1, i + 1, 1]
 
         # Check the error in the moments up to this iteration
-        energies, couplings = self.get_auxiliaries(iteration=self.iteration)
-        left = couplings.copy()
-        moments_recovered = []
-        for n in range(2 * self.iteration + 2):
-            moments_recovered.append(np.dot(left, couplings.T.conj()))
-            left = left * energies[None]
-        error_moments = util.scaled_error(
-            np.array(moments_recovered),
-            self.moments[: 2 * self.iteration + 2],
-        )
+        error_moments = self._check_moment_error()
 
         # Logging
         self.log.info(

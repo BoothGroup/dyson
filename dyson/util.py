@@ -219,3 +219,26 @@ def scaled_error(a, b):
     b = b / max(np.max(np.abs(b)), 1)
 
     return np.linalg.norm(a - b)
+
+
+def remove_unphysical(eigvecs, nphys, eigvals=None, tol=1e-8):
+    """
+    Remove eigenvectors with a small physical component.
+    """
+
+    if isinstance(eigvecs, tuple):
+        eigvecs_l, eigvecs_r = eigvecs
+    else:
+        eigvecs_l = eigvecs_r = eigvecs
+
+    mask = np.sum(eigvecs_l[:nphys] * eigvecs_r.conj()[:nphys], axis=0) > tol
+
+    if isinstance(eigvecs, tuple):
+        eigvecs_out = (eigvecs_l[:, mask], eigvecs_r[:, mask])
+    else:
+        eigvecs_out = eigvecs[:, mask]
+
+    if eigvals is not None:
+        return eigvals[mask], eigvecs_out
+    else:
+        return eigvecs_out

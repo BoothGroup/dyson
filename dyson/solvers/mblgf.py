@@ -96,7 +96,7 @@ class MBLGF_Symm(BaseSolver):
         self._cache = {}
         self.coefficients = RecurrenceCoefficients(
             self.moments[0].shape,
-            hermitian=True,
+            hermitian=self.hermitian,
             dtype=np.result_type(*self.moments),
         )
         self.on_diagonal = {}
@@ -112,7 +112,7 @@ class MBLGF_Symm(BaseSolver):
 
         orth = self.orth
         if orth is None:
-            orth = util.matrix_power(self.moments[0], -0.5, hermitian=True)
+            orth = util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)
 
         return np.linalg.multi_dot(
             (
@@ -204,7 +204,7 @@ class MBLGF_Symm(BaseSolver):
         self.orth, error_inv_sqrt = util.matrix_power(
             self.moments[0],
             -0.5,
-            hermitian=True,
+            hermitian=self.hermitian,
             return_error=True,
         )
 
@@ -271,7 +271,7 @@ class MBLGF_Symm(BaseSolver):
         self.off_diagonal[i], error_sqrt = util.matrix_power(
             off_diagonal_squared,
             0.5,
-            hermitian=True,
+            hermitian=self.hermitian,
             return_error=True,
         )
 
@@ -279,7 +279,7 @@ class MBLGF_Symm(BaseSolver):
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
             off_diagonal_squared,
             -0.5,
-            hermitian=True,
+            hermitian=self.hermitian,
             return_error=True,
         )
 
@@ -417,12 +417,12 @@ class MBLGF_NoSymm(MBLGF_Symm):
         self.coefficients = [
                 RecurrenceCoefficients(
                     self.moments[0].shape,
-                    hermitian=False,
+                    hermitian=self.hermitian,
                     dtype=np.result_type(*self.moments),
                 ),
                 RecurrenceCoefficients(
                     self.moments[0].shape,
-                    hermitian=False,
+                    hermitian=self.hermitian,
                     dtype=np.result_type(*self.moments),
                 ),
         ]
@@ -515,7 +515,7 @@ class MBLGF_NoSymm(MBLGF_Symm):
         self.orth, error_inv_sqrt = util.matrix_power(
             self.moments[0],
             -0.5,
-            hermitian=True,
+            hermitian=self.hermitian,
             return_error=True,
         )
 
@@ -602,13 +602,13 @@ class MBLGF_NoSymm(MBLGF_Symm):
         self.off_diagonal[0][i], error_sqrt_upper = util.matrix_power(
                 off_diagonal_squared[0],
                 0.5,
-                hermitian=False,
+                hermitian=self.hermitian,
                 return_error=True,
         )
         self.off_diagonal[1][i], error_sqrt_lower = util.matrix_power(
                 off_diagonal_squared[1],
                 0.5,
-                hermitian=False,
+                hermitian=self.hermitian,
                 return_error=True,
         )
         error_sqrt = np.sqrt(error_sqrt_upper**2 + error_sqrt_lower**2)
@@ -617,13 +617,13 @@ class MBLGF_NoSymm(MBLGF_Symm):
         off_diagonal_inv_upper, error_inv_sqrt_upper = util.matrix_power(
                 off_diagonal_squared[0],
                 -0.5,
-                hermitian=False,
+                hermitian=self.hermitian,
                 return_error=True,
         )
         off_diagonal_inv_lower, error_inv_sqrt_lower = util.matrix_power(
                 off_diagonal_squared[1],
                 -0.5,
-                hermitian=False,
+                hermitian=self.hermitian,
                 return_error=True,
         )
         error_inv_sqrt = np.sqrt(error_inv_sqrt_upper**2 + error_inv_sqrt_lower**2)
