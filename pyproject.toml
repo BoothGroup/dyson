@@ -73,6 +73,7 @@ src_paths = [
 ]
 skip_glob = [
     "*__pycache__*",
+    "*__init__*",
 ]
 
 [tool.coverage.run]
