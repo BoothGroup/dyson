@@ -285,7 +285,7 @@ class MBLGF_Symm(BaseSolver):
 
         for j in range(i + 2):
             residual = (
-                + self.coefficients[i + 1, j]
+                +self.coefficients[i + 1, j]
                 - np.dot(self.coefficients[i + 1, j + 1], self.on_diagonal[i])
                 - np.dot(self.coefficients[i, j + 1], self.off_diagonal[i - 1])
             )
@@ -415,16 +415,16 @@ class MBLGF_NoSymm(MBLGF_Symm):
         # Caching:
         self._cache = {}
         self.coefficients = [
-                RecurrenceCoefficients(
-                    self.moments[0].shape,
-                    hermitian=self.hermitian,
-                    dtype=np.result_type(*self.moments),
-                ),
-                RecurrenceCoefficients(
-                    self.moments[0].shape,
-                    hermitian=self.hermitian,
-                    dtype=np.result_type(*self.moments),
-                ),
+            RecurrenceCoefficients(
+                self.moments[0].shape,
+                hermitian=self.hermitian,
+                dtype=np.result_type(*self.moments),
+            ),
+            RecurrenceCoefficients(
+                self.moments[0].shape,
+                hermitian=self.hermitian,
+                dtype=np.result_type(*self.moments),
+            ),
         ]
         self.on_diagonal = {}
         self.off_diagonal = [{}, {}]
@@ -560,8 +560,8 @@ class MBLGF_NoSymm(MBLGF_Symm):
 
         # Find the square of the next off-diagonal blocks
         off_diagonal_squared = [
-                self.coefficients[0].zero.astype(complex).copy(),
-                self.coefficients[1].zero.astype(complex).copy(),
+            self.coefficients[0].zero.astype(complex).copy(),
+            self.coefficients[1].zero.astype(complex).copy(),
         ]
         for j in range(i + 2):
             for k in range(i + 1):
@@ -581,63 +581,63 @@ class MBLGF_NoSymm(MBLGF_Symm):
                 )
 
         off_diagonal_squared[0] -= np.dot(
-                self.on_diagonal[i],
-                self.on_diagonal[i],
+            self.on_diagonal[i],
+            self.on_diagonal[i],
         )
         off_diagonal_squared[1] -= np.dot(
-                self.on_diagonal[i],
-                self.on_diagonal[i],
+            self.on_diagonal[i],
+            self.on_diagonal[i],
         )
         if i:
             off_diagonal_squared[0] -= np.dot(
-                    self.off_diagonal[1][i - 1],
-                    self.off_diagonal[1][i - 1],
+                self.off_diagonal[1][i - 1],
+                self.off_diagonal[1][i - 1],
             )
             off_diagonal_squared[1] -= np.dot(
-                    self.off_diagonal[0][i - 1],
-                    self.off_diagonal[0][i - 1],
+                self.off_diagonal[0][i - 1],
+                self.off_diagonal[0][i - 1],
             )
 
         # Get the next off-diagonal blocks
         self.off_diagonal[0][i], error_sqrt_upper = util.matrix_power(
-                off_diagonal_squared[0],
-                0.5,
-                hermitian=self.hermitian,
-                return_error=True,
+            off_diagonal_squared[0],
+            0.5,
+            hermitian=self.hermitian,
+            return_error=True,
         )
         self.off_diagonal[1][i], error_sqrt_lower = util.matrix_power(
-                off_diagonal_squared[1],
-                0.5,
-                hermitian=self.hermitian,
-                return_error=True,
+            off_diagonal_squared[1],
+            0.5,
+            hermitian=self.hermitian,
+            return_error=True,
         )
         error_sqrt = np.sqrt(error_sqrt_upper**2 + error_sqrt_lower**2)
 
         # Get the inverse of the off-diagonal blocks
         off_diagonal_inv_upper, error_inv_sqrt_upper = util.matrix_power(
-                off_diagonal_squared[0],
-                -0.5,
-                hermitian=self.hermitian,
-                return_error=True,
+            off_diagonal_squared[0],
+            -0.5,
+            hermitian=self.hermitian,
+            return_error=True,
         )
         off_diagonal_inv_lower, error_inv_sqrt_lower = util.matrix_power(
-                off_diagonal_squared[1],
-                -0.5,
-                hermitian=self.hermitian,
-                return_error=True,
+            off_diagonal_squared[1],
+            -0.5,
+            hermitian=self.hermitian,
+            return_error=True,
         )
         error_inv_sqrt = np.sqrt(error_inv_sqrt_upper**2 + error_inv_sqrt_lower**2)
 
         for j in range(i + 2):
             residual = (
-                + self.coefficients[0][i + 1, j]
+                +self.coefficients[0][i + 1, j]
                 - np.dot(self.coefficients[0][i + 1, j + 1], self.on_diagonal[i])
                 - np.dot(self.coefficients[0][i, j + 1], self.off_diagonal[0][i - 1])
             )
             self.coefficients[0][i + 2, j + 1] = np.dot(residual, off_diagonal_inv_lower)
 
             residual = (
-                + self.coefficients[1][i + 1, j]
+                +self.coefficients[1][i + 1, j]
                 - np.dot(self.on_diagonal[i], self.coefficients[1][i + 1, j + 1])
                 - np.dot(self.off_diagonal[1][i - 1], self.coefficients[1][i, j + 1])
             )
@@ -690,8 +690,8 @@ class MBLGF_NoSymm(MBLGF_Symm):
         eigvecs_l = eigvecs
         eigvecs_r = np.linalg.inv(eigvecs).T.conj()
 
-        eigvecs_l[:self.nphys] = np.dot(self.orth, eigvecs_l[:self.nphys])
-        eigvecs_r[:self.nphys] = np.dot(self.orth, eigvecs_r[:self.nphys])
+        eigvecs_l[: self.nphys] = np.dot(self.orth, eigvecs_l[: self.nphys])
+        eigvecs_r[: self.nphys] = np.dot(self.orth, eigvecs_r[: self.nphys])
         eigvecs = (eigvecs_l, eigvecs_r)
 
         return eigvals, eigvecs
