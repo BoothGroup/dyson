@@ -136,8 +136,8 @@ class Davidson(BaseSolver):
         if guess is None:
             args = np.argsort(np.abs(self.diagonal))
             guess = np.zeros((self.nroots, self.diagonal.size))
-            for root, guess in enumerate(args[:guess]):
-                guess[root, guess] = 1.0
+            for root, idx in enumerate(args[: self.nroots]):
+                guess[root, idx] = 1.0
 
         convs, eigvals, eigvecs = lib.davidson_nosym1(
             lambda vs: [self.matvec(v) for v in vs],
