@@ -427,6 +427,3 @@ def BlockLanczosDirect(static, moments, **kwargs):
         return BlockLanczosDirectSymm(static, moments, **kwargs)
     else:
         raise NotImplementedError
-
-
-BlockLanczosDirect.__doc__ = BlockLanczosDirectSymm.__doc__
