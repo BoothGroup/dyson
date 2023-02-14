@@ -332,10 +332,7 @@ class MBLGF_Symm(BaseSolver):
         )
 
         eigvals, eigvecs = np.linalg.eigh(h_tri)
-        dyson_orbitals = np.dot(self.orth, eigvecs[: self.nphys])
-
-        eigvecs = np.eye(eigvals.size).astype(dyson_orbitals.dtype)
-        eigvecs[: self.nphys] = dyson_orbitals
+        eigvecs[: self.nphys] = np.dot(self.orth, eigvecs[: self.nphys])
 
         return eigvals, eigvecs
 
@@ -690,11 +687,11 @@ class MBLGF_NoSymm(MBLGF_Symm):
 
         eigvals, eigvecs = np.linalg.eig(h_tri)
 
-        eigvecs_l = np.eye(eigvals.size).astype(eigvecs.dtype)
-        eigvecs_r = np.eye(eigvals.size).astype(eigvecs.dtype)
+        eigvecs_l = eigvecs
+        eigvecs_r = np.linalg.inv(eigvecs).T.conj()
 
-        eigvecs_l[:self.nphys] = np.dot(self.orth, eigvecs[:self.nphys])
-        eigvecs_r[:self.nphys] = np.dot(self.orth, np.linalg.inv(eigvecs)[:, :self.nphys].T.conj())
+        eigvecs_l[:self.nphys] = np.dot(self.orth, eigvecs_l[:self.nphys])
+        eigvecs_r[:self.nphys] = np.dot(self.orth, eigvecs_r[:self.nphys])
         eigvecs = (eigvecs_l, eigvecs_r)
 
         return eigvals, eigvecs

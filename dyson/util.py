@@ -80,13 +80,13 @@ def print_dyson_orbitals(
     else:
         eigvecs_l = eigvecs_r = eigvecs
 
-    mask = np.sum(eigvecs_l * eigvecs_r.conj(), axis=0) > phys_threshold
+    mask = np.sum(np.abs(eigvecs_l * eigvecs_r.conj()), axis=0) > phys_threshold
     inds = np.arange(eigvals.size)[mask]
     inds = inds[
         np.argsort(np.abs(eigvals[inds].real)) if abs_sort else np.argsort(eigvals[inds].real)
     ]
     for i in inds[: min(nroots, len(eigvals))]:
-        v = eigvecs_l[:, i] * eigvecs_r[:, i].conj()
+        v = np.abs(eigvecs_l[:, i] * eigvecs_r[:, i].conj())
         phys = np.sum(v[:nphys])
         aux = np.sum(v[nphys:])
         chars = []
