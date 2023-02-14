@@ -1,6 +1,6 @@
 """
 Moment-conserving block Lanczos eigensolver, conserving moments of
-the input matrix.
+the self-energy.
 """
 
 import warnings
@@ -51,17 +51,17 @@ class RecurrenceCoefficients:
             self.data[j, i, n] = val.T.conj()
 
 
-class BlockLanczosDirectSymm(BaseSolver):
+class MBLSE_Symm(BaseSolver):
     """
     Moment-conserving block Lanczos eingsolver, conserving the
-    moments of the input matrix, for Hermitian moments.
+    moments of the self-energy, for a Hermitian self-energy.
 
     Input
     -----
     static : numpy.ndarray
-        Static part of the matrix (i.e. self-energy).
+        Static part of the self-energy.
     moments : numpy.ndarray
-        Moments of the matrix (i.e. self-energy)
+        Moments of the self-energy.
 
     Parameters
     ----------
@@ -411,7 +411,7 @@ class BlockLanczosDirectSymm(BaseSolver):
         return self.static.shape[0]
 
 
-def BlockLanczosDirect(static, moments, **kwargs):
+def MBLSE(static, moments, **kwargs):
     """
     Wrapper to construct a solver based on the Hermiticity of the
     input, either by the `hermitian` keyword argument or by the
@@ -424,6 +424,6 @@ def BlockLanczosDirect(static, moments, **kwargs):
         hermitian = all(np.allclose(m, m.T.conj()) for m in [static, *moments])
 
     if hermitian:
-        return BlockLanczosDirectSymm(static, moments, **kwargs)
+        return MBLSE_Symm(static, moments, **kwargs)
     else:
         raise NotImplementedError

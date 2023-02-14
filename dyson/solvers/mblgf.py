@@ -1,6 +1,6 @@
 """
 Moment-conserving block Lanczos eigensolver, conserving moments
-of the solution to the input matrix.
+of the Green's function.
 """
 
 import warnings
@@ -40,16 +40,15 @@ class RecurrenceCoefficients:
         self.data[i, j] = val
 
 
-class BlockLanczosIndirectSymm(BaseSolver):
+class MBLGF_Symm(BaseSolver):
     """
     Moment-conserving block Lanczos eigensolver, conserving the
-    moments of the solution to the input matrix.
+    moments of the Green's function, for a Hermitian Green's function.
 
     Input
     -----
     moments : numpy.ndarray
-        Moments of the solution to the input matrix (i.e. Green's
-        function).
+        Moments of the Green's function.
 
     Parameters
     ----------
@@ -364,17 +363,15 @@ class BlockLanczosIndirectSymm(BaseSolver):
         return self.moments[0].shape[0]
 
 
-class BlockLanczosIndirectNoSymm(BlockLanczosIndirectSymm):
+class MBLGF_NoSymm(MBLGF_Symm):
     """
     Moment-conserving block Lanczos eigensolver, conserving the
-    moments of the solution to the input matrix for non-Hermitian
-    moments.
+    moments of the Green's function, for a Hermitian Green's function.
 
     Input
     -----
     moments : numpy.ndarray
-        Moments of the solution to the input matrix (i.e. Green's
-        function).
+        Moments of the Green's function.
 
     Parameters
     ----------
@@ -703,7 +700,7 @@ class BlockLanczosIndirectNoSymm(BlockLanczosIndirectSymm):
         return eigvals, eigvecs
 
 
-def BlockLanczosIndirect(moments, **kwargs):
+def MBLGF(moments, **kwargs):
     """
     Wrapper to construct a solver based on the Hermiticity of the
     input, either by the `hermitian` keyword argument or by the
@@ -716,6 +713,6 @@ def BlockLanczosIndirect(moments, **kwargs):
         hermitian = all(np.allclose(m, m.T.conj()) for m in moments)
 
     if hermitian:
-        return BlockLanczosDirectSymm(moments, **kwargs)
+        return MBLGF_Symm(moments, **kwargs)
     else:
-        return BlockLanczosIndirectSymm(moments, **kwargs)
+        return MBLGF_NoSymm(moments, **kwargs)

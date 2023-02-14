@@ -1,5 +1,5 @@
 """
-Exact eigensolver on the dense upfolded matrix.
+Exact eigensolver on the dense upfolded self-energy.
 """
 
 import numpy as np
@@ -11,12 +11,12 @@ from dyson.solvers import BaseSolver
 
 class Exact(BaseSolver):
     """
-    Exact eigensolver on the dense upfolded matrix.
+    Exact eigensolver on the dense upfolded self-energy.
 
     Input
     -----
     matrix : numpy.ndarray (n, n)
-        Dense representation of the self-energy matrix.
+        Dense representation of the upfolded self-energy matrix.
 
     Parameters
     ----------

@@ -1,6 +1,6 @@
 """
 Davidson eigensolver using the matrix-vector operation on the
-upfolded matrix.
+upfolded self-energy.
 
 Interfaces pyscf.lib.
 """
@@ -20,16 +20,17 @@ from dyson.solvers import BaseSolver
 class Davidson(BaseSolver):
     """
     Davidson eigensolver using the matrix-vector operation on the
-    upfolded matrix.
+    upfolded self-energy.
 
     Input
     -----
     matvec : callable
-        Function returning the result of the dot-product of the matrix
-        with an arbitrary state vector. Input arguments are `vector`.
+        Function returning the result of the dot-product of the
+        upfolded self-energy with an arbitrary state vector. Input
+        arguments are `vector`.
     diagonal : numpy.ndarray (n,)
-        Diagonal entries of the upfolded matrix to precondition the
-        solver.
+        Diagonal entries of the upfolded self-energy to precondition
+        the solver.
 
     Parameters
     ----------
