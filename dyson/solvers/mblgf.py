@@ -124,7 +124,7 @@ class MBLGF_Symm(BaseSolver):
 
     def initialise_iteration_table(self):
         """
-        Print the header for the table sumarising the iterations.
+        Print the header for the table summarising the iterations.
         """
 
         self.log.info("-" * 89)

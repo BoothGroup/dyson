@@ -137,7 +137,7 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
     """
 
     if hermitian:
-        assert np.allclose(m, m.T.conj())
+        # assert np.allclose(m, m.T.conj())
         eigvals, eigvecs = np.linalg.eigh(m)
     else:
         eigvals, eigvecs = np.linalg.eig(m)

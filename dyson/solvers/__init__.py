@@ -4,3 +4,4 @@ from dyson.solvers.davidson import Davidson
 from dyson.solvers.self_consistent import DiagonalSelfConsistent, SelfConsistent
 from dyson.solvers.mblse import MBLSE
 from dyson.solvers.mblgf import MBLGF
+from dyson.solvers.kpmgf import KPMGF
