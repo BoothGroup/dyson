@@ -180,7 +180,10 @@ class MBLGF_Symm(BaseSolver):
             moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
             left = left * energies[None]
 
-        error_moments = sum(util.scaled_error(a, b) for a, b in zip(moments_recovered, self.moments[:2*iteration+2]))
+        error_moments = sum(
+            util.scaled_error(a, b)
+            for a, b in zip(moments_recovered, self.moments[: 2 * iteration + 2])
+        )
 
         return error_moments
 
