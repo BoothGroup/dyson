@@ -231,7 +231,7 @@ def remove_unphysical(eigvecs, nphys, eigvals=None, tol=1e-8):
     else:
         eigvecs_l = eigvecs_r = eigvecs
 
-    mask = np.sum(eigvecs_l[:nphys] * eigvecs_r.conj()[:nphys], axis=0) > tol
+    mask = np.abs(np.sum(eigvecs_l[:nphys] * eigvecs_r.conj()[:nphys], axis=0)) > tol
 
     if isinstance(eigvecs, tuple):
         eigvecs_out = (eigvecs_l[:, mask], eigvecs_r[:, mask])

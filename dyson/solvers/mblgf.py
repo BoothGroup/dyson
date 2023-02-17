@@ -180,10 +180,7 @@ class MBLGF_Symm(BaseSolver):
             moments_recovered.append(np.dot(left, dyson_orbitals.T.conj()))
             left = left * energies[None]
 
-        error_moments = util.scaled_error(
-            np.array(moments_recovered),
-            self.moments[: 2 * iteration + 2],
-        )
+        error_moments = sum(util.scaled_error(a, b) for a, b in zip(moments_recovered, self.moments[:2*iteration+2]))
 
         return error_moments
 
@@ -686,6 +683,9 @@ class MBLGF_NoSymm(MBLGF_Symm):
         )
 
         eigvals, eigvecs = np.linalg.eig(h_tri)
+        mask = np.argsort(eigvals.real)
+        eigvals = eigvals[mask]
+        eigvecs = eigvecs[:, mask]
 
         eigvecs_l = eigvecs
         eigvecs_r = np.linalg.inv(eigvecs).T.conj()
