@@ -388,6 +388,8 @@ class MBLGF_NoSymm(MBLGF_Symm):
     """
 
     def __init__(self, moments, **kwargs):
+        warnings.warn("Probably a bug somewhere here")
+
         # Input:
         self.moments = moments
 
