@@ -6,7 +6,7 @@ Example of the Green's function moment kernel polynomial method
 import numpy as np
 import matplotlib.pyplot as plt
 from pyscf import gto, scf, agf2, lib
-from dyson import KPMGF
+from dyson import KPMGF, util
 
 ncheb = 50  # Number of Chebyshev moments
 kernel_type = "lorentz"  # Kernel method
@@ -42,16 +42,11 @@ solver = KPMGF(moments, grid, (a, b), kernel_type=kernel_type)
 sf = solver.kernel()
 
 # Get a reference spectral function for comparison
-sf_ref = -lib.einsum(
-        "pk,qk,wk->wpq",
-        gf.coupling,
-        gf.coupling,
-        1.0/(grid[:,None]-gf.energy[None]+1.0j),
-).imag / np.pi
+sf_ref = util.build_spectral_function(gf.energy, gf.coupling, grid, eta=1.0)
 
 # Plot the results
-plt.plot(grid, np.trace(sf_ref, axis1=1, axis2=2), "C0-", label="Reference")
-plt.plot(grid, np.trace(sf, axis1=1, axis2=2), "C1-", label="KPMGF")
+plt.plot(grid, sf_ref, "C0-", label="Reference")
+plt.plot(grid, sf, "C1-", label="KPMGF")
 plt.legend()
 plt.xlabel("Frequency (Ha)")
 plt.ylabel("Spectral function")
