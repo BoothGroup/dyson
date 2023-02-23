@@ -97,9 +97,7 @@ class MBLGF_Symm(BaseSolver):
         # Caching:
         self._cache = {}
         self.coefficients = RecurrenceCoefficients(
-            self.moments[0].shape,
-            hermitian=self.hermitian,
-            dtype=np.result_type(*self.moments),
+            self.moments[0].shape, hermitian=self.hermitian, dtype=np.result_type(*self.moments),
         )
         self.on_diagonal = {}
         self.off_diagonal = {}
@@ -116,13 +114,7 @@ class MBLGF_Symm(BaseSolver):
         if orth is None:
             orth = util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)
 
-        return np.linalg.multi_dot(
-            (
-                orth,
-                self.moments[n],
-                orth,
-            )
-        )
+        return np.linalg.multi_dot((orth, self.moments[n], orth,))
 
     def initialise_iteration_table(self):
         """
@@ -132,19 +124,11 @@ class MBLGF_Symm(BaseSolver):
         self.log.info("-" * 89)
         self.log.info(
             "{:^4s} {:^16s} {:^33s} {:^33}".format(
-                "",
-                "",
-                "Norm of matrix",
-                "Norm of removed space",
+                "", "", "Norm of matrix", "Norm of removed space",
             )
         )
         self.log.info(
-            "{:^4s} {:^16s} {:^33s} {:^33}".format(
-                "Iter",
-                "Moment error",
-                "-" * 33,
-                "-" * 33,
-            )
+            "{:^4s} {:^16s} {:^33s} {:^33}".format("Iter", "Moment error", "-" * 33, "-" * 33,)
         )
         self.log.info(
             "%4s %16s %16s %16s %16s %16s",
@@ -203,10 +187,7 @@ class MBLGF_Symm(BaseSolver):
 
         # Calculate the orthogonalisation matrix
         self.orth, error_inv_sqrt = util.matrix_power(
-            self.moments[0],
-            -0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            self.moments[0], -0.5, hermitian=self.hermitian, return_error=True,
         )
 
         # Add zero matrix to out-of-bounds off-diagonal to simplify logic
@@ -258,30 +239,18 @@ class MBLGF_Symm(BaseSolver):
                     )
                 )
 
-        off_diagonal_squared -= np.dot(
-            self.on_diagonal[i],
-            self.on_diagonal[i],
-        )
+        off_diagonal_squared -= np.dot(self.on_diagonal[i], self.on_diagonal[i],)
         if i:
-            off_diagonal_squared -= np.dot(
-                self.off_diagonal[i - 1],
-                self.off_diagonal[i - 1],
-            )
+            off_diagonal_squared -= np.dot(self.off_diagonal[i - 1], self.off_diagonal[i - 1],)
 
         # Get the next off-diagonal block
         self.off_diagonal[i], error_sqrt = util.matrix_power(
-            off_diagonal_squared,
-            0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared, 0.5, hermitian=self.hermitian, return_error=True,
         )
 
         # Get the inverse of the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
-            off_diagonal_squared,
-            -0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared, -0.5, hermitian=self.hermitian, return_error=True,
         )
 
         for j in range(i + 2):
@@ -344,7 +313,7 @@ class MBLGF_Symm(BaseSolver):
 
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
 
-        return eigvals, eigvecs[:self.nphys]
+        return eigvals, eigvecs[: self.nphys]
 
     def get_auxiliaries(self, iteration=None):
         """
@@ -469,19 +438,11 @@ class MBLGF_NoSymm(MBLGF_Symm):
         self.log.info("-" * 106)
         self.log.info(
             "{:^4s} {:^16s} {:^50s} {:^33}".format(
-                "",
-                "",
-                "Norm of matrix",
-                "Norm of removed space",
+                "", "", "Norm of matrix", "Norm of removed space",
             )
         )
         self.log.info(
-            "{:^4s} {:^16s} {:^50s} {:^33}".format(
-                "Iter",
-                "Moment error",
-                "-" * 50,
-                "-" * 33,
-            )
+            "{:^4s} {:^16s} {:^50s} {:^33}".format("Iter", "Moment error", "-" * 50, "-" * 33,)
         )
         self.log.info(
             "%4s %16s %16s %16s %16s %16s %16s",
@@ -522,8 +483,7 @@ class MBLGF_NoSymm(MBLGF_Symm):
             left = left * energies[None]
 
         error_moments = util.scaled_error(
-            np.array(moments_recovered),
-            self.moments[: 2 * iteration + 2],
+            np.array(moments_recovered), self.moments[: 2 * iteration + 2],
         )
 
         return error_moments
@@ -543,10 +503,7 @@ class MBLGF_NoSymm(MBLGF_Symm):
 
         # Calculate the orthogonalisation matrix
         self.orth, error_inv_sqrt = util.matrix_power(
-            self.moments[0],
-            -0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            self.moments[0], -0.5, hermitian=self.hermitian, return_error=True,
         )
 
         # Add zero matrix to out-of-bounds off-diagonal to simplify logic
@@ -610,53 +567,33 @@ class MBLGF_NoSymm(MBLGF_Symm):
                     )
                 )
 
-        off_diagonal_squared[0] -= np.dot(
-            self.on_diagonal[i],
-            self.on_diagonal[i],
-        )
-        off_diagonal_squared[1] -= np.dot(
-            self.on_diagonal[i],
-            self.on_diagonal[i],
-        )
+        off_diagonal_squared[0] -= np.dot(self.on_diagonal[i], self.on_diagonal[i],)
+        off_diagonal_squared[1] -= np.dot(self.on_diagonal[i], self.on_diagonal[i],)
         if i:
             off_diagonal_squared[0] -= np.dot(
-                self.off_diagonal[1][i - 1],
-                self.off_diagonal[1][i - 1],
+                self.off_diagonal[1][i - 1], self.off_diagonal[1][i - 1],
             )
             off_diagonal_squared[1] -= np.dot(
-                self.off_diagonal[0][i - 1],
-                self.off_diagonal[0][i - 1],
+                self.off_diagonal[0][i - 1], self.off_diagonal[0][i - 1],
             )
 
         # Get the next off-diagonal blocks
         self.off_diagonal[0][i], error_sqrt_upper = util.matrix_power(
-            off_diagonal_squared[0],
-            0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared[0], 0.5, hermitian=self.hermitian, return_error=True,
         )
         self.off_diagonal[1][i], error_sqrt_lower = util.matrix_power(
-            off_diagonal_squared[1],
-            0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared[1], 0.5, hermitian=self.hermitian, return_error=True,
         )
-        error_sqrt = np.sqrt(error_sqrt_upper**2 + error_sqrt_lower**2)
+        error_sqrt = np.sqrt(error_sqrt_upper ** 2 + error_sqrt_lower ** 2)
 
         # Get the inverse of the off-diagonal blocks
         off_diagonal_inv_upper, error_inv_sqrt_upper = util.matrix_power(
-            off_diagonal_squared[0],
-            -0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared[0], -0.5, hermitian=self.hermitian, return_error=True,
         )
         off_diagonal_inv_lower, error_inv_sqrt_lower = util.matrix_power(
-            off_diagonal_squared[1],
-            -0.5,
-            hermitian=self.hermitian,
-            return_error=True,
+            off_diagonal_squared[1], -0.5, hermitian=self.hermitian, return_error=True,
         )
-        error_inv_sqrt = np.sqrt(error_inv_sqrt_upper**2 + error_inv_sqrt_lower**2)
+        error_inv_sqrt = np.sqrt(error_inv_sqrt_upper ** 2 + error_inv_sqrt_lower ** 2)
 
         for j in range(i + 2):
             residual = (
@@ -736,10 +673,10 @@ class MBLGF_NoSymm(MBLGF_Symm):
 
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
 
-        return eigvals, (eigvecs[0][:self.nphys], eigvecs[1][:self.nphys])
+        return eigvals, (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
 
     def get_auxiliaries(self, iteration=None):
-        raise NotImplementedError  # TODO 
+        raise NotImplementedError  # TODO
 
 
 def MBLGF(moments, **kwargs):

@@ -109,16 +109,14 @@ class MBLSE_Symm(BaseSolver):
         # Caching:
         self._cache = {}
         self.coefficients = RecurrenceCoefficients(
-            static.shape,
-            hermitian=True,
-            dtype=np.result_type(self.static, *self.moments),
+            static.shape, hermitian=True, dtype=np.result_type(self.static, *self.moments),
         )
         self.on_diagonal = {}
         self.off_diagonal = {}
         self.iteration = None
 
-    #@util.cache
-    #def coefficient_times_off_diagonal(self, i, j, n):
+    # @util.cache
+    # def coefficient_times_off_diagonal(self, i, j, n):
     #    """
     #    Compute Q_{i}^† H^{n} Q_{j} B_{j}^†
     #    """
@@ -128,8 +126,8 @@ class MBLSE_Symm(BaseSolver):
     #        self.off_diagonal[j].T.conj(),
     #    )
 
-    #@util.cache
-    #def coefficient_times_on_diagonal(self, i, j, n):
+    # @util.cache
+    # def coefficient_times_on_diagonal(self, i, j, n):
     #    """
     #    Compute Q_{i}^† H^{n} Q_{j} A_{j}
     #    """
@@ -146,13 +144,7 @@ class MBLSE_Symm(BaseSolver):
 
         orth = util.matrix_power(self.moments[0], -0.5, hermitian=True)
 
-        return np.linalg.multi_dot(
-            (
-                orth,
-                self.moments[n],
-                orth,
-            )
-        )
+        return np.linalg.multi_dot((orth, self.moments[n], orth,))
 
     def _check_moment_error(self, iteration=None):
         """
@@ -185,19 +177,11 @@ class MBLSE_Symm(BaseSolver):
         self.log.info("-" * 89)
         self.log.info(
             "{:^4s} {:^16s} {:^33s} {:^33}".format(
-                "",
-                "",
-                "Norm of matrix",
-                "Norm of removed space",
+                "", "", "Norm of matrix", "Norm of removed space",
             )
         )
         self.log.info(
-            "{:^4s} {:^16s} {:^33s} {:^33}".format(
-                "Iter",
-                "Moment error",
-                "-" * 33,
-                "-" * 33,
-            )
+            "{:^4s} {:^16s} {:^33s} {:^33}".format("Iter", "Moment error", "-" * 33, "-" * 33,)
         )
         self.log.info(
             "%4s %16s %16s %16s %16s %16s",
@@ -226,18 +210,12 @@ class MBLSE_Symm(BaseSolver):
         # Zeroth order off-diagonal block is the square-root of the
         # zeroth order moment
         self.off_diagonal[0], error_sqrt = util.matrix_power(
-            self.moments[0],
-            0.5,
-            hermitian=True,
-            return_error=True,
+            self.moments[0], 0.5, hermitian=True, return_error=True,
         )
 
         # Populate the other orthogonalised moments
         orth, error_inv_sqrt = util.matrix_power(
-            self.moments[0],
-            -0.5,
-            hermitian=True,
-            return_error=True,
+            self.moments[0], -0.5, hermitian=True, return_error=True,
         )
         for n in range(2 * self.max_cycle + 2):
             # FIXME orth recalculated n+1 times
@@ -279,53 +257,60 @@ class MBLSE_Symm(BaseSolver):
         # Find the square of the next off-diagonal block
         off_diagonal_squared = (
             +self.coefficients[i, i, 2]
-            - util.hermi_sum(np.dot(self.coefficients[i, i-1, 1], self.off_diagonal[i-1]))
+            - util.hermi_sum(np.dot(self.coefficients[i, i - 1, 1], self.off_diagonal[i - 1]))
             - np.dot(self.coefficients[i, i, 1], self.coefficients[i, i, 1])
         )
         if self.iteration > 1:
             off_diagonal_squared += np.dot(
-                    self.off_diagonal[i - 1].T.conj(),
-                    self.off_diagonal[i - 1],
+                self.off_diagonal[i - 1].T.conj(), self.off_diagonal[i - 1],
             )
 
         # Get the next off-diagonal block
         self.off_diagonal[i], error_sqrt = util.matrix_power(
-            off_diagonal_squared,
-            0.5,
-            hermitian=True,
-            return_error=True,
+            off_diagonal_squared, 0.5, hermitian=True, return_error=True,
         )
 
         # Get the inverse of the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
-            off_diagonal_squared,
-            -0.5,
-            hermitian=False,
-            return_error=True,
+            off_diagonal_squared, -0.5, hermitian=False, return_error=True,
         )
 
         for n in range(2 * (self.max_cycle - self.iteration + 1)):
             residual = (
                 +self.coefficients[i, i, n + 1]
-                - np.dot(self.off_diagonal[i-1].T.conj(), self.coefficients[i-1, i, n])
+                - np.dot(self.off_diagonal[i - 1].T.conj(), self.coefficients[i - 1, i, n])
                 - np.dot(self.on_diagonal[i], self.coefficients[i, i, n])
             )
             self.coefficients[i + 1, i, n] = np.dot(off_diagonal_inv, residual)
 
             residual = (
                 +self.coefficients[i, i, n + 2]
-                - util.hermi_sum(np.dot(self.coefficients[i, i-1, n+1], self.off_diagonal[i-1]))
-                - util.hermi_sum(np.dot(self.coefficients[i, i, n+1], self.on_diagonal[i]))
-                + util.hermi_sum(np.linalg.multi_dot((self.on_diagonal[i], self.coefficients[i, i-1, n], self.off_diagonal[i-1])))
-                + np.linalg.multi_dot((self.off_diagonal[i-1].T.conj(), self.coefficients[i-1, i-1, n], self.off_diagonal[i-1]))
-                + np.linalg.multi_dot((self.on_diagonal[i], self.coefficients[i, i, n], self.on_diagonal[i]))
+                - util.hermi_sum(
+                    np.dot(self.coefficients[i, i - 1, n + 1], self.off_diagonal[i - 1])
+                )
+                - util.hermi_sum(np.dot(self.coefficients[i, i, n + 1], self.on_diagonal[i]))
+                + util.hermi_sum(
+                    np.linalg.multi_dot(
+                        (
+                            self.on_diagonal[i],
+                            self.coefficients[i, i - 1, n],
+                            self.off_diagonal[i - 1],
+                        )
+                    )
+                )
+                + np.linalg.multi_dot(
+                    (
+                        self.off_diagonal[i - 1].T.conj(),
+                        self.coefficients[i - 1, i - 1, n],
+                        self.off_diagonal[i - 1],
+                    )
+                )
+                + np.linalg.multi_dot(
+                    (self.on_diagonal[i], self.coefficients[i, i, n], self.on_diagonal[i])
+                )
             )
             self.coefficients[i + 1, i + 1, n] = np.linalg.multi_dot(
-                (
-                    off_diagonal_inv,
-                    residual,
-                    off_diagonal_inv.T.conj(),
-                )
+                (off_diagonal_inv, residual, off_diagonal_inv.T.conj(),)
             )
 
         # Extract the next on-diagonal block
@@ -374,12 +359,7 @@ class MBLSE_Symm(BaseSolver):
             iteration = self.iteration
 
         energies, couplings = self.get_auxiliaries(iteration=iteration)
-        h_aux = np.block(
-            [
-                [self.static, couplings],
-                [couplings.T.conj(), np.diag(energies)],
-            ]
-        )
+        h_aux = np.block([[self.static, couplings], [couplings.T.conj(), np.diag(energies)],])
 
         eigvals, eigvecs = np.linalg.eigh(h_aux)
 
@@ -392,7 +372,7 @@ class MBLSE_Symm(BaseSolver):
 
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
 
-        return eigvals, eigvecs[:self.nphys]
+        return eigvals, eigvecs[: self.nphys]
 
     def _kernel(self, iteration=None):
         if self.iteration is None:
@@ -472,8 +452,7 @@ class MixedMBL:
 
         except AssertionError as e:
             raise NotImplementedError(
-                    "Solvers with different physical degrees of "
-                    "freedom cannot currently be mixed."
+                "Solvers with different physical degrees of " "freedom cannot currently be mixed."
             )
 
     def initialise_recurrence(self):
@@ -519,12 +498,7 @@ class MixedMBL:
 
     def get_eigenfunctions(self, *args, **kwargs):
         energies, couplings = self.get_auxiliaries(*args, **kwargs)
-        h_aux = np.block(
-            [
-                [self.static, couplings],
-                [couplings.T.conj(), np.diag(energies)],
-            ]
-        )
+        h_aux = np.block([[self.static, couplings], [couplings.T.conj(), np.diag(energies)],])
 
         eigvals, eigvecs = np.linalg.eigh(h_aux)
 
@@ -532,7 +506,7 @@ class MixedMBL:
 
     def get_dyson_orbitals(self, *args, **kwargs):
         eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
-        return eigvals, eigvecs[:self.nphys]
+        return eigvals, eigvecs[: self.nphys]
 
     def _check_moment_error(self, *args, **kwargs):
         error = 0
