@@ -148,7 +148,7 @@ class KPMGF(BaseSolver):
         self.polynomial = np.concatenate((self.moments[0],) * self.grid.size)
         self.polynomial = self.polynomial.reshape(self.grid.size, self.nphys, self.nphys)
 
-    def _kernel(self, iteration=None):
+    def _kernel(self, iteration=None, trace=True):
         if self.iteration is None:
             self.initialise_recurrence()
 
@@ -169,8 +169,7 @@ class KPMGF(BaseSolver):
         for n in range(1, self.iteration):
             grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
-        f = self._get_spectral_function()
-        f = np.trace(f, axis1=1, axis2=2)
+        f = self._get_spectral_function(trace=True)
         integral = scipy.integrate.simps(f, self.grid)
         self.log.info("%4d %16.8g", self.iteration, integral)
 
@@ -180,19 +179,18 @@ class KPMGF(BaseSolver):
             grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
             if self.iteration in (1, 2, 3, 4, 5, 10, iteration) or self.iteration % 100 == 0:
-                f = self._get_spectral_function()
-                f = np.trace(f, axis1=1, axis2=2)
+                f = self._get_spectral_function(trace=True)
                 integral = scipy.integrate.simps(f, self.grid)
                 self.log.info("%4d %16.8g", self.iteration, integral)
 
-        f = self._get_spectral_function()
+        f = self._get_spectral_function(trace=trace)
 
         if self.iteration == self.max_cycle:
             self.log.info("-" * 89)
 
         return f
 
-    def _get_spectral_function(self):
+    def _get_spectral_function(self, trace=True):
         """
         Get the spectral function corresponding to the current
         iteration.
@@ -207,6 +205,10 @@ class KPMGF(BaseSolver):
         # FIXME should this be here?
         # f /= np.pi
         f /= np.sqrt(a**2 - (self.grid - b**2))[:, None, None]
+
+        if trace:
+            # FIXME do this sooner?
+            return np.trace(f, axis1=1, axis2=2)
 
         return f
 
