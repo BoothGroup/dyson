@@ -539,7 +539,7 @@ class MixedMBL:
         return eigvals, eigvecs
 
     def get_dyson_orbitals(self, *args, **kwargs):
-        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+        eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
         return eigvals, eigvecs[:self.nphys]
 
     def _check_moment_error(self, *args, **kwargs):
