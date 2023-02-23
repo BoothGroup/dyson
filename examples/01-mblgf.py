@@ -21,8 +21,9 @@ gf_moms = gf.moment(range(2*niter+2))
 
 # Use the solver to get the spectral function
 solver = MBLGF(gf_moms)
-e, v = solver.kernel()
-sf = util.build_spectral_function(e, v[:mol.nao], grid, eta=1.0)
+solver.kernel()
+e, v = solver.get_dyson_orbitals()
+sf = util.build_spectral_function(e, v, grid, eta=1.0)
 
 # Get a reference spectral function for comparison
 sf_ref = util.build_spectral_function(gf.energy, gf.coupling, grid, eta=1.0)

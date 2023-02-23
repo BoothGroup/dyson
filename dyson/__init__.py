@@ -68,10 +68,19 @@ def init_logging(log):
         return git_hash
 
     import numpy
+    import pyscf
 
     log.info("numpy:")
     log.info(" > Version:  %s" % numpy.__version__)
     log.info(" > Git hash: %s" % get_git_hash(os.path.join(os.path.dirname(numpy.__file__), "..")))
+
+    log.info("pyscf:")
+    log.info(" > Version:  %s" % pyscf.__version__)
+    log.info(" > Git hash: %s" % get_git_hash(os.path.join(os.path.dirname(pyscf.__file__), "..")))
+
+    log.info("dyson:")
+    log.info(" > Version:  %s" % __version__)
+    log.info(" > Git hash: %s" % get_git_hash(os.path.join(os.path.dirname(__file__), "..")))
 
     # Environment variables
     log.info("OMP_NUM_THREADS = %s" % os.environ.get("OMP_NUM_THREADS", ""))

@@ -393,6 +393,15 @@ class MBLSE_Symm(BaseSolver):
 
         return eigvals, eigvecs
 
+    def get_dyson_orbitals(self, iteration=None):
+        """
+        Return the Dyson orbitals and their energies.
+        """
+
+        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+
+        return eigvals, eigvecs[:self.nphys]
+
     def _kernel(self, iteration=None):
         if self.iteration is None:
             self.initialise_recurrence()
@@ -433,3 +442,118 @@ def MBLSE(static, moments, **kwargs):
         return MBLSE_Symm(static, moments, **kwargs)
     else:
         raise NotImplementedError
+
+
+class MixedMBL:
+    """
+    Mix multiple moment block Lanczos solvers, overloading the
+    appropriate functions - useful for example when applying particle
+    and hole separation. Solvers must correspond to the same physical
+    space (same dimension, and same static part).
+
+    Input
+    -----
+    solvers : MBLSE_Symm, MBLGF_Symm, MBLGF_NoSymm
+        List of solvers to combine.
+    """
+
+    def __init__(self, *solvers):
+        # Input:
+        assert len(solvers)
+        if any(not solver.hermitian for solver in solvers):
+            raise NotImplementedError
+        self.solvers = solvers
+
+        # Check that the physical spaces are the same:
+        try:
+            assert len(set(solver.nphys for solver in self.solvers)) == 1
+
+            static_parts = []
+            for solver in solvers:
+                if hasattr(solver, "static"):
+                    static_parts.append(solver.static)
+                else:
+                    static_parts.append(solver.moments[0])
+
+                if len(static_parts) > 1:
+                    assert np.allclose(static_parts[-1], static_parts[-2])
+
+        except AssertionError as e:
+            raise NotImplementedError(
+                    "Solvers with different physical degrees of "
+                    "freedom cannot currently be mixed."
+            )
+
+    def initialise_recurrence(self):
+        for solver in self.solvers:
+            solver.initialise_recurrence
+
+    def recurrence_iteration(self):
+        for solver in self.solvers:
+            solver.recurrence_iteration
+
+    def kernel(self, *args, **kwargs):
+        for solver in self.solvers:
+            solver.kernel(*args, **kwargs)
+
+    def get_auxiliaries(self, *args, **kwargs):
+        hermitian = True
+        energies = []
+        couplings_l = []
+        couplings_r = []
+
+        for solver in self.solvers:
+            energies_, couplings_ = solver.get_auxiliaries(*args, **kwargs)
+            energies.append(energies_)
+
+            if isinstance(couplings_, tuple):
+                hermitian = False
+                couplings_l.append(couplings_[0])
+                couplings_r.append(couplings_[1])
+            else:
+                couplings_l.append(couplings_)
+                couplings_r.append(couplings_)
+
+        energies = np.concatenate(energies)
+
+        if hermitian:
+            couplings = np.concatenate(couplings_l, axis=1)
+        else:
+            couplings_l = np.concatenate(couplings_l, axis=1)
+            couplings_r = np.concatenate(couplings_r, axis=1)
+            couplings = (couplings_l, couplings_r)
+
+        return energies, couplings
+
+    def get_eigenfunctions(self, *args, **kwargs):
+        energies, couplings = self.get_auxiliaries(*args, **kwargs)
+        h_aux = np.block(
+            [
+                [self.static, couplings],
+                [couplings.T.conj(), np.diag(energies)],
+            ]
+        )
+
+        eigvals, eigvecs = np.linalg.eigh(h_aux)
+
+        return eigvals, eigvecs
+
+    def get_dyson_orbitals(self, iteration=None):
+        """
+        Return the Dyson orbitals and their energies.
+        """
+
+        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+
+        return eigvals, eigvecs[:self.nphys]
+
+    @property
+    def nphys(self):
+        return self.solvers[0].nphys
+
+    @property
+    def static(self):
+        if hasattr(self.solvers[0], "static"):
+            return self.solvers[0].static
+        else:
+            return self.solvers[0].moments[0]

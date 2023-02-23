@@ -10,6 +10,8 @@ import numpy as np
 from dyson import util
 from dyson.solvers import BaseSolver
 
+# TODO inherit things from MBLSE or vice versa?
+
 
 class RecurrenceCoefficients:
     """
@@ -171,8 +173,7 @@ class MBLGF_Symm(BaseSolver):
         if iteration is None:
             iteration = self.iteration
 
-        energies, eigvecs = self.get_eigenfunctions(iteration=iteration)
-        dyson_orbitals = eigvecs[: self.nphys]
+        energies, dyson_orbitals = self.get_dyson_orbitals(iteration=iteration)
 
         left = dyson_orbitals.copy()
         moments_recovered = []
@@ -336,6 +337,33 @@ class MBLGF_Symm(BaseSolver):
 
         return eigvals, eigvecs
 
+    def get_dyson_orbitals(self, iteration=None):
+        """
+        Return the Dyson orbitals and their energies.
+        """
+
+        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+
+        return eigvals, eigvecs[:self.nphys]
+
+    def get_auxiliaries(self, iteration=None):
+        """
+        Return the self-energy auxiliaries.
+        """
+
+        if iteration is None:
+            iteration = self.iteration
+
+        h_tri = util.build_block_tridiagonal(
+            [self.on_diagonal[i] for i in range(iteration + 1)],
+            [self.off_diagonal[i] for i in range(iteration)],
+        )
+
+        energies, rotated_couplings = np.linalg.eigh(h_tri[self.nphys :, self.nphys :])
+        couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[: self.nphys])
+
+        return energies, couplings
+
     def _kernel(self, iteration=None):
         if self.iteration is None:
             self.initialise_recurrence()
@@ -484,7 +512,7 @@ class MBLGF_NoSymm(MBLGF_Symm):
         if iteration is None:
             iteration = self.iteration
 
-        energies, (eigvecs_l, eigvecs_r) = self.get_eigenfunctions(iteration=iteration)
+        energies, (left, right) = self.get_dyson_orbitals(iteration=iteration)
 
         left = eigvecs_l[: self.nphys]
         right = eigvecs_r[: self.nphys]
@@ -700,6 +728,18 @@ class MBLGF_NoSymm(MBLGF_Symm):
         eigvecs = (eigvecs_l, eigvecs_r)
 
         return eigvals, eigvecs
+
+    def get_dyson_orbitals(self, iteration=None):
+        """
+        Return the Dyson orbitals and their energies.
+        """
+
+        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
+
+        return eigvals, (eigvecs[0][:self.nphys], eigvecs[1][:self.nphys])
+
+    def get_auxiliaries(self, iteration=None):
+        raise NotImplementedError  # TODO 
 
 
 def MBLGF(moments, **kwargs):
