@@ -4,7 +4,7 @@ dyson: Dyson equation solvers for electron propagator methods
 *************************************************************
 """
 
-__version__ = "1.0.0a"
+__version__ = "0.0.0"
 
 import logging
 import os
