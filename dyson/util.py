@@ -61,11 +61,18 @@ def print_dyson_orbitals(
     lines += [
         "{:>4s} {:^25s} {:^33s} {:^33s}".format("", "", "Weight", ""),
         "{:>4s} {:^25s} {:^33s} {:^33s}".format(
-            "Orb", "Energy", "-" * 33, "Dominant physical contributions",
+            "Orb",
+            "Energy",
+            "-" * 33,
+            "Dominant physical contributions",
         ),
         "{:>4s} {:^25s} {:>16s} {:>16s} {:>16s}".format("", "", "Physical", "Auxiliary", ""),
         "{:>4s} {:^25s} {:>16s} {:>16s} {:>16s}".format(
-            "-" * 4, "-" * 25, "-" * 16, "-" * 16, "-" * 33,
+            "-" * 4,
+            "-" * 25,
+            "-" * 16,
+            "-" * 16,
+            "-" * 33,
         ),
     ]
 
@@ -89,7 +96,14 @@ def print_dyson_orbitals(
                 chars.append("%d (%.2f)" % (j, v[j]))
         chars = ", ".join(chars)
         lines.append(
-            "%4d %25s %16.3g %16.3g %33s" % (i, format_value(eigvals[i]), phys, aux, chars,)
+            "%4d %25s %16.3g %16.3g %33s"
+            % (
+                i,
+                format_value(eigvals[i]),
+                phys,
+                aux,
+                chars,
+            )
         )
 
     if nroots < len(inds):

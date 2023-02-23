@@ -109,7 +109,9 @@ class MBLSE_Symm(BaseSolver):
         # Caching:
         self._cache = {}
         self.coefficients = RecurrenceCoefficients(
-            static.shape, hermitian=True, dtype=np.result_type(self.static, *self.moments),
+            static.shape,
+            hermitian=True,
+            dtype=np.result_type(self.static, *self.moments),
         )
         self.on_diagonal = {}
         self.off_diagonal = {}
@@ -144,7 +146,13 @@ class MBLSE_Symm(BaseSolver):
 
         orth = util.matrix_power(self.moments[0], -0.5, hermitian=True)
 
-        return np.linalg.multi_dot((orth, self.moments[n], orth,))
+        return np.linalg.multi_dot(
+            (
+                orth,
+                self.moments[n],
+                orth,
+            )
+        )
 
     def _check_moment_error(self, iteration=None):
         """
@@ -177,11 +185,19 @@ class MBLSE_Symm(BaseSolver):
         self.log.info("-" * 89)
         self.log.info(
             "{:^4s} {:^16s} {:^33s} {:^33}".format(
-                "", "", "Norm of matrix", "Norm of removed space",
+                "",
+                "",
+                "Norm of matrix",
+                "Norm of removed space",
             )
         )
         self.log.info(
-            "{:^4s} {:^16s} {:^33s} {:^33}".format("Iter", "Moment error", "-" * 33, "-" * 33,)
+            "{:^4s} {:^16s} {:^33s} {:^33}".format(
+                "Iter",
+                "Moment error",
+                "-" * 33,
+                "-" * 33,
+            )
         )
         self.log.info(
             "%4s %16s %16s %16s %16s %16s",
@@ -210,12 +226,18 @@ class MBLSE_Symm(BaseSolver):
         # Zeroth order off-diagonal block is the square-root of the
         # zeroth order moment
         self.off_diagonal[0], error_sqrt = util.matrix_power(
-            self.moments[0], 0.5, hermitian=True, return_error=True,
+            self.moments[0],
+            0.5,
+            hermitian=True,
+            return_error=True,
         )
 
         # Populate the other orthogonalised moments
         orth, error_inv_sqrt = util.matrix_power(
-            self.moments[0], -0.5, hermitian=True, return_error=True,
+            self.moments[0],
+            -0.5,
+            hermitian=True,
+            return_error=True,
         )
         for n in range(2 * self.max_cycle + 2):
             # FIXME orth recalculated n+1 times
@@ -262,17 +284,24 @@ class MBLSE_Symm(BaseSolver):
         )
         if self.iteration > 1:
             off_diagonal_squared += np.dot(
-                self.off_diagonal[i - 1].T.conj(), self.off_diagonal[i - 1],
+                self.off_diagonal[i - 1].T.conj(),
+                self.off_diagonal[i - 1],
             )
 
         # Get the next off-diagonal block
         self.off_diagonal[i], error_sqrt = util.matrix_power(
-            off_diagonal_squared, 0.5, hermitian=True, return_error=True,
+            off_diagonal_squared,
+            0.5,
+            hermitian=True,
+            return_error=True,
         )
 
         # Get the inverse of the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
-            off_diagonal_squared, -0.5, hermitian=False, return_error=True,
+            off_diagonal_squared,
+            -0.5,
+            hermitian=False,
+            return_error=True,
         )
 
         for n in range(2 * (self.max_cycle - self.iteration + 1)):
@@ -310,7 +339,11 @@ class MBLSE_Symm(BaseSolver):
                 )
             )
             self.coefficients[i + 1, i + 1, n] = np.linalg.multi_dot(
-                (off_diagonal_inv, residual, off_diagonal_inv.T.conj(),)
+                (
+                    off_diagonal_inv,
+                    residual,
+                    off_diagonal_inv.T.conj(),
+                )
             )
 
         # Extract the next on-diagonal block
@@ -359,7 +392,12 @@ class MBLSE_Symm(BaseSolver):
             iteration = self.iteration
 
         energies, couplings = self.get_auxiliaries(iteration=iteration)
-        h_aux = np.block([[self.static, couplings], [couplings.T.conj(), np.diag(energies)],])
+        h_aux = np.block(
+            [
+                [self.static, couplings],
+                [couplings.T.conj(), np.diag(energies)],
+            ]
+        )
 
         eigvals, eigvecs = np.linalg.eigh(h_aux)
 
@@ -498,7 +536,12 @@ class MixedMBL:
 
     def get_eigenfunctions(self, *args, **kwargs):
         energies, couplings = self.get_auxiliaries(*args, **kwargs)
-        h_aux = np.block([[self.static, couplings], [couplings.T.conj(), np.diag(energies)],])
+        h_aux = np.block(
+            [
+                [self.static, couplings],
+                [couplings.T.conj(), np.diag(energies)],
+            ]
+        )
 
         eigvals, eigvecs = np.linalg.eigh(h_aux)
 

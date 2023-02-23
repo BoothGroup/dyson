@@ -201,10 +201,10 @@ class KPMGF(BaseSolver):
 
         f = self.polynomial.copy()
         f /= np.pi
-        f /= np.sqrt(1 - grid ** 2)[:, None, None]
+        f /= np.sqrt(1 - grid**2)[:, None, None]
         # FIXME should this be here?
         # f /= np.pi
-        f /= np.sqrt(a ** 2 - (self.grid - b ** 2))[:, None, None]
+        f /= np.sqrt(a**2 - (self.grid - b**2))[:, None, None]
 
         if trace:
             # FIXME do this sooner?
