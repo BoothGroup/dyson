@@ -538,14 +538,15 @@ class MixedMBL:
 
         return eigvals, eigvecs
 
-    def get_dyson_orbitals(self, iteration=None):
-        """
-        Return the Dyson orbitals and their energies.
-        """
-
+    def get_dyson_orbitals(self, *args, **kwargs):
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
-
         return eigvals, eigvecs[:self.nphys]
+
+    def _check_moment_error(self, *args, **kwargs):
+        error = 0
+        for solver in self.solvers:
+            error += solver._check_moment_error(*args, **kwargs)
+        return error
 
     @property
     def nphys(self):
