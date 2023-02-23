@@ -162,6 +162,7 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
 
     left = eigvecs[:, mask] * eigvals[mask][None] ** power
     right = eigvecs_right[mask]
+    np.set_printoptions(precision=3, edgeitems=1000, linewidth=1000)
     m_pow = np.dot(left, right)
 
     if return_error:

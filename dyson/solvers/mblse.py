@@ -117,27 +117,27 @@ class MBLSE_Symm(BaseSolver):
         self.off_diagonal = {}
         self.iteration = None
 
-    @util.cache
-    def coefficient_times_off_diagonal(self, i, j, n):
-        """
-        Compute Q_{i}^† H^{n} Q_{j} B_{j}^†
-        """
+    #@util.cache
+    #def coefficient_times_off_diagonal(self, i, j, n):
+    #    """
+    #    Compute Q_{i}^† H^{n} Q_{j} B_{j}^†
+    #    """
 
-        return np.dot(
-            self.coefficients[i, j, n],
-            self.off_diagonal[j],
-        )
+    #    return np.dot(
+    #        self.coefficients[i, j, n],
+    #        self.off_diagonal[j].T.conj(),
+    #    )
 
-    @util.cache
-    def coefficient_times_on_diagonal(self, i, j, n):
-        """
-        Compute Q_{i}^† H^{n} Q_{j} A_{j}
-        """
+    #@util.cache
+    #def coefficient_times_on_diagonal(self, i, j, n):
+    #    """
+    #    Compute Q_{i}^† H^{n} Q_{j} A_{j}
+    #    """
 
-        return np.dot(
-            self.coefficients[i, j, n],
-            self.on_diagonal[j],
-        )
+    #    return np.dot(
+    #        self.coefficients[i, j, n],
+    #        self.on_diagonal[j],
+    #    )
 
     def orthogonalised_moment(self, n):
         """
@@ -279,11 +279,14 @@ class MBLSE_Symm(BaseSolver):
         # Find the square of the next off-diagonal block
         off_diagonal_squared = (
             +self.coefficients[i, i, 2]
-            - util.hermi_sum(self.coefficient_times_off_diagonal(i, i - 1, 1))
+            - util.hermi_sum(np.dot(self.coefficients[i, i-1, 1], self.off_diagonal[i-1]))
             - np.dot(self.coefficients[i, i, 1], self.coefficients[i, i, 1])
         )
         if self.iteration > 1:
-            off_diagonal_squared += np.dot(self.off_diagonal[i - 1], self.off_diagonal[i - 1])
+            off_diagonal_squared += np.dot(
+                    self.off_diagonal[i - 1].T.conj(),
+                    self.off_diagonal[i - 1],
+            )
 
         # Get the next off-diagonal block
         self.off_diagonal[i], error_sqrt = util.matrix_power(
@@ -297,42 +300,31 @@ class MBLSE_Symm(BaseSolver):
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
             off_diagonal_squared,
             -0.5,
-            hermitian=True,
+            hermitian=False,
             return_error=True,
         )
 
         for n in range(2 * (self.max_cycle - self.iteration + 1)):
             residual = (
                 +self.coefficients[i, i, n + 1]
-                - self.coefficient_times_off_diagonal(i, i - 1, n).T.conj()
-                - self.coefficient_times_on_diagonal(i, i, n).T.conj()
+                - np.dot(self.off_diagonal[i-1].T.conj(), self.coefficients[i-1, i, n])
+                - np.dot(self.on_diagonal[i], self.coefficients[i, i, n])
             )
             self.coefficients[i + 1, i, n] = np.dot(off_diagonal_inv, residual)
 
             residual = (
                 +self.coefficients[i, i, n + 2]
-                - util.hermi_sum(self.coefficient_times_off_diagonal(i, i - 1, n + 1))
-                - util.hermi_sum(self.coefficient_times_on_diagonal(i, i, n + 1))
-                + util.hermi_sum(
-                    np.dot(
-                        self.coefficients[i, i, 1],
-                        self.coefficient_times_off_diagonal(i, i - 1, n),
-                    )
-                )
-                + np.dot(
-                    self.off_diagonal[i - 1],
-                    self.coefficient_times_off_diagonal(i - 1, i - 1, n),
-                )
-                + np.dot(
-                    self.coefficients[i, i, 1],
-                    self.coefficient_times_on_diagonal(i, i, n),
-                )
+                - util.hermi_sum(np.dot(self.coefficients[i, i-1, n+1], self.off_diagonal[i-1]))
+                - util.hermi_sum(np.dot(self.coefficients[i, i, n+1], self.on_diagonal[i]))
+                + util.hermi_sum(np.linalg.multi_dot((self.on_diagonal[i], self.coefficients[i, i-1, n], self.off_diagonal[i-1])))
+                + np.linalg.multi_dot((self.off_diagonal[i-1].T.conj(), self.coefficients[i-1, i-1, n], self.off_diagonal[i-1]))
+                + np.linalg.multi_dot((self.on_diagonal[i], self.coefficients[i, i, n], self.on_diagonal[i]))
             )
             self.coefficients[i + 1, i + 1, n] = np.linalg.multi_dot(
                 (
                     off_diagonal_inv,
                     residual,
-                    off_diagonal_inv,
+                    off_diagonal_inv.T.conj(),
                 )
             )
 
