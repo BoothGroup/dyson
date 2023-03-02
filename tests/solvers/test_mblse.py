@@ -56,6 +56,27 @@ class MBLSE_Tests(unittest.TestCase):
         self.assertAlmostEqual(error, 0.0, 10)
         self.assertAlmostEqual(w[0], w0[0], 7)
 
+    def test_nonhermitian(self):
+        f = self.f
+        e = self.se.energy
+        v = self.se.coupling
+        pert = (np.random.random(v.shape) - 0.5) / 100
+        h = np.block([[f, v+pert], [v.T, np.diag(e)]])
+        t = np.einsum("pk,qk,nk->npq", v+pert, v, e[None]**np.arange(16)[:, None])
+        w0, v0 = np.linalg.eigh(h)
+
+        solver = MBLSE(f, t, max_cycle=0, log=NullLogger())
+        w, v = solver.kernel()
+        error = solver._check_moment_error()
+        self.assertAlmostEqual(error, 0.0, 10)
+        self.assertAlmostEqual(w[0], w0[0], 3)
+
+        solver = MBLSE(f, t, max_cycle=1, log=NullLogger())
+        w, v = solver.kernel()
+        error = solver._check_moment_error()
+        self.assertAlmostEqual(error, 0.0, 10)
+        self.assertAlmostEqual(w[0], w0[0], 4)
+
 
 
 if __name__ == "__main__":

@@ -162,7 +162,6 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
 
     left = eigvecs[:, mask] * eigvals[mask][None] ** power
     right = eigvecs_right[mask]
-    np.set_printoptions(precision=3, edgeitems=1000, linewidth=1000)
     m_pow = np.dot(left, right)
 
     if return_error:
@@ -173,6 +172,50 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
         return m_pow, error
     else:
         return m_pow
+
+
+#def matrix_decomp(m, power=1, hermitian=True, threshold=1e-10, return_error=False):
+#    """
+#    Decompose the matrix into the product between two matrices, similar
+#    to an LU decomposition but using the eigenvectors, and optionally
+#    apply a power to the matrix, such that XY* = M^power.
+#    """
+#
+#    if hermitian:
+#        # assert np.allclose(m, m.T.conj())
+#        eigvals, eigvecs = np.linalg.eigh(m)
+#    else:
+#        eigvals, eigvecs = np.linalg.eig(m)
+#
+#    if power < 0:
+#        # Remove singularities
+#        mask = np.abs(eigvals) > threshold
+#    else:
+#        mask = np.ones_like(eigvals, dtype=bool)
+#
+#    if hermitian and not np.iscomplexobj(m):
+#        if np.abs(power) < 1:
+#            mask = np.logical_and(mask, eigvals > 0)
+#        eigvecs_right = eigvecs.T.conj()
+#    elif hermitian and np.iscomplexobj(m):
+#        power = power + 0.0j
+#        eigvecs_right = eigvecs.T.conj()
+#    else:
+#        power = power + 0.0j
+#        eigvecs_right = np.linalg.inv(eigvecs)
+#
+#    left = eigvecs[:, mask] * eigvals[mask][None] ** (power/2)
+#    right = eigvecs_right[mask].T
+#    m_pow = np.dot(left, right)
+#
+#    if return_error:
+#        left_ = eigvecs[:, ~mask] * eigvals[~mask][None]
+#        right_ = eigvecs_right[~mask]
+#        m_res = np.dot(left_, right_)
+#        error = np.linalg.norm(np.linalg.norm(m_res))
+#        return m_pow, m_pow, error
+#    else:
+#        return m_pow, m_pow
 
 
 def hermi_sum(m):

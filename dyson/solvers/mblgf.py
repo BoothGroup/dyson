@@ -391,7 +391,8 @@ class MBLGF_Symm(BaseSolver):
 class MBLGF_NoSymm(MBLGF_Symm):
     """
     Moment-conserving block Lanczos eigensolver, conserving the
-    moments of the Green's function, for a Hermitian Green's function.
+    moments of the Green's function, for a non-Hermitian Green's
+    function.
 
     Input
     -----
@@ -410,9 +411,9 @@ class MBLGF_NoSymm(MBLGF_Symm):
     eigvals : numpy.ndarray
         Eigenvalues of the matrix, representing the energies of the
         Green's function.
-    eigvecs : numpy.ndarray
-        Eigenvectors of the matrix, which provide the Dyson orbitals
-        once projected into the physical space.
+    eigvecs : tuple of numpy.ndarray
+        Left- and right-hand eigenvectors of the matrix, which provide
+        the Dyson orbitals once projected into the physical space.
     """
 
     def __init__(self, moments, **kwargs):
