@@ -174,7 +174,7 @@ def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
         return m_pow
 
 
-#def matrix_decomp(m, power=1, hermitian=True, threshold=1e-10, return_error=False):
+# def matrix_decomp(m, power=1, hermitian=True, threshold=1e-10, return_error=False):
 #    """
 #    Decompose the matrix into the product between two matrices, similar
 #    to an LU decomposition but using the eigenvectors, and optionally

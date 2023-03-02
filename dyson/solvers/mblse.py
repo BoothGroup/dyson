@@ -510,9 +510,9 @@ class MBLSE_NoSymm(MBLSE_Symm):
         """
 
         orth = util.matrix_power(
-                self.moments[0],
-                -0.5,
-                hermitian=False,
+            self.moments[0],
+            -0.5,
+            hermitian=False,
         )
 
         return np.linalg.multi_dot(
@@ -598,19 +598,19 @@ class MBLSE_NoSymm(MBLSE_Symm):
         # Zeroth order off-diagonal blocks are the square-root of the
         # zeroth order moment
         self.off_diagonal[0], error_sqrt = util.matrix_power(
-                self.moments[0],
-                0.5,
-                hermitian=False,
-                return_error=True,
+            self.moments[0],
+            0.5,
+            hermitian=False,
+            return_error=True,
         )
         assert np.allclose(np.dot(self.off_diagonal[0], self.off_diagonal[0]), self.moments[0])
 
         # Populate the other orthogonalised moments
         orth, error_inv_sqrt = util.matrix_power(
-                self.moments[0],
-                -0.5,
-                hermitian=False,
-                return_error=True,
+            self.moments[0],
+            -0.5,
+            hermitian=False,
+            return_error=True,
         )
         for n in range(2 * self.max_cycle + 2):
             # FIXME orth recalculated n+1 times
@@ -654,8 +654,8 @@ class MBLSE_NoSymm(MBLSE_Symm):
         off_diagonal_squared = (
             +self.coefficients[i, i, 2]
             - np.dot(self.coefficients[i, i, 1], self.coefficients[i, i, 1])
-            - np.dot(self.coefficients[i, i-1, 1], self.off_diagonal[i-1])
-            - np.dot(self.off_diagonal[i-1], self.coefficients[i, i-1, 1])
+            - np.dot(self.coefficients[i, i - 1, 1], self.off_diagonal[i - 1])
+            - np.dot(self.off_diagonal[i - 1], self.coefficients[i, i - 1, 1])
         )
         if self.iteration > 1:
             off_diagonal_squared += np.dot(
@@ -665,10 +665,10 @@ class MBLSE_NoSymm(MBLSE_Symm):
 
         # Get the next off-diagonal blocks
         self.off_diagonal[i], error_sqrt = util.matrix_power(
-                off_diagonal_squared,
-                0.5,
-                hermitian=False,
-                return_error=True,
+            off_diagonal_squared,
+            0.5,
+            hermitian=False,
+            return_error=True,
         )
 
         # Get the inverse of the off-diagonal blocks
@@ -696,30 +696,38 @@ class MBLSE_NoSymm(MBLSE_Symm):
 
             residual = (
                 +self.coefficients[i, i, n + 2]
-                - np.dot(self.coefficients[i, i-1, n+1], self.off_diagonal[i - 1])
-                - np.dot(self.coefficients[i, i, n+1], self.on_diagonal[i])
-                - np.dot(self.off_diagonal[i - 1], self.coefficients[i-1, i, n+1])
-                + np.linalg.multi_dot((
-                    self.off_diagonal[i - 1],
-                    self.coefficients[i-1, i-1, n],
-                    self.off_diagonal[i-1],
-                ))
-                + np.linalg.multi_dot((
-                    self.off_diagonal[i - 1],
-                    self.coefficients[i-1, i, n],
-                    self.on_diagonal[i],
-                ))
-                - np.dot(self.on_diagonal[i], self.coefficients[i, i, n+1])
-                + np.linalg.multi_dot((
-                    self.on_diagonal[i],
-                    self.coefficients[i, i-1, n],
-                    self.off_diagonal[i-1],
-                ))
-                + np.linalg.multi_dot((
-                    self.on_diagonal[i],
-                    self.coefficients[i, i, n],
-                    self.on_diagonal[i],
-                ))
+                - np.dot(self.coefficients[i, i - 1, n + 1], self.off_diagonal[i - 1])
+                - np.dot(self.coefficients[i, i, n + 1], self.on_diagonal[i])
+                - np.dot(self.off_diagonal[i - 1], self.coefficients[i - 1, i, n + 1])
+                + np.linalg.multi_dot(
+                    (
+                        self.off_diagonal[i - 1],
+                        self.coefficients[i - 1, i - 1, n],
+                        self.off_diagonal[i - 1],
+                    )
+                )
+                + np.linalg.multi_dot(
+                    (
+                        self.off_diagonal[i - 1],
+                        self.coefficients[i - 1, i, n],
+                        self.on_diagonal[i],
+                    )
+                )
+                - np.dot(self.on_diagonal[i], self.coefficients[i, i, n + 1])
+                + np.linalg.multi_dot(
+                    (
+                        self.on_diagonal[i],
+                        self.coefficients[i, i - 1, n],
+                        self.off_diagonal[i - 1],
+                    )
+                )
+                + np.linalg.multi_dot(
+                    (
+                        self.on_diagonal[i],
+                        self.coefficients[i, i, n],
+                        self.on_diagonal[i],
+                    )
+                )
             )
             self.coefficients[i + 1, i + 1, n] = np.linalg.multi_dot(
                 (
@@ -765,12 +773,12 @@ class MBLSE_NoSymm(MBLSE_Symm):
 
         energies, rotated_couplings = np.linalg.eig(h_tri[self.nphys :, self.nphys :])
         couplings_left = np.dot(
-                self.off_diagonal[0],
-                rotated_couplings[: self.nphys],
+            self.off_diagonal[0],
+            rotated_couplings[: self.nphys],
         )
         couplings_right = np.dot(
-                self.off_diagonal[0].T.conj(),
-                np.linalg.inv(rotated_couplings).T.conj()[: self.nphys],
+            self.off_diagonal[0].T.conj(),
+            np.linalg.inv(rotated_couplings).T.conj()[: self.nphys],
         )
 
         return energies, (couplings_left, couplings_right)
