@@ -950,6 +950,7 @@ class MixedMBL:
         eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
 
         if isinstance(eigvecs, tuple):
+            eigvecs = (eigvecs, np.linalg.inv(eigvecs))
             eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
         else:
             eigvecs = eigvecs[: self.nphys]
