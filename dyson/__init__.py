@@ -93,3 +93,4 @@ def init_logging(log):
 # -- Other imports:
 
 from dyson.solvers import *
+from dyson.util import *
