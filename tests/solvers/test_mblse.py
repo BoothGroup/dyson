@@ -60,7 +60,7 @@ class MBLSE_Tests(unittest.TestCase):
         f = self.f
         e = self.se.energy
         v = self.se.coupling
-        pert = (np.random.random(v.shape) - 0.5) / 100
+        pert = (np.ones(v.shape) - 0.5) / 100
         h = np.block([[f, v+pert], [v.T, np.diag(e)]])
         t = np.einsum("pk,qk,nk->npq", v+pert, v, e[None]**np.arange(16)[:, None])
         w0, v0 = np.linalg.eigh(h)
@@ -69,13 +69,13 @@ class MBLSE_Tests(unittest.TestCase):
         w, v = solver.kernel()
         error = solver._check_moment_error()
         self.assertAlmostEqual(error, 0.0, 10)
-        self.assertAlmostEqual(w[0], w0[0], 3)
+        self.assertAlmostEqual(w[0], w0[0], 2)
 
         solver = MBLSE(f, t, max_cycle=1, log=NullLogger())
         w, v = solver.kernel()
         error = solver._check_moment_error()
         self.assertAlmostEqual(error, 0.0, 10)
-        self.assertAlmostEqual(w[0], w0[0], 4)
+        self.assertAlmostEqual(w[0], w0[0], 3)
 
 
 

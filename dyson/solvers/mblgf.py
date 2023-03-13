@@ -417,8 +417,6 @@ class MBLGF_NoSymm(MBLGF_Symm):
     """
 
     def __init__(self, moments, **kwargs):
-        warnings.warn("Probably a bug somewhere here")
-
         # Input:
         self.moments = moments
 
@@ -513,7 +511,7 @@ class MBLGF_NoSymm(MBLGF_Symm):
         if iteration is None:
             iteration = self.iteration
 
-        energies, (left, right) = self.get_dyson_orbitals(iteration=iteration)
+        energies, (eigvecs_l, eigvecs_r) = self.get_dyson_orbitals(iteration=iteration)
 
         left = eigvecs_l[: self.nphys]
         right = eigvecs_r[: self.nphys]
