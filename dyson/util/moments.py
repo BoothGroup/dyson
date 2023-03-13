@@ -40,3 +40,126 @@ def self_energy_to_greens_function(se_static, se_moments):
                 ))
 
     return gf_moments
+
+
+def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=None):
+    """
+    Build a block tridiagonal matrix.
+
+    Parameters
+    ----------
+    on_diagonal : numpy.ndarray (m+1, n, n)
+        On-diagonal blocks.
+    off_diagonal_upper : numpy.ndarray (m, n, n)
+        Off-diagonal blocks for the upper half of the matrix.
+    off_diagonal_lower : numpy.ndarray (m, n, n), optional
+        Off-diagonal blocks for the lower half of the matrix. If
+        `None`, use the transpose of `off_diagonal_upper`.
+    """
+
+    zero = np.zeros_like(on_diagonal[0])
+
+    if off_diagonal_lower is None:
+        off_diagonal_lower = [m.T.conj() for m in off_diagonal_upper]
+
+    m = np.block(
+        [
+            [
+                on_diagonal[i]
+                if i == j
+                else off_diagonal_upper[j]
+                if j == i - 1
+                else off_diagonal_lower[i]
+                if i == j - 1
+                else zero
+                for j in range(len(on_diagonal))
+            ]
+            for i in range(len(on_diagonal))
+        ]
+    )
+
+    return m
+
+
+def matvec_to_greens_function(matvec, nmom, bra, ket=None):
+    """
+    Build a set of moments using the matrix-vector product for a
+    given Hamiltonian and a bra and ket vector.
+
+    Parameters
+    ----------
+    matvec : callable
+        Matrix-vector product function, takes a vector as input.
+    nmom : int
+        Number of moments to compute.
+    bra : numpy.ndarray (n, m)
+        Bra vector.
+    ket : numpy.ndarray (n, m), optional
+        Ket vector, if `None` then use the bra.
+    """
+
+    nphys, nconf = bra.shape
+    moments = np.zeros((nmom, nphys, nphys))
+
+    if ket is None:
+        ket = bra
+    ket = ket.copy()
+
+    for n in range(nmom):
+        moments[n] = np.dot(bra, ket.T.conj())
+        if n != (nmom-1):
+            for i in range(nphys):
+                ket[i] = matvec(ket[i])
+
+    return moments
+
+matvec_to_greens_function_monomial = matvec_to_greens_function
+
+
+def matvec_to_greens_function_chebyshev(matvec, nmom, scale_factors, bra, ket=None):
+    """
+    Build a set of Chebyshev moments using the matrix-vector product
+    for a given Hamiltonian and a bra and ket vector.
+
+    Parameters
+    ----------
+    matvec : callable
+        Matrix-vector product function, takes a vector as input.
+    nmom : int
+        Number of moments to compute.
+    scale_factors : tuple of int
+        Factors to scale the Hamiltonian as `(H - b) / a`, in order
+        to keep the spectrum within [-1, 1]. These are typically
+        defined as
+            `a = (emax - emin) / (2 - eps)`
+            `b = (emax + emin) / 2`
+        where `emin` and `emax` are the minimum and maximum eigenvalues
+        of H, and `eps` is a small number.
+    bra : numpy.ndarray (n, m)
+        Bra vector.
+    ket : numpy.ndarray (n, m), optional
+        Ket vector, if `None` then use the bra.
+    """
+
+    nphys, nconf = bra.shape
+    moments = np.zeros((nmom, nphys, nphys))
+    a, b = scale_factors
+
+    if ket is None:
+        ket = bra
+
+    ket0 = ket.copy()
+    ket1 = np.zeros_like(ket0)
+    for i in range(nphys):
+        ket1[i] = (matvec(ket0[i]) - b * ket0[i]) / a
+
+    moments[0] = np.dot(bra, ket0.T.conj())
+
+    for n in range(1, nmom):
+        moments[n] = np.dot(bra, ket1.T.conj())
+        if n != (nmom-1):
+            for i in range(nphys):
+                ket2i = 2.0 * (matvec(ket1[i]) - b * ket1[i]) / a - ket0[i]
+                ket0[i], ket1[i] = ket1[i], ket2i
+
+    return moments

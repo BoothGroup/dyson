@@ -56,35 +56,6 @@ def hermi_sum(m):
     return m + m.T.conj()
 
 
-def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=None):
-    """
-    Build a block tridiagonal matrix.
-    """
-
-    zero = np.zeros_like(on_diagonal[0])
-
-    if off_diagonal_lower is None:
-        off_diagonal_lower = [m.T.conj() for m in off_diagonal_upper]
-
-    m = np.block(
-        [
-            [
-                on_diagonal[i]
-                if i == j
-                else off_diagonal_upper[j]
-                if j == i - 1
-                else off_diagonal_lower[i]
-                if i == j - 1
-                else zero
-                for j in range(len(on_diagonal))
-            ]
-            for i in range(len(on_diagonal))
-        ]
-    )
-
-    return m
-
-
 def scaled_error(a, b):
     """
     Return the scaled error between two matrices.
