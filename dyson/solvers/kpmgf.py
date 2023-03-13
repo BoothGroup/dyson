@@ -124,14 +124,12 @@ class KPMGF(BaseSolver):
         elif self.kernel_type.lower() == "lanczos":
             xp = np.pi * x / n
             m = self.lanczos_order
-            coefficients = (np.sign(xp) / xp) ** m
+            coefficients = (np.sin(xp) / xp) ** m
 
         elif self.kernel_type.lower() == "jackson":
             norm = 1 / (n + 1)
-            coefficients = (n - x + 1).astype(float)
-            coefficients *= np.cos(np.pi * x * norm)
-            coefficients += np.sin(np.pi * x * norm)
-            coefficients /= np.tan(np.pi * norm)
+            coefficients = (n - x + 1) * np.cos(np.pi * x * norm)
+            coefficients += np.sin(np.pi * x * norm) / np.tan(np.pi * norm)
             coefficients *= norm
 
         else:
@@ -156,7 +154,7 @@ class KPMGF(BaseSolver):
             iteration = self.max_cycle
         if iteration < self.iteration:
             raise ValueError(
-                "Cannot compute spectral function for an " "iteration number already passed."
+                "Cannot compute spectral function for an iteration number already passed."
             )
 
         coefficients = self.get_expansion_coefficients(iteration + 1)

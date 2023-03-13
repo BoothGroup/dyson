@@ -4,6 +4,8 @@ Spectral function utilities.
 
 import numpy as np
 
+from pyscf import lib
+
 
 def build_spectral_function(energy, coupling, grid, eta=1e-1, trace=True, imag=True):
     """Build a spectral function."""
