@@ -957,8 +957,8 @@ class MixedMBL:
     def get_dyson_orbitals(self, *args, **kwargs):
         eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
 
-        if isinstance(eigvecs, tuple):
-            eigvecs = (eigvecs, np.linalg.inv(eigvecs))
+        if any(not solver.hermitian for solver in self.solvers):  # FIXME make more rigorous throughout
+            eigvecs = (eigvecs, np.linalg.inv(eigvecs).T.conj())
             eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
         else:
             eigvecs = eigvecs[: self.nphys]
