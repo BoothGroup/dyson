@@ -3,7 +3,6 @@ Spectral function utilities.
 """
 
 import numpy as np
-
 from pyscf import lib
 
 

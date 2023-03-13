@@ -26,18 +26,20 @@ def self_energy_to_greens_function(se_static, se_moments):
     """
 
     nmom, nphys, _ = se_moments.shape
-    gf_moments = np.zeros((nmom+2, nphys, nphys), dtype=se_moments.dtype)
+    gf_moments = np.zeros((nmom + 2, nphys, nphys), dtype=se_moments.dtype)
 
-    for i in range(nmom+2):
+    for i in range(nmom + 2):
         gf_moments[i] += np.linalg.matrix_power(se_static, i)
-        for n in range(i-1):
-            for m in range(i-n-1):
+        for n in range(i - 1):
+            for m in range(i - n - 1):
                 k = i - n - m - 2
-                gf_moments[i] += np.linalg.multi_dot((
-                    np.linalg.matrix_power(se_static, n),
-                    se_moments[m],
-                    gf_moments[k],
-                ))
+                gf_moments[i] += np.linalg.multi_dot(
+                    (
+                        np.linalg.matrix_power(se_static, n),
+                        se_moments[m],
+                        gf_moments[k],
+                    )
+                )
 
     return gf_moments
 
@@ -107,11 +109,12 @@ def matvec_to_greens_function(matvec, nmom, bra, ket=None):
 
     for n in range(nmom):
         moments[n] = np.dot(bra, ket.T.conj())
-        if n != (nmom-1):
+        if n != (nmom - 1):
             for i in range(nphys):
                 ket[i] = matvec(ket[i])
 
     return moments
+
 
 matvec_to_greens_function_monomial = matvec_to_greens_function
 
@@ -157,7 +160,7 @@ def matvec_to_greens_function_chebyshev(matvec, nmom, scale_factors, bra, ket=No
 
     for n in range(1, nmom):
         moments[n] = np.dot(bra, ket1.T.conj())
-        if n != (nmom-1):
+        if n != (nmom - 1):
             for i in range(nphys):
                 ket2i = 2.0 * (matvec(ket1[i]) - b * ket1[i]) / a - ket0[i]
                 ket0[i], ket1[i] = ket1[i], ket2i
