@@ -91,7 +91,7 @@ def print_dyson_orbitals(
         aux = np.sum(v[nphys:])
         chars = []
         for j in np.argsort(v[:nphys]):
-            if v[j] ** 2 > 0.2:
+            if v[j] > 0.2:
                 chars.append("%d (%.2f)" % (j, v[j]))
         chars = ", ".join(chars)
         lines.append(
