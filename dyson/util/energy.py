@@ -28,7 +28,7 @@ def greens_function_galitskii_migdal(gf_moments_hole, hcore, factor=1.0):
         Galitskii-Migdal energy.
     """
 
-    e_gm  = np.einsum("pq,qp->", gf_moments_hole[0], hcore)
+    e_gm = np.einsum("pq,qp->", gf_moments_hole[0], hcore)
     e_gm += np.trace(gf_moments_hole[1])
 
     return e_gm
