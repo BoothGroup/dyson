@@ -66,7 +66,7 @@ class MBLGF_Tests(unittest.TestCase):
         f = self.f
         e = self.se.energy
         v = self.se.coupling
-        pert = (np.ones(v.shape) - 0.5) / 100
+        pert = (np.ones(v.shape) - 0.5) / 200
         h = np.block([[f, v+pert], [v.T, np.diag(e)]])
         w0, v0 = np.linalg.eig(h)
         mask = np.argsort(w0.real)
