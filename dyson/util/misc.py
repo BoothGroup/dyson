@@ -2,6 +2,7 @@
 Miscellaneous utilities.
 """
 
+import inspect
 import numpy as np
 
 
@@ -20,3 +21,15 @@ def cache(function):
             return out
 
     return wrapper
+
+
+def inherit_docstrings(cls):
+    """Inherit docstring from superclass."""
+
+    for name, func in inspect.getmembers(cls, inspect.isfunction):
+        if not func.__doc__:
+            for parent in cls.__mro__[1:]:
+                if hasattr(parent, name):
+                    func.__doc__ = getattr(parent, name).__doc__
+
+    return cls
