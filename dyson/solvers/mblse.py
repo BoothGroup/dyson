@@ -880,8 +880,9 @@ class MixedMBL:
             for solver in solvers:
                 if hasattr(solver, "static"):
                     static_parts.append(solver.static)
-                else:
-                    static_parts.append(solver.moments[0])
+                # NOTE: I don't think this is necessarily correct for MBLGF
+                #else:
+                #    static_parts.append(solver.moments[0])
 
                 if len(static_parts) > 1:
                     assert np.allclose(static_parts[-1], static_parts[-2])
