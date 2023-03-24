@@ -14,10 +14,10 @@ class BaseExpression:
 
     def __init__(self, mf, mo_energy=None, mo_coeff=None, mo_occ=None, log=None):
         self.log = log or default_log
-        #init_logging(self.log)
-        #self.log.info("")
-        #self.log.info("%s", self.__class__.__name__)
-        #self.log.info("%s", "*" * len(self.__class__.__name__))
+        # init_logging(self.log)
+        # self.log.info("")
+        # self.log.info("%s", self.__class__.__name__)
+        # self.log.info("%s", "*" * len(self.__class__.__name__))
 
         if mo_energy is None:
             mo_energy = mf.mo_energy
@@ -146,7 +146,7 @@ class BaseExpression:
                     if hermitian:
                         t[n, j, i] = t[n, i, j]
 
-                if n != (nmom-1):
+                if n != (nmom - 1):
                     u = apply_hamiltonian(u)
 
         if left:

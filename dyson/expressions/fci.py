@@ -3,8 +3,7 @@ FCI expressions.
 """
 
 import numpy as np
-
-from pyscf import fci, ao2mo, lib
+from pyscf import ao2mo, fci, lib
 
 from dyson import util
 from dyson.expressions import BaseExpression
@@ -26,11 +25,13 @@ def _fci_constructor(δalph, δbeta, func_sq):
 
             if e_ci is None:
                 if h1e is None:
-                    h1e = np.linalg.multi_dot((
-                        self.mo_coeff.T,
-                        self.mf.get_hcore(),
-                        self.mo_coeff,
-                    ))
+                    h1e = np.linalg.multi_dot(
+                        (
+                            self.mo_coeff.T,
+                            self.mf.get_hcore(),
+                            self.mo_coeff,
+                        )
+                    )
                 if h2e is None:
                     h2e = ao2mo.kernel(self.mf._eri, self.mo_coeff)
 
@@ -48,25 +49,25 @@ def _fci_constructor(δalph, δbeta, func_sq):
             self.chempot = chempot
 
             self.link_index = (
-                    fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nalph+δalph),
-                    fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nbeta+δbeta),
+                fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nalph + δalph),
+                fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nbeta + δbeta),
             )
 
             self.hamiltonian = fci.direct_spin1.absorb_h1e(
-                    h1e,
-                    h2e,
-                    self.nmo,
-                    (self.nalph+δalph, self.nbeta+δbeta),
-                    0.5,
+                h1e,
+                h2e,
+                self.nmo,
+                (self.nalph + δalph, self.nbeta + δbeta),
+                0.5,
             )
 
         def apply_hamiltonian(self, vector):
             hvec = fci.direct_spin1.contract_2e(
-                    self.hamiltonian,
-                    vector,
-                    self.nmo,
-                    (self.nalph+δalph, self.nbeta+δbeta),
-                    self.link_index,
+                self.hamiltonian,
+                vector,
+                self.nmo,
+                (self.nalph + δalph, self.nbeta + δbeta),
+                self.link_index,
             )
             hvec -= self.chempot * vector
 

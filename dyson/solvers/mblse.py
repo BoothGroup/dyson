@@ -881,7 +881,7 @@ class MixedMBL:
                 if hasattr(solver, "static"):
                     static_parts.append(solver.static)
                 # NOTE: I don't think this is necessarily correct for MBLGF
-                #else:
+                # else:
                 #    static_parts.append(solver.moments[0])
 
                 if len(static_parts) > 1:
