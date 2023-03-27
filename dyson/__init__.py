@@ -92,6 +92,6 @@ def init_logging(log):
 
 # -- Other imports:
 
-from dyson.solvers import *
 from dyson.util import *
 from dyson.lehmann import Lehmann
+from dyson.solvers import *
