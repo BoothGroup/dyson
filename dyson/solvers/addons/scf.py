@@ -7,7 +7,7 @@ from pyscf import lib
 
 from dyson import NullLogger
 from dyson.lehmann import Lehmann
-from dyson.solvers import BaseSolver, AufbauPrinciple, AuxiliaryShift
+from dyson.solvers import AufbauPrinciple, AuxiliaryShift, BaseSolver
 
 
 class SelfConsistentField(BaseSolver):
@@ -170,7 +170,7 @@ class SelfConsistentField(BaseSolver):
 
         self.log.info("-" * 47)
         self.log.info(
-                "{:^6s} {:^6s} {:^16s} {:^16s}".format(
+            "{:^6s} {:^6s} {:^16s} {:^16s}".format(
                 "Iter",
                 "DM iter",
                 "DM error",
@@ -212,11 +212,11 @@ class SelfConsistentField(BaseSolver):
                 self.log.debug("%6d %6d %16.5g", niter_outer, niter_inner, error_rdm1)
 
             self.log.info(
-                    "%6d %6d %16.5g %16.5g",
-                    niter_outer,
-                    niter_inner,
-                    error_rdm1,
-                    error_chempot,
+                "%6d %6d %16.5g %16.5g",
+                niter_outer,
+                niter_inner,
+                error_rdm1,
+                error_chempot,
             )
 
             if error_rdm1 < self.conv_tol and converged_chempot:
