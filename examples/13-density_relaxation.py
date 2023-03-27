@@ -6,7 +6,7 @@ intermediate chemical potential optimisation.
 
 import numpy as np
 from pyscf import gto, scf, agf2
-from dyson import SelfConsistentField
+from dyson import DensityRelaxation
 
 # Define a self-energy using PySCF
 mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="aug-cc-pvdz", verbose=0)
@@ -21,10 +21,10 @@ def get_fock(dm):
     fock = mf.get_fock(dm=dm_ao)
     return np.linalg.multi_dot((mf.mo_coeff.T, fock, mf.mo_coeff))
 
-# Use the SelfConsistentField class to relax the density matrix such
+# Use the DensityRelaxation class to relax the density matrix such
 # that it is self-consistent with the Fock matrix, and the number of
 # electrons is correct
-solver = SelfConsistentField(get_fock, se, mol.nelectron)
+solver = DensityRelaxation(get_fock, se, mol.nelectron)
 solver.conv_tol = 1e-10
 solver.max_cycle_inner = 30
 solver.kernel()

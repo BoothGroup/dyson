@@ -1,5 +1,5 @@
 """
-Tests for SelfConsistentField.
+Tests for DensityRelaxation.
 """
 
 import unittest
@@ -8,14 +8,14 @@ import pytest
 from pyscf import gto, scf, agf2, lib
 import numpy as np
 
-from dyson import util, SelfConsistentField, NullLogger
+from dyson import util, DensityRelaxation, NullLogger
 from dyson.lehmann import Lehmann
 
 
 @pytest.mark.regression
-class SelfConsistentField_Tests(unittest.TestCase):
+class DensityRelaxation_Tests(unittest.TestCase):
     """
-    Test the `SelfConsistentField` solver.
+    Test the `DensityRelaxation` solver.
     """
 
     @classmethod
@@ -38,7 +38,7 @@ class SelfConsistentField_Tests(unittest.TestCase):
             fock = np.linalg.multi_dot((self.mf.mo_coeff.T, fock_ao, self.mf.mo_coeff))
             return fock
 
-        solver = SelfConsistentField(get_fock, self.se, self.mol.nelectron, log=NullLogger())
+        solver = DensityRelaxation(get_fock, self.se, self.mol.nelectron, log=NullLogger())
         solver.conv_tol = 1e-10
         solver.chempot_opt_options = dict(conv_tol=1e-8)
         solver.kernel()

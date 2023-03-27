@@ -1,5 +1,5 @@
 """
-Self-consistent fields including auxiliaries.
+Relax the density matrix in the presence of a self-energy.
 """
 
 import numpy as np
@@ -10,9 +10,9 @@ from dyson.lehmann import Lehmann
 from dyson.solvers import AufbauPrinciple, AuxiliaryShift, BaseSolver
 
 
-class SelfConsistentField(BaseSolver):
+class DensityRelaxation(BaseSolver):
     """
-    Perform a self-consistent field including auxiliaries.
+    Relax the density matrix in the presence of a self-energy.
 
     Parameters
     ----------
