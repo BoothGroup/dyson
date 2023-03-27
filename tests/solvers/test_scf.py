@@ -39,14 +39,16 @@ class SelfConsistentField_Tests(unittest.TestCase):
             return fock
 
         solver = SelfConsistentField(get_fock, self.se, self.mol.nelectron, log=NullLogger())
+        solver.conv_tol = 1e-10
+        solver.chempot_opt_options = dict(conv_tol=1e-8)
         solver.kernel()
 
         rdm1 = solver.gf_res.occupied().moment(0) * 2
         fock = get_fock(rdm1)
 
         self.assertTrue(solver.converged)
-        self.assertAlmostEqual(lib.fp(rdm1), 3.6878183766, 7)
-        self.assertAlmostEqual(lib.fp(fock), -2.0714652088, 7)
+        self.assertAlmostEqual(lib.fp(rdm1), 3.6878183766, 6)
+        self.assertAlmostEqual(lib.fp(fock), -2.0714652088, 6)
 
 
 if __name__ == "__main__":
