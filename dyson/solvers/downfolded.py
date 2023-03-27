@@ -1,5 +1,5 @@
 """
-Self-consistent eigensolver on the downfolded matrix.
+Downfolded frequency space eigensolver.
 """
 
 import numpy as np
@@ -8,9 +8,10 @@ from dyson import util
 from dyson.solvers import BaseSolver
 
 
-class SelfConsistent(BaseSolver):
+class Downfolded(BaseSolver):
     """
-    Self-consistent eigensolver on the downfolded matrix.
+    Downfolded frequency space eigensolver, satisfies self-consistency
+    in C* Σ(ω) C = ω.
 
     Input
     -----
@@ -140,9 +141,10 @@ class SelfConsistent(BaseSolver):
         return eigvals, eigvecs
 
 
-class DiagonalSelfConsistent(BaseSolver):
+class DiagonalDownfolded(BaseSolver):
     """
-    Diagonal self-consistent eigensolver on the downfolded matrix.
+    Downfolded frequency space eigensolver, satisfies self-consistency
+    in C* Σ(ω) C = ω where Σ is diagonal.
 
     Input
     -----

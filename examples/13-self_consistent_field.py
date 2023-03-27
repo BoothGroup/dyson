@@ -6,7 +6,7 @@ intermediate chemical potential optimisation.
 
 import numpy as np
 from pyscf import gto, scf, agf2
-from dyson import Lehmann, MBLSE, SelfConsistentField
+from dyson import SelfConsistentField
 
 # Define a self-energy using PySCF
 mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="aug-cc-pvdz", verbose=0)

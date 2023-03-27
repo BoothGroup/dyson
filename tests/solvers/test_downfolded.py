@@ -9,13 +9,13 @@ from pyscf import gto, scf, agf2
 import numpy as np
 import scipy.linalg
 
-from dyson import NullLogger, SelfConsistent
+from dyson import NullLogger, Downfolded
 
 
 @pytest.mark.regression
-class SelfConsistent_Tests(unittest.TestCase):
+class Downfolded_Tests(unittest.TestCase):
     """
-    Test the `SelfConsistent` solver.
+    Test the `Downfolded` solver.
     """
 
     @classmethod
@@ -37,7 +37,7 @@ class SelfConsistent_Tests(unittest.TestCase):
 
     def test_orbital_target(self):
         m = lambda w: np.einsum("pk,qk,k->pq", self.v, self.v, 1/(w-self.e))
-        solver = SelfConsistent(self.f, m, log=NullLogger())
+        solver = Downfolded(self.f, m, log=NullLogger())
 
         solver.target = 0
         w, v = solver.kernel()
@@ -57,14 +57,14 @@ class SelfConsistent_Tests(unittest.TestCase):
 
     def test_min_target(self):
         m = lambda w: np.einsum("pk,qk,k->pq", self.v, self.v, 1/(w-self.e))
-        solver = SelfConsistent(self.f, m, log=NullLogger())
+        solver = Downfolded(self.f, m, log=NullLogger())
         solver.target = "min"
         w, v = solver.kernel()
         self.assertAlmostEqual(w[0], self.w0[0], 8)
 
     def test_mindif_target(self):
         m = lambda w: np.einsum("pk,qk,k->pq", self.v, self.v, 1/(w-self.e))
-        solver = SelfConsistent(self.f, m, log=NullLogger())
+        solver = Downfolded(self.f, m, log=NullLogger())
         solver.target = "mindif"
         solver.guess = self.w0[3] + 0.01
         w, v = solver.kernel()
