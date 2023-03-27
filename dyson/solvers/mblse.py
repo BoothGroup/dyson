@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 
 from dyson import util
+from dyson.lehmann import Lehmann
 from dyson.solvers import BaseSolver
 
 # TODO improve inheritence
@@ -413,6 +414,20 @@ class MBLSE_Symm(BaseSolver):
         eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
 
         return eigvals, eigvecs[: self.nphys]
+
+    def get_self_energy(self, iteration=None, chempot=0.0):
+        """
+        Get the self-energy in the format of `pyscf.agf2`.
+        """
+
+        return Lehmann(*self.get_auxiliaries(iteration=iteration), chempot=chempot)
+
+    def get_greens_function(self, iteration=None, chempot=0.0):
+        """
+        Get the Green's function in the format of `pyscf.agf2`.
+        """
+
+        return Lehmann(*self.get_dyson_orbitals(iteration=iteration), chempot=chempot)
 
     def _kernel(self, iteration=None):
         if self.iteration is None:

@@ -94,3 +94,4 @@ def init_logging(log):
 
 from dyson.solvers import *
 from dyson.util import *
+from dyson.lehmann import Lehmann
