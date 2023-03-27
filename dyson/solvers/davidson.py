@@ -93,6 +93,11 @@ class Davidson(BaseSolver):
         self.log.info(" > conv_tol:  %s", self.conv_tol)
         self.log.info(" > hermitian:  %s", self.hermitian)
 
+        # Caching:
+        self.converged = []
+        self.eigvals = None
+        self.eigvecs = None
+
     def _kernel(self):
         if self.hermitian:
             convs, eigvals, eigvecs = self._kernel_hermitian()
@@ -152,5 +157,9 @@ class Davidson(BaseSolver):
         )
         eigvals = np.array(eigvals)
         eigvecs = np.array(eigvecs).T
+
+        self.eigvals = eigvals
+        self.eigvecs = eigvecs
+        self.converged = convs
 
         return convs, eigvals, eigvecs

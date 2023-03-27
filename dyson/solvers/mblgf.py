@@ -338,15 +338,6 @@ class MBLGF_Symm(BaseSolver):
 
         return eigvals, eigvecs
 
-    def get_dyson_orbitals(self, iteration=None):
-        """
-        Return the Dyson orbitals and their energies.
-        """
-
-        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
-
-        return eigvals, eigvecs[: self.nphys]
-
     def get_auxiliaries(self, iteration=None):
         """
         Return the self-energy auxiliaries.
@@ -364,20 +355,6 @@ class MBLGF_Symm(BaseSolver):
         couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[: self.nphys])
 
         return energies, couplings
-
-    def get_self_energy(self, iteration=None, chempot=0.0):
-        """
-        Get the self-energy in the format of `pyscf.agf2`.
-        """
-
-        return Lehmann(*self.get_auxiliaries(iteration=iteration), chempot=chempot)
-
-    def get_greens_function(self, iteration=None, chempot=0.0):
-        """
-        Get the Green's function in the format of `pyscf.agf2`.
-        """
-
-        return Lehmann(*self.get_dyson_orbitals(iteration=iteration), chempot=chempot)
 
     def _kernel(self, iteration=None):
         if self.iteration is None:
@@ -526,10 +503,8 @@ class MBLGF_NoSymm(MBLGF_Symm):
         if iteration is None:
             iteration = self.iteration
 
-        energies, (eigvecs_l, eigvecs_r) = self.get_dyson_orbitals(iteration=iteration)
+        energies, (left, right) = self.get_dyson_orbitals(iteration=iteration)
 
-        left = eigvecs_l[: self.nphys]
-        right = eigvecs_r[: self.nphys]
         moments_recovered = []
         for n in range(2 * iteration + 2):
             moments_recovered.append(np.dot(left, right.T.conj()))
@@ -742,15 +717,6 @@ class MBLGF_NoSymm(MBLGF_Symm):
         eigvecs = (eigvecs_l, eigvecs_r)
 
         return eigvals, eigvecs
-
-    def get_dyson_orbitals(self, iteration=None):
-        """
-        Return the Dyson orbitals and their energies.
-        """
-
-        eigvals, eigvecs = self.get_eigenfunctions(iteration=iteration)
-
-        return eigvals, (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
 
     def get_auxiliaries(self, iteration=None):
         raise NotImplementedError  # TODO

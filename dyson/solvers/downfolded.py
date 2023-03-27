@@ -79,6 +79,10 @@ class Downfolded(BaseSolver):
         self.log.info(" > conv_tol:  %s", self.conv_tol)
         self.log.info(" > hermitian:  %s", self.hermitian)
 
+        # Caching:
+        self.eigvals = None
+        self.eigvecs = None
+
     def picker(self, roots):
         if isinstance(self.target, int):
             root = roots[self.target]
@@ -100,12 +104,6 @@ class Downfolded(BaseSolver):
         else:
             return np.linalg.eig(matrix)
 
-    def eigvals(self, matrix):
-        if self.hermitian:
-            return np.linalg.eigvalsh(matrix)
-        else:
-            return np.linalg.eigvals(matrix)
-
     def _kernel(self):
         root = self.guess
         root_prev = None
@@ -116,7 +114,7 @@ class Downfolded(BaseSolver):
 
         for cycle in range(1, self.max_cycle + 1):
             matrix = self.static + self.function(root)
-            roots = self.eigvals(matrix)
+            roots = self.eig(matrix)[0]
             root = self.picker(roots)
 
             if cycle > 1:
@@ -135,6 +133,9 @@ class Downfolded(BaseSolver):
 
         matrix = self.static + self.function(root)
         eigvals, eigvecs = self.eig(matrix)
+
+        self.eigvals = eigvals
+        self.eigvecs = eigvecs
 
         self.log.info(util.print_eigenvalues(eigvals))
 
