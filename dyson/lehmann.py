@@ -220,6 +220,44 @@ class Lehmann:
 
         return wt
 
+    def as_orbitals(self, occupancy=1, mo_coeff=None):
+        """
+        Convert the Lehmann representation to an orbital representation.
+
+        Parameters
+        ----------
+        occupancy : int or float, optional
+            Occupancy of the states.  Default value is `1`.
+        mo_coeff : numpy.ndarray, optional
+            Molecular orbital coefficients.  If given, the orbitals
+            will be rotated into the basis of these coefficients.
+            Default value is `None`.
+
+        Returns
+        -------
+        orb_energy : numpy.ndarray
+            Orbital energies.
+        orb_coeff : numpy.ndarray
+            Orbital coefficients.
+        orb_occ : numpy.ndarray
+            Orbital occupancies.
+        """
+
+        if not self.hermitian:
+            raise NotImplementedError
+
+        orb_energy = self.energies
+
+        if mo_coeff is not None:
+            orb_coeff = np.dot(mo_coeff, self.couplings)
+        else:
+            orb_coeff = self.couplings
+
+        orb_occ = np.zeros_like(orb_energy)
+        orb_occ[orb_energy < self.chempot] = self.occupied().weights(occupancy=occupancy)
+
+        return orb_energy, orb_coeff, orb_occ
+
     @property
     def hermitian(self):
         """Boolean flag for the Hermiticity."""

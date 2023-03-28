@@ -27,10 +27,7 @@ def get_fock(rdm1_mo):
 # need to be cleared between calculations in the same script.
 diis = lib.diis.DIIS()
 def get_se(gf, se_prev=None):
-    mo_occ = np.concatenate([gf.occupied().weights(occupancy=2), np.zeros((gf.virtual().naux,))])
-    mo_coeff = np.dot(mf.mo_coeff, gf.couplings)
-    mo_energy = gf.energies
-
+    mo_energy, mo_coeff, mo_occ = gf.as_orbitals(mo_coeff=mf.mo_coeff, occupancy=2)
     fock = get_fock(gf.occupied().moment(0) * 2)
 
     mp2h = MP2["1h"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
