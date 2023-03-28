@@ -255,7 +255,9 @@ class AuxiliaryShift(BaseSolver):
         se = self.se.copy()
         se.energies += shift
 
-        aufbau = AufbauPrinciple(self.fock, se, self.nelec, occupancy=self.occupancy, log=NullLogger())
+        aufbau = AufbauPrinciple(
+            self.fock, se, self.nelec, occupancy=self.occupancy, log=NullLogger()
+        )
         aufbau.conv_tol = self.conv_tol
         aufbau.kernel()
 

@@ -95,13 +95,13 @@ class Exact(BaseSolver):
         if self.nphys is None:
             raise ValueError("`nphys` must be set to use `Exact.get_dyson_orbitals`")
 
-        energies = self.matrix[:self.nphys, self.nphys:]
+        energies = self.matrix[: self.nphys, self.nphys :]
 
         if self.hermitian:
-            couplings = self.matrix[:self.nphys, self.nphys:]
+            couplings = self.matrix[: self.nphys, self.nphys :]
         else:
-            couplings_l = self.matrix[:self.nphys, self.nphys:]
-            couplings_r = self.matrix[self.nphys:, :self.nphys].conj().T
+            couplings_l = self.matrix[: self.nphys, self.nphys :]
+            couplings_r = self.matrix[self.nphys :, : self.nphys].conj().T
             couplings = (couplings_l, couplings_r)
 
         return energies, couplings

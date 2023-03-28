@@ -4,8 +4,7 @@ Solver base class.
 
 import numpy as np
 
-from dyson import default_log, init_logging
-from dyson import Lehmann
+from dyson import Lehmann, default_log, init_logging
 
 
 class BaseSolver:

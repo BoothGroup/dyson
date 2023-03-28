@@ -152,7 +152,7 @@ class DensityRelaxation(BaseSolver):
         )
         self.log.info("%6s %6s %16s %16s" % ("-" * 6, "-" * 6, "-" * 16, "-" * 16))
 
-        for niter_outer in range(1, self.max_cycle_outer+1):
+        for niter_outer in range(1, self.max_cycle_outer + 1):
             se, error_chempot, converged_chempot = self.optimise_chempot(se, fock)
 
             diis = lib.diis.DIIS()
@@ -160,7 +160,7 @@ class DensityRelaxation(BaseSolver):
             diis.min_space = self.diis_min_space
             diis.verbose = 0
 
-            for niter_inner in range(1, self.max_cycle_inner+1):
+            for niter_inner in range(1, self.max_cycle_inner + 1):
                 w, v = se.diagonalise_matrix_with_projection(fock)
                 gf = Lehmann(w, v, chempot=se.chempot)
 
