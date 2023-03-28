@@ -245,8 +245,8 @@ class AuxiliaryShift(BaseSolver):
             options=dict(
                 maxfun=self.max_cycle,
                 ftol=self.conv_tol**2,
-                xtol=self.conv_tol**2,
-                gtol=self.conv_tol**2,
+                xtol=0.0,
+                gtol=0.0,
             ),
             callback=self.callback,
         )

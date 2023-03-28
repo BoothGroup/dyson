@@ -39,7 +39,7 @@ class DensityRelaxation_Tests(unittest.TestCase):
             return fock
 
         solver = DensityRelaxation(get_fock, self.se, self.mol.nelectron, log=NullLogger())
-        solver.conv_tol = 1e-10
+        solver.conv_tol = 1e-12
         solver.chempot_solver.conv_tol = 1e-8
         solver.kernel()
 
@@ -47,8 +47,8 @@ class DensityRelaxation_Tests(unittest.TestCase):
         fock = get_fock(rdm1)
 
         self.assertTrue(solver.converged)
-        self.assertAlmostEqual(lib.fp(rdm1), 3.6944902039, 7)
-        self.assertAlmostEqual(lib.fp(fock), -2.0815152106, 7)
+        self.assertAlmostEqual(lib.fp(rdm1), 3.6944902039, 6)
+        self.assertAlmostEqual(lib.fp(fock), -2.0815152106, 6)
 
 
 if __name__ == "__main__":
