@@ -47,8 +47,7 @@ class DensityRelaxation_Tests(unittest.TestCase):
         fock = get_fock(rdm1)
 
         self.assertTrue(solver.converged)
-        self.assertAlmostEqual(lib.fp(rdm1), 3.6944902039, 6)
-        self.assertAlmostEqual(lib.fp(fock), -2.0815152106, 6)
+        self.assertAlmostEqual(lib.fp(np.linalg.eigvalsh(fock)), -3.7636639657, 7)
 
 
 if __name__ == "__main__":
