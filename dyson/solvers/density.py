@@ -213,3 +213,15 @@ class DensityRelaxation(BaseSolver):
             return self._kernel_rhf()
         else:
             raise NotImplementedError("UHF not implemented.")
+
+    def get_auxiliaries(self):
+        return self.se_res.energies, self.se_res.couplings
+
+    def get_dyson_orbitals(self):
+        return self.gf_res.energies, self.gf_res.couplings
+
+    def get_self_energy(self):
+        return self.se_res
+
+    def get_greens_function(self):
+        return self.gf_res
