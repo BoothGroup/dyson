@@ -26,13 +26,11 @@ class DensityRelaxation(BaseSolver):
     occupancy : int, optional
         Occupancy of each state, i.e. `2` for a restricted reference
         and `1` for other references.  Default value is `2`.
-    chempot_opt : str, optional
-        Solver to use for the chemical potential.  Can be one of
-        `{"shift", "aufbau"}`, or `None`.  Default value is `"shift"`.
-    chempot_opt_options : dict, optional
-        Options for the chemical potential solver.  Default value is
-        an empty dictionary, corresponding to the default options of
-        the solver.
+    chempot_solver : BaseSolver, optional
+        Solver for the chemical potential.  One of
+        {`dyson.solvers.AufbauPrinciple`,
+        `dyson.solvers.AuxiliaryShift`}.  Default value is
+        `dyson.solvers.AuxiliaryShift`.
     diis_space : int, optional
         Size of the DIIS space.  Default value is `8`.
     diis_min_space : int, optional
@@ -54,8 +52,7 @@ class DensityRelaxation(BaseSolver):
 
         # Parameters:
         self.occupancy = kwargs.pop("occupancy", 2)
-        self.chempot_solver = kwargs.pop("chempot_solver", "shift")
-        self.chempot_solver_options = kwargs.pop("chempot_solver_options", {})
+        self.chempot_solver = kwargs.pop("chempot_solver", AuxiliaryShift)
         self.diis_space = kwargs.pop("diis_space", 8)
         self.diis_min_space = kwargs.pop("diis_min_space", 2)
         self.max_cycle_outer = kwargs.pop("max_cycle_outer", 20)
@@ -69,7 +66,6 @@ class DensityRelaxation(BaseSolver):
         self.log.info("Options:")
         self.log.info(" > occupancy:  %s", self.occupancy)
         self.log.info(" > chempot_solver:  %s", self.chempot_solver)
-        self.log.info(" > chempot_solver_options:  %s", self.chempot_solver_options)
         self.log.info(" > diis_space:  %s", self.diis_space)
         self.log.info(" > diis_min_space:  %s", self.diis_min_space)
         self.log.info(" > max_cycle_outer:  %s", self.max_cycle_outer)
@@ -119,40 +115,17 @@ class DensityRelaxation(BaseSolver):
             Error in the chemical potential.
         """
 
-        se = Lehmann.from_pyscf(se)
+        if self.chempot_solver:
+            solver = self.chempot_solver(fock, se, self.nelec, guess=se.chempot, log=NullLogger())
+            solver.kernel()
 
-        if self.chempot_solver == "shift":
-            solver = AuxiliaryShift(
-                fock,
-                se,
-                self.nelec,
-                log=NullLogger(),
-                **self.chempot_solver_options,
-            )
-            se, error = solver.kernel()
+            se = solver.get_self_energy()
+            error = solver.error
             converged = solver.converged
-
-        elif self.chempot_solver == "aufbau":
-            w, v = se.diagonalise_matrix(fock)
-            v = v[: se.nhys]
-            gf = Lehmann(w, v, chempot=se.chempot)
-
-            solver = AufbauPrinciple(
-                gf,
-                self.nelec,
-                log=NullLogger(),
-                **self.chempot_solver_options,
-            )
-            chempot, error = solver.kernel()
-            converged = solver.converged
-            se = se.copy(chempot=chempot, deep=False)
-
-        elif self.chempot_solver is None or self.chempot_solver is False:
-            error = 0.0
-            converged = True
 
         else:
-            raise ValueError("Unknown chemical potential solver: %s" % self.chempot_solver)
+            error = 0.0
+            converged = True
 
         return se, error, converged
 
@@ -179,7 +152,7 @@ class DensityRelaxation(BaseSolver):
         )
         self.log.info("%6s %6s %16s %16s" % ("-" * 6, "-" * 6, "-" * 16, "-" * 16))
 
-        for niter_outer in range(self.max_cycle_outer):
+        for niter_outer in range(1, self.max_cycle_outer+1):
             se, error_chempot, converged_chempot = self.optimise_chempot(se, fock)
 
             diis = lib.diis.DIIS()
@@ -187,13 +160,13 @@ class DensityRelaxation(BaseSolver):
             diis.min_space = self.diis_min_space
             diis.verbose = 0
 
-            for niter_inner in range(self.max_cycle_inner):
+            for niter_inner in range(1, self.max_cycle_inner+1):
                 w, v = se.diagonalise_matrix_with_projection(fock)
                 gf = Lehmann(w, v, chempot=se.chempot)
 
                 aufbau = AufbauPrinciple(gf, self.nelec, log=NullLogger())
                 aufbau.kernel()
-                gf.chempot = aufbau.chempot
+                se.chempot = gf.chempot = aufbau.chempot
 
                 rdm1 = gf.occupied().moment(0) * self.occupancy
                 fock = self.get_fock(rdm1)
@@ -203,13 +176,12 @@ class DensityRelaxation(BaseSolver):
                 except np.linalg.LinAlgError:
                     pass
 
-                error_rdm1 = np.linalg.norm(rdm1 - rdm1_prev)
+                error_rdm1 = np.max(np.abs(rdm1 - rdm1_prev))
+                self.log.debug("%6d %6d %16.5g", niter_outer, niter_inner, error_rdm1)
                 if error_rdm1 < self.conv_tol:
                     break
 
                 rdm1_prev = rdm1.copy()
-
-                self.log.debug("%6d %6d %16.5g", niter_outer, niter_inner, error_rdm1)
 
             self.log.info(
                 "%6d %6d %16.5g %16.5g",
@@ -219,7 +191,7 @@ class DensityRelaxation(BaseSolver):
                 error_chempot,
             )
 
-            if error_rdm1 < self.conv_tol and converged_chempot:
+            if error_rdm1 < self.conv_tol and abs(aufbau.error) < self.chempot_solver.conv_tol:
                 self.converged = True
                 break
 

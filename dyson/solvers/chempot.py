@@ -16,22 +16,36 @@ class AufbauPrinciple(BaseSolver):
 
     Parameters
     ----------
-    gf : dyson.lehmann.Lehmann
-        Lehmann representation of the Green's function.
-    nelec : int
-        Number of electrons in the physical space.
+    *args : tuple
+        Input arguments.  Either `(gf, nelec)` or `(fock, se, nelec)`
+        where `gf` is the Lehmann representation of the Green's
+        function, `fock` is the Fock matrix, `se` is the Lehmann
+        representation of the self-energy and `nelec` is the number
+        of electrons in the physical space.
     occupancy : int, optional
         Occupancy of each state, i.e. `2` for a restricted reference
         and `1` for other references.  Default value is `2`.
     """
 
-    def __init__(self, gf, nelec, **kwargs):
+    # Default parameters:
+    occupancy = 2
+
+    def __init__(self, *args, **kwargs):
         # Input:
-        self.gf = Lehmann.from_pyscf(gf)
-        self.nelec = nelec
+        if len(args) == 2:
+            gf, nelec = args
+            self.se = None
+            self.gf = Lehmann.from_pyscf(gf)
+            self.nelec = nelec
+        else:
+            fock, se, nelec = args
+            self.se = Lehmann.from_pyscf(se)
+            w, v = self.se.diagonalise_matrix_with_projection(fock)
+            self.gf = Lehmann(w, v, chempot=se.chempot)
+            self.nelec = nelec
 
         # Parameters:
-        self.occupancy = kwargs.pop("occupancy", 2)
+        self.occupancy = kwargs.pop("occupancy", self.occupancy)
 
         # Base class:
         super().__init__(self, **kwargs)
@@ -89,6 +103,22 @@ class AufbauPrinciple(BaseSolver):
 
         return chempot, error
 
+    def get_auxiliaries(self):
+        if self.se is None:
+            raise ValueError("`AufbauPrinciple` was initialised with a Green's function.")
+        return self.se.energies, self.se.couplings
+
+    def get_dyson_orbitals(self):
+        return self.gf.energies, self.gf.couplings
+
+    def get_self_energy(self):
+        if self.se is None:
+            raise ValueError("`AufbauPrinciple` was initialised with a Green's function.")
+        return self.se.copy(chempot=self.chempot, deep=False)
+
+    def get_greens_function(self):
+        return self.gf.copy(chempot=self.chempot, deep=False)
+
 
 class AuxiliaryShift(BaseSolver):
     """
@@ -115,6 +145,12 @@ class AuxiliaryShift(BaseSolver):
         Initial guess for the shift.  Default value is 0.0.
     """
 
+    # Default parameters:
+    occupancy = 2
+    max_cycle = 200
+    conv_tol = 1e-6
+    guess = 0.0
+
     def __init__(self, fock, se, nelec, **kwargs):
         # Input:
         self.fock = fock
@@ -122,10 +158,10 @@ class AuxiliaryShift(BaseSolver):
         self.nelec = nelec
 
         # Parameters:
-        self.occupancy = kwargs.pop("occupancy", 2)
-        self.max_cycle = kwargs.pop("max_cycle", 200)
-        self.conv_tol = kwargs.pop("conv_tol", 1e-6)
-        self.guess = kwargs.pop("guess", 0.0)
+        self.occupancy = kwargs.pop("occupancy", self.occupancy)
+        self.max_cycle = kwargs.pop("max_cycle", self.max_cycle)
+        self.conv_tol = kwargs.pop("conv_tol", self.conv_tol)
+        self.guess = kwargs.pop("guess", self.guess)
 
         # Base class:
         super().__init__(self, **kwargs)
@@ -140,9 +176,9 @@ class AuxiliaryShift(BaseSolver):
         # Caching:
         self.iteration = 0
         self.converged = False
+        self.shift = 0.0
         self.chempot = None
         self.error = None
-        self.se_res = None
 
     def objective(self, x, fock=None, out=None):
         """Objective function."""
@@ -209,32 +245,45 @@ class AuxiliaryShift(BaseSolver):
             options=dict(
                 maxfun=self.max_cycle,
                 ftol=self.conv_tol**2,
-                xtol=0,
-                gtol=0,
+                xtol=self.conv_tol**2,
+                gtol=self.conv_tol**2,
             ),
             callback=self.callback,
         )
 
+        shift = -opt.x
         se = self.se.copy()
-        se.energies -= opt.x
+        se.energies += shift
 
-        e, c = se.diagonalise_matrix_with_projection(self.fock)
-        gf = Lehmann(e, c)
-
-        aufbau = AufbauPrinciple(gf, self.nelec, occupancy=self.occupancy, log=NullLogger())
+        aufbau = AufbauPrinciple(self.fock, se, self.nelec, occupancy=self.occupancy, log=NullLogger())
         aufbau.conv_tol = self.conv_tol
         aufbau.kernel()
-        gf.chempot = aufbau.chempot
-        se.chempot = aufbau.chempot
 
-        self.log.info("Auxiliary shift = %.6f", -opt.x)
+        self.log.info("Auxiliary shift = %.6f", shift)
         self.log.info("Chemical potential = %.6f", aufbau.chempot)
         self.log.info("Error in nelec = %.3g", aufbau.error)
         self.flag_convergence(opt.success)
 
         self.converged = opt.success
+        self.shift = shift
         self.chempot = aufbau.chempot
         self.error = aufbau.error
-        self.se_res = se
 
-        return se, aufbau.error
+        return self.chempot, aufbau.error
+
+    def get_auxiliaries(self):
+        return self.se.energies, self.se.couplings
+
+    def get_dyson_orbitals(self):
+        return self.gf.energies, self.gf.couplings
+
+    def get_self_energy(self):
+        se = self.se.copy(chempot=self.chempot, deep=False)
+        se.energies = se.energies.copy() + self.shift
+        return se
+
+    def get_greens_function(self):
+        se = self.get_self_energy()
+        w, v = se.diagonalise_matrix_with_projection(self.fock)
+        gf = Lehmann(w, v, chempot=self.chempot)
+        return gf
