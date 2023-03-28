@@ -95,3 +95,4 @@ def init_logging(log):
 from dyson.util import *
 from dyson.lehmann import Lehmann
 from dyson.solvers import *
+from dyson.expressions import *

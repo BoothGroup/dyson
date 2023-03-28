@@ -73,7 +73,6 @@ class DensityRelaxation(BaseSolver):
         self.log.info(" > conv_tol:  %s", self.conv_tol)
 
         # Caching:
-        self.iteration = 0
         self.converged = False
         self.se_res = None
         self.gf_res = None

@@ -951,6 +951,12 @@ class MixedMBL:
 
         return eigvals, eigvecs
 
+    def get_self_energy(self, *args, chempot=0.0, **kwargs):
+        return Lehmann(*self.get_auxiliaries(*args, **kwargs), chempot=chempot)
+
+    def get_greens_function(self, *args, chempot=0.0, **kwargs):
+        return Lehmann(*self.get_dyson_orbitals(*args, **kwargs), chempot=chempot)
+
     def _check_moment_error(self, *args, **kwargs):
         error = 0
         for solver in self.solvers:

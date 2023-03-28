@@ -7,3 +7,4 @@ from dyson.solvers.mblgf import MBLGF
 from dyson.solvers.kpmgf import KPMGF
 from dyson.solvers.chempot import AufbauPrinciple, AuxiliaryShift
 from dyson.solvers.density import DensityRelaxation
+from dyson.solvers.self_consistent import SelfConsistent

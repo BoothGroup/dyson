@@ -198,6 +198,28 @@ class Lehmann:
 
         return w, v
 
+    def weights(self, occupancy=1):
+        """
+        Get the weights of the residues in the Lehmann representation.
+
+        Parameters
+        ----------
+        occupancy : int or float, optional
+            Occupancy of the states.  Default value is `1`.
+
+        Returns
+        -------
+        weights : numpy.ndarray
+            Weights of the states.
+        """
+
+        if self.hermitian:
+            wt = np.sum(self.couplings**2, axis=0) * occupancy
+        else:
+            wt = np.sum(self.couplings[0] * self.couplings[1].conj(), axis=0) * occupancy
+
+        return wt
+
     @property
     def hermitian(self):
         """Boolean flag for the Hermiticity."""

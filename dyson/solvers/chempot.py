@@ -140,7 +140,7 @@ class AuxiliaryShift(BaseSolver):
         Maximum number of iterations.  Default value is `200`.
     conv_tol : float, optional
         Threshold for convergence in the number of electrons.  Default
-        value is `1e-6`.
+        value is `1e-8`.
     guess : float, optional
         Initial guess for the shift.  Default value is 0.0.
     """
@@ -148,7 +148,7 @@ class AuxiliaryShift(BaseSolver):
     # Default parameters:
     occupancy = 2
     max_cycle = 200
-    conv_tol = 1e-6
+    conv_tol = 1e-8
     guess = 0.0
 
     def __init__(self, fock, se, nelec, **kwargs):
@@ -245,8 +245,8 @@ class AuxiliaryShift(BaseSolver):
             options=dict(
                 maxfun=self.max_cycle,
                 ftol=self.conv_tol**2,
-                xtol=0.0,
-                gtol=0.0,
+                xtol=0,
+                gtol=0,
             ),
             callback=self.callback,
         )
