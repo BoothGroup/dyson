@@ -41,7 +41,7 @@ jobs:
           python -m pip install pytest pytest-cov
           pytest --cov dyson/
       - name: Upload coverage to Codecov
-      - uses: codecov/codecov-action@v3
-      - with:
-      -   token: ${{ secrets.CODECOV_TOKEN }}
-      -   verbose: true
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
