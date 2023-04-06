@@ -333,8 +333,15 @@ class MBLGF_Symm(BaseSolver):
             [self.off_diagonal[i] for i in range(iteration)],
         )
 
+        orth = util.matrix_power(
+                self.moments[0],
+                0.5,
+                hermitian=self.hermitian,
+                return_error=False,
+        )
+
         eigvals, eigvecs = np.linalg.eigh(h_tri)
-        eigvecs[: self.nphys] = np.dot(self.orth, eigvecs[: self.nphys])
+        eigvecs[: self.nphys] = np.dot(orth, eigvecs[: self.nphys])
 
         return eigvals, eigvecs
 
@@ -704,6 +711,13 @@ class MBLGF_NoSymm(MBLGF_Symm):
             [self.off_diagonal[1][i] for i in range(iteration)],
         )
 
+        orth = util.matrix_power(
+                self.moments[0],
+                0.5,
+                hermitian=self.hermitian,
+                return_error=False,
+        )
+
         eigvals, eigvecs = np.linalg.eig(h_tri)
         mask = np.argsort(eigvals.real)
         eigvals = eigvals[mask]
@@ -712,8 +726,8 @@ class MBLGF_NoSymm(MBLGF_Symm):
         eigvecs_l = eigvecs
         eigvecs_r = np.linalg.inv(eigvecs).T.conj()
 
-        eigvecs_l[: self.nphys] = np.dot(self.orth, eigvecs_l[: self.nphys])
-        eigvecs_r[: self.nphys] = np.dot(self.orth, eigvecs_r[: self.nphys])
+        eigvecs_l[: self.nphys] = np.dot(orth, eigvecs_l[: self.nphys])
+        eigvecs_r[: self.nphys] = np.dot(orth.T.conj(), eigvecs_r[: self.nphys])
         eigvecs = (eigvecs_l, eigvecs_r)
 
         return eigvals, eigvecs
