@@ -334,10 +334,10 @@ class MBLGF_Symm(BaseSolver):
         )
 
         orth = util.matrix_power(
-                self.moments[0],
-                0.5,
-                hermitian=self.hermitian,
-                return_error=False,
+            self.moments[0],
+            0.5,
+            hermitian=self.hermitian,
+            return_error=False,
         )
 
         eigvals, eigvecs = np.linalg.eigh(h_tri)
@@ -712,10 +712,10 @@ class MBLGF_NoSymm(MBLGF_Symm):
         )
 
         orth = util.matrix_power(
-                self.moments[0],
-                0.5,
-                hermitian=self.hermitian,
-                return_error=False,
+            self.moments[0],
+            0.5,
+            hermitian=self.hermitian,
+            return_error=False,
         )
 
         eigvals, eigvecs = np.linalg.eig(h_tri)

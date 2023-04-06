@@ -329,8 +329,7 @@ class Lehmann:
         return self._unpack_couplings()[0].shape[1]
 
     def __add__(self, other):
-        """Combine two Lehmann representations.
-        """
+        """Combine two Lehmann representations."""
 
         if self.nphys != other.nphys:
             raise ValueError("Number of physical degrees of freedom do not match.")
