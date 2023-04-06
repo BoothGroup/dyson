@@ -12,6 +12,8 @@ class BaseExpression:
     Base class for all expressions.
     """
 
+    hermitian = True
+
     def __init__(self, mf, mo_energy=None, mo_coeff=None, mo_occ=None, log=None):
         self.log = log or default_log
         # init_logging(self.log)
@@ -96,7 +98,7 @@ class BaseExpression:
     def get_wavefunction_ket(self, orb):
         return self.get_wavefunction(orb)
 
-    def build_gf_moments(self, nmom, hermitian=True, store_vectors=True, left=False):
+    def build_gf_moments(self, nmom, store_vectors=True, left=False):
         """Build moments of the Green's function.
 
         Parameters
@@ -137,13 +139,13 @@ class BaseExpression:
             u = get_wavefunction_ket(i)
 
             for n in range(nmom):
-                for j in range(i if hermitian else 0, self.nmo):
+                for j in range(i if self.hermitian else 0, self.nmo):
                     if not store_vectors:
                         v = {j: get_wavefunction_bra(j)}
 
                     t[n, i, j] = np.dot(v[j], u)
 
-                    if hermitian:
+                    if self.hermitian:
                         t[n, j, i] = t[n, i, j]
 
                 if n != (nmom - 1):
@@ -179,7 +181,7 @@ class BaseExpression:
         return np.sum(self.mo_occ > 0)
 
     @property
-    def nocc(self):
+    def nvir(self):
         return np.sum(self.mo_occ == 0)
 
     @property

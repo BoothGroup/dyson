@@ -321,9 +321,34 @@ class Lehmann:
     @property
     def nphys(self):
         """Number of physical degrees of freedom."""
-        return self.couplings.shape[0]
+        return self._unpack_couplings()[0].shape[0]
 
     @property
     def naux(self):
         """Number of auxiliary degrees of freedom."""
-        return self.couplings.shape[1]
+        return self._unpack_couplings()[0].shape[1]
+
+    def __add__(self, other):
+        """Combine two Lehmann representations.
+        """
+
+        if self.nphys != other.nphys:
+            raise ValueError("Number of physical degrees of freedom do not match.")
+
+        if self.chempot != other.chempot:
+            raise ValueError("Chemical potentials do not match.")
+
+        energies = np.concatenate((self.energies, other.energies))
+
+        couplings_a_l, couplings_a_r = self._unpack_couplings()
+        couplings_b_l, couplings_b_r = other._unpack_couplings()
+
+        if self.hermitian:
+            couplings = np.concatenate((couplings_a_l, couplings_b_l), axis=1)
+        else:
+            couplings = (
+                np.concatenate((couplings_a_l, couplings_b_l), axis=1),
+                np.concatenate((couplings_a_r, couplings_b_r), axis=1),
+            )
+
+        return self.__class__(energies, couplings, chempot=self.chempot)

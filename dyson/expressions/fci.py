@@ -20,6 +20,8 @@ def _fci_constructor(δalph, δbeta, func_sq):
         FCI expressions.
         """
 
+        hermitian = True
+
         def __init__(self, *args, h1e=None, h2e=None, e_ci=None, c_ci=None, chempot=0.0, **kwargs):
             BaseExpression.__init__(self, *args, **kwargs)
 

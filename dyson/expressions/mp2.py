@@ -20,6 +20,8 @@ def _mp2_constructor(occ, vir):
         MP2 expressions.
         """
 
+        hermitian = False
+
         def __init__(self, *args, non_dyson=False, **kwargs):
             BaseExpression.__init__(self, *args, **kwargs)
 
