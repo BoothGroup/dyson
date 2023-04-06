@@ -18,8 +18,7 @@ from dyson.solvers import BaseSolver
 
 
 def pick_real_eigs(w, v, nroots, env, threshold=1e-3):
-    """Pick real eigenvalues, sorting by absolute value.
-    """
+    """Pick real eigenvalues, sorting by absolute value."""
 
     iabs = np.abs(w.imag)
     tol = max(threshold, np.sort(iabs)[min(w.size, nroots) - 1])
@@ -28,8 +27,8 @@ def pick_real_eigs(w, v, nroots, env, threshold=1e-3):
 
     if num < nroots and w.size >= nroots:
         warnings.warn(
-                "Only %d eigenvalues (out of %3d requested roots) with imaginary part < %4.3g.\n"
-                % (num, min(w.size, nroots), threshold),
+            "Only %d eigenvalues (out of %3d requested roots) with imaginary part < %4.3g.\n"
+            % (num, min(w.size, nroots), threshold),
         )
 
     real_eigenvectors = env.get("dtype") == np.float64
@@ -126,9 +125,9 @@ class Davidson(BaseSolver):
         self.eigvecs = None
 
     def _kernel(self):
-        #if self.hermitian:
+        # if self.hermitian:
         #    convs, eigvals, eigvecs = self._kernel_hermitian()
-        #else:
+        # else:
         #    convs, eigvals, eigvecs = self._kernel_nonhermitian()
 
         # Sometimes Hermitian theories may have non-Hermitian matrices,
