@@ -6,6 +6,7 @@ import unittest
 import pytest
 
 from pyscf import gto, scf, agf2
+from pyscf.lib.linalg_helper import pick_real_eigs
 import numpy as np
 import scipy.linalg
 
@@ -38,7 +39,7 @@ class Davidson_Tests(unittest.TestCase):
     def test_hermitian(self):
         m = lambda v: np.dot(self.h, v)
         d = np.diag(self.h)
-        solver = Davidson(m, d, log=NullLogger())
+        solver = Davidson(m, d, picker=pick_real_eigs, log=NullLogger())
         w, v = solver.kernel()
         self.assertAlmostEqual(w[0], self.w0[0], 8)
         self.assertAlmostEqual(w[1], self.w0[1], 8)
@@ -48,7 +49,7 @@ class Davidson_Tests(unittest.TestCase):
         d = np.diag(self.h)
         guess = np.zeros((1, d.size))
         guess[0, np.argmin(d)] = 1
-        solver = Davidson(m, d, guess=guess, nroots=1, log=NullLogger())
+        solver = Davidson(m, d, picker=pick_real_eigs, guess=guess, nroots=1, log=NullLogger())
         w, v = solver.kernel()
         self.assertAlmostEqual(w[0], self.w0[0], 8)
 
@@ -57,7 +58,7 @@ class Davidson_Tests(unittest.TestCase):
         h = np.block([[self.f, self.v+pert], [self.v.T, np.diag(self.e)]])
         m = lambda v: np.dot(h, v)
         d = np.diag(h)
-        solver = Davidson(m, d, hermitian=False, log=NullLogger())
+        solver = Davidson(m, d, picker=pick_real_eigs, hermitian=False, log=NullLogger())
         w, v = solver.kernel()
         w0, v0 = np.linalg.eig(h)
         w0 = w0[np.argsort(w0.real)]
@@ -71,7 +72,7 @@ class Davidson_Tests(unittest.TestCase):
         d = np.diag(h)
         guess = np.zeros((1, d.size))
         guess[0, np.argmin(d)] = 1
-        solver = Davidson(m, d, hermitian=False, guess=guess, log=NullLogger())
+        solver = Davidson(m, d, picker=pick_real_eigs, hermitian=False, guess=guess, log=NullLogger())
         w, v = solver.kernel()
         w0, v0 = np.linalg.eig(h)
         w0 = w0[np.argsort(w0.real)]
