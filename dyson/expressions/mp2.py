@@ -40,12 +40,11 @@ def _mp2_constructor(occ, vir):
             eo = self.mo_energy[occ(self)]
             ev = self.mo_energy[vir(self)]
 
-            e_ia = lib.direct_sum("i-a->ia", eo, ev)
-            e_ijab = lib.direct_sum("ij+ab->iajb", e_ia, e_ia)
+            e_xajb = lib.direct_sum("x-a+j-b->xajb", e, ev, eo, ev)
 
             xajb = ao2mo.incore.general(self.mf._eri, (c, cv, co, cv), compact=False)
             xajb = xajb.reshape([x.shape[-1] for x in (c, cv, co, cv)])
-            t2 = xajb / e_ijab
+            t2 = xajb / e_xajb
             xajb = 2 * xajb - xajb.transpose(0, 3, 2, 1)
 
             h1 = lib.einsum("xajb,yajb->xy", xajb, t2) * 0.5
@@ -54,10 +53,7 @@ def _mp2_constructor(occ, vir):
 
             return h1
 
-        def apply_hamiltonian(self, vector, static=None, xija=None):
-            if static is None:
-                static = self.get_static_part()
-
+        def _integrals_for_hamiltonian(self):
             if self.non_dyson:
                 c = self.mo_coeff[:, occ(self)]
                 e = self.mo_energy[occ(self)]
@@ -69,21 +65,36 @@ def _mp2_constructor(occ, vir):
 
             co = self.mo_coeff[:, occ(self)]
             cv = self.mo_coeff[:, vir(self)]
+
+            xija = ao2mo.incore.general(self.mf._eri, (c, co, co, cv), compact=False)
+            xija = xija.reshape([x.shape[-1] for x in (c, co, co, cv)])
+
+            return xija
+
+        def apply_hamiltonian(self, vector, static=None, xija=None):
+            if static is None:
+                static = self.get_static_part()
+
+            if self.non_dyson:
+                e = self.mo_energy[occ(self)]
+            else:
+                e = self.mo_energy
+            p = slice(None, e.size)
+            a = slice(e.size, None)
+
             eo = self.mo_energy[occ(self)]
             ev = self.mo_energy[vir(self)]
-
             e_ija = lib.direct_sum("i+j-a->ija", eo, eo, ev)
 
             if xija is None:
-                xija = ao2mo.incore.general(self.mf._eri, (c, co, co, cv))
-                xija = xija.reshape([x.shape[-1] for x in (c, co, co, cv)])
+                xija = self._integrals_for_hamiltonian()
 
             r = np.zeros_like(vector)
             r[p] += np.dot(static, vector[p])
-            r[p] += lib.einsum("xija,ija->x", xija, vector[a])
+            r[p] += lib.einsum("xija,ija->x", xija, vector[a].reshape(e_ija.shape))
             r[a] += lib.einsum("xija,x->ija", xija, vector[p]).ravel() * 2.0
-            r[a] -= lib.einsum("xija,x->jia", xija, vector[a]).ravel()
-            r[a] += (vector[a] * e_ija).ravel()
+            r[a] -= lib.einsum("xjia,x->ija", xija, vector[p]).ravel()
+            r[a] += vector[a] * e_ija.ravel()
 
             return r
 
@@ -115,19 +126,11 @@ def _mp2_constructor(occ, vir):
             return r
 
         def build_se_moments(self, nmom, xija=None):
-            if self.non_dyson:
-                c = self.mo_coeff[:, occ(self)]
-            else:
-                c = self.mo_coeff
-
-            co = self.mo_coeff[:, occ(self)]
-            cv = self.mo_coeff[:, vir(self)]
             eo = self.mo_energy[occ(self)]
             ev = self.mo_energy[vir(self)]
 
             if xija is None:
-                xija = ao2mo.incore.general(self.mf._eri, (c, co, co, cv), compact=False)
-                xija = xija.reshape([x.shape[-1] for x in (c, co, co, cv)])
+                xija = self._integrals_for_hamiltonian()
 
             t = []
             for n in range(nmom):
