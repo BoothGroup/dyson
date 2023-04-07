@@ -1,5 +1,5 @@
 """
-Example performaing a GF-CCSD calculation.
+Example performaing a MomGF-CCSD calculation.
 """
 
 import numpy as np
@@ -48,12 +48,12 @@ try:
     v = np.concatenate((vh[0], vp[0]), axis=1)
     u = np.concatenate((vh[1], vp[1]), axis=1)
     sf_ref = util.build_spectral_function(e, (v, u), grid, eta=eta)
-    plt.plot(grid, sf_ref, "C1--", label="GF-CCSD (PySCF)", zorder=10)
+    plt.plot(grid, sf_ref, "C1--", label="MomGF-CCSD (PySCF)", zorder=10)
 except AttributeError:
     pass
 
 # Plot the results
-plt.plot(grid, sf, "C0-", label="GF-CCSD")
+plt.plot(grid, sf, "C0-", label="MomGF-CCSD")
 plt.legend()
 plt.xlabel("Frequency (Ha)")
 plt.ylabel("Spectral function")
