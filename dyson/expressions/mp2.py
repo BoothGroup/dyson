@@ -25,7 +25,8 @@ def _mp2_constructor(occ, vir):
         def __init__(self, *args, non_dyson=False, **kwargs):
             BaseExpression.__init__(self, *args, **kwargs)
 
-            self.non_dyson = non_dyson
+            self._non_dyson = non_dyson
+            self.xija = self._integrals_for_hamiltonian()
 
         def get_static_part(self):
             if self.non_dyson:
@@ -71,7 +72,7 @@ def _mp2_constructor(occ, vir):
 
             return xija
 
-        def apply_hamiltonian(self, vector, static=None, xija=None):
+        def apply_hamiltonian(self, vector, static=None):
             if static is None:
                 static = self.get_static_part()
 
@@ -85,9 +86,7 @@ def _mp2_constructor(occ, vir):
             eo = self.mo_energy[occ(self)]
             ev = self.mo_energy[vir(self)]
             e_ija = lib.direct_sum("i+j-a->ija", eo, eo, ev)
-
-            if xija is None:
-                xija = self._integrals_for_hamiltonian()
+            xija = self.xija
 
             r = np.zeros_like(vector)
             r[p] += np.dot(static, vector[p])
@@ -125,12 +124,10 @@ def _mp2_constructor(occ, vir):
 
             return r
 
-        def build_se_moments(self, nmom, xija=None):
+        def build_se_moments(self, nmom):
             eo = self.mo_energy[occ(self)]
             ev = self.mo_energy[vir(self)]
-
-            if xija is None:
-                xija = self._integrals_for_hamiltonian()
+            xija = self.xija
 
             t = []
             for n in range(nmom):
@@ -143,6 +140,17 @@ def _mp2_constructor(occ, vir):
                 t.append(tn)
 
             return np.array(t)
+
+        @property
+        def non_dyson(self):
+            return self._non_dyson
+
+        @non_dyson.setter
+        def non_dyson(self, value):
+            old = self._non_dyson
+            self._non_dyson = value
+            if value != old:
+                self.xija = self._integrals_for_hamiltonian()
 
     return _MP2
 

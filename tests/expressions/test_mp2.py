@@ -92,20 +92,16 @@ class MP2_Tests(unittest.TestCase):
         self.assertAlmostEqual(ip1, ip2, 8)
         self.assertAlmostEqual(ea1, ea2, 8)
 
-    def test_adc2(self):
-        # Tests ADC(2) implementation using `dyson`, as done in
-        # `examples/33-adc2.py`.
-
+    def test_ip_adc2(self):
         mf = self.mf
 
-        mp2 = MP2["1h"](mf)
-        mp2.non_dyson = True
+        mp2 = MP2["1h"](mf, non_dyson=True)
         static = mp2.get_static_part()
-        xija = mp2._integrals_for_hamiltonian()
         diag = mp2.diagonal(static=static)
-        matvec = lambda v: mp2.apply_hamiltonian(v, static=static, xija=xija)
+        matvec = lambda v: mp2.apply_hamiltonian(v, static=static)
 
         solver = Davidson(matvec, diag, nroots=5, nphys=mp2.nocc, log=NullLogger())
+        solver.conv_tol = 1e-10
         solver.kernel()
         ip1 = -solver.get_greens_function().energies[-3:][::-1]
 
@@ -115,6 +111,28 @@ class MP2_Tests(unittest.TestCase):
         self.assertAlmostEqual(ip1[0], ip2[0], 8)
         self.assertAlmostEqual(ip1[1], ip2[1], 8)
         self.assertAlmostEqual(ip1[2], ip2[2], 8)
+
+    def test_ea_adc2(self):
+        mf = self.mf
+
+        mp2 = MP2["1p"](mf)
+        mp2.non_dyson = True
+        static = mp2.get_static_part()
+        diag = mp2.diagonal(static=static)
+        matvec = lambda v: mp2.apply_hamiltonian(v, static=static)
+
+        solver = Davidson(matvec, diag, nroots=5, nphys=mp2.nocc, log=NullLogger())
+        solver.conv_tol = 1e-10
+        solver.kernel()
+        ea1 = solver.get_greens_function().energies[:3]
+
+        adc2 = adc.ADC(mf)
+        adc2.method_type = "ea"
+        ea2 = adc2.kernel(nroots=5)[0]
+
+        self.assertAlmostEqual(ea1[0], ea2[0], 8)
+        self.assertAlmostEqual(ea1[1], ea2[1], 8)
+        self.assertAlmostEqual(ea1[2], ea2[2], 8)
 
 
 if __name__ == "__main__":
