@@ -309,6 +309,35 @@ class Lehmann:
 
         return orb_energy, orb_coeff, orb_occ
 
+    def as_static_potential(self, mo_energy, eta=1e-2):
+        """
+        Convert the Lehmann representation to a static potential, for
+        example for us in qsGW when the Lehmann representation is of a
+        self-energy.
+
+        Parameters
+        ----------
+        mo_energy : numpy.ndarray
+            Molecular orbital energies.
+        eta : float, optional
+            Broadening parameter.  Default value is `1e-2`.
+
+        Returns
+        -------
+        static_potential : numpy.ndarray
+            Static potential.
+        """
+
+        energies = self.energies + np.sign(self.energies - self.chempot) * 1.0j * eta
+        denom = mo_energy[:, None] - energies[None, :]
+
+        couplings_l, couplings_r = self._unpack_couplings()
+
+        static_potential = np.einsum("pk,qk,pk->pq", couplings_l, couplings_r, 1.0 / denom).real
+        static_potential = 0.5 * (static_potential + static_potential.T)
+
+        return static_potential
+
     @property
     def hermitian(self):
         """Boolean flag for the Hermiticity."""
