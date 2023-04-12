@@ -5,7 +5,7 @@ Example performaing a MomGF-CCSD calculation.
 import numpy as np
 import matplotlib.pyplot as plt
 from pyscf import gto, scf, cc
-from dyson import MBLGF, MixedMBL, NullLogger, util
+from dyson import MBLGF, NullLogger, util
 from dyson.expressions import CCSD
 np.set_printoptions(edgeitems=1000, linewidth=1000, precision=3)
 

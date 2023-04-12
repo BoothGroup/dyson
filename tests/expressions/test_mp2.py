@@ -10,7 +10,7 @@ import numpy as np
 import scipy.linalg
 
 from dyson import util, Lehmann, NullLogger
-from dyson import MBLSE, MixedMBL, DensityRelaxation, SelfConsistent, Davidson
+from dyson import MBLSE, MixedMBLSE, DensityRelaxation, SelfConsistent, Davidson
 from dyson.expressions import MP2
 
 
@@ -67,7 +67,7 @@ class MP2_Tests(unittest.TestCase):
             solverp = MBLSE(fock, tp, log=NullLogger())
             solverp.kernel()
 
-            solver = MixedMBL(solverh, solverp)
+            solver = MixedMBLSE(solverh, solverp)
 
             return solver.get_self_energy()
 

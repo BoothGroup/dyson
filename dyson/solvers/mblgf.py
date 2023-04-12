@@ -6,6 +6,7 @@ of the Green's function.
 import warnings
 
 import numpy as np
+import scipy.linalg
 
 from dyson import util
 from dyson.lehmann import Lehmann
@@ -386,6 +387,12 @@ class MBLGF_Symm(BaseSolver):
         return eigvals, eigvecs
 
     @property
+    def static(self):
+        # Static part of the self-energy is equal to the zeroth order
+        # moment of the Green's function
+        return self.moments[0]
+
+    @property
     def nphys(self):
         return self.moments[0].shape[0]
 
@@ -752,12 +759,12 @@ class MBLGF_NoSymm(MBLGF_Symm):
         energies, rotated_couplings = np.linalg.eig(h_tri[self.nphys :, self.nphys :])
         if energies.size:
             couplings_l = np.dot(
-                    self.off_diagonal[0][0].T.conj(),
-                    rotated_couplings[: self.nphys],
+                self.off_diagonal[0][0].T.conj(),
+                rotated_couplings[: self.nphys],
             )
             couplings_r = np.dot(
-                    self.off_diagonal[1][0].T.conj(),
-                    np.linalg.inv(rotated_couplings).T.conj()[: self.nphys],
+                self.off_diagonal[1][0].T.conj(),
+                np.linalg.inv(rotated_couplings).T.conj()[: self.nphys],
             )
         else:
             couplings_l = np.zeros((self.nphys, 0), dtype=rotated_couplings.dtype)
@@ -782,3 +789,201 @@ def MBLGF(moments, **kwargs):
         return MBLGF_Symm(moments, **kwargs)
     else:
         return MBLGF_NoSymm(moments, **kwargs)
+
+
+class MixedMBLGF:
+    """
+    Mix multiple moment block Lanczos solvers for moments of the
+    Green's function, overloading the appropriate functions - useful
+    for example when applying particle and hole separation. Solvers
+    must correspond to the same physical space (same dimension), but
+    not necessarily the same physical part.
+
+    Input
+    -----
+    solvers : iterable of MBLGF_Symm or MBLGF_NoSymm
+        List of solvers to combine.
+    """
+
+    def __init__(self, *solvers):
+        # Input:
+        assert len(solvers)
+        self.solvers = solvers
+
+        # Check that the physical spaces are the same:
+        try:
+            assert len(set(solver.nphys for solver in self.solvers)) == 1
+
+            static_parts = []
+            for solver in solvers:
+                static_parts.append(solver.static)
+
+        except AssertionError as e:
+            raise NotImplementedError(
+                "Solvers with different numbers of physical degrees of freedom cannot currently be "
+                "mixed."
+            )
+
+        # Caching:
+        self._static = None
+
+    def initialise_recurrence(self):
+        for solver in self.solvers:
+            solver.initialise_recurrence
+
+    def recurrence_iteration(self):
+        for solver in self.solvers:
+            solver.recurrence_iteration
+
+    def kernel(self, *args, **kwargs):
+        for solver in self.solvers:
+            solver.kernel(*args, **kwargs)
+
+    def get_auxiliaries(self, *args, **kwargs):
+        energies, orbitals = self.get_dyson_orbitals(*args, **kwargs)
+
+        if isinstance(orbitals, tuple):
+            # Work with transpose of orbitals:
+            orbitals_l, orbitals_r = orbitals
+            orbitals_l = orbitals_l.T.conj()
+            orbitals_r = orbitals_r.T.conj()
+
+            # Biorthogonalise orbitals:
+            mat = np.dot(orbitals_l.T.conj(), orbitals_r)
+            l, r = scipy.linalg.lu(mat, permute_l=True)
+            orbitals_l = np.dot(orbitals_l, np.linalg.inv(l))
+            orbitals_r = np.dot(orbitals_r, np.linalg.inv(r).T.conj())
+
+            # Find a basis for the null space:
+            null_space = np.eye(orbitals_l.shape[0]) - np.dot(orbitals_l, orbitals_r.T.conj())
+            w, rest_l = np.linalg.eig(null_space)
+            rest_r = np.linalg.inv(rest_l).T.conj()
+            rest_r = rest_r[:, np.abs(w) > 0.5]
+            rest_l = rest_l[:, np.abs(w) > 0.5]
+
+            # Combine vectors:
+            vectors_l = np.block([orbitals_l, rest_l])
+            vectors_r = np.block([orbitals_r, rest_r])
+
+            # Construct the Hamiltonian:
+            ham = np.dot(vectors_l.T.conj() * energies[None], vectors_r)
+
+            # Rotate into arrowhead form:
+            w, v = np.linalg.eig(ham[self.nphys :, self.nphys :])
+            v = np.block(
+                [
+                    [np.eye(self.nphys), np.zeros((self.nphys, w.size))],
+                    [np.zeros((w.size, self.nphys)), v],
+                ]
+            )
+            ham = np.linalg.multi_dot((np.linalg.inv(v), ham, v))
+
+            # Extract auxiliary parameters:
+            static = ham[: self.nphys, : self.nphys]
+            energies = np.diag(ham[self.nphys :, self.nphys :])
+            couplings = (
+                ham[: self.nphys, self.nphys :],
+                ham[self.nphys :, : self.nphys].T.conj(),
+            )
+
+        else:
+            # Work with transpose of orbitals:
+            orbitals = orbitals.T.conj()
+
+            # Find a basis for the null space:
+            null_space = np.eye(orbitals.shape[0]) - np.dot(orbitals, orbitals.T.conj())
+            w, rest = np.linalg.eigh(null_space)
+            rest = rest[:, np.abs(w) > 0.5]
+
+            # Combine vectors:
+            vectors = np.block([orbitals, rest])
+
+            # Construct the Hamiltonian:
+            ham = np.dot(vectors.T.conj() * energies[None], vectors)
+
+            # Rotate into arrowhead form:
+            w, v = np.linalg.eigh(ham[self.nphys :, self.nphys :])
+            v = np.block(
+                [
+                    [np.eye(self.nphys), np.zeros((self.nphys, w.size))],
+                    [np.zeros((w.size, self.nphys)), v],
+                ]
+            )
+            ham = np.linalg.multi_dot((v.T.conj(), ham, v))
+
+            # Extract auxiliary parameters:
+            static = ham[: self.nphys, : self.nphys]
+            energies = np.diag(ham[self.nphys :, self.nphys :])
+            couplings = ham[: self.nphys, self.nphys :]
+
+        self._static = static
+
+        return energies, couplings
+
+    def get_eigenfunctions(self, *args, **kwargs):
+        hermitian = True
+        eigvals = []
+        eigvecs_l = []
+        eigvecs_r = []
+
+        for solver in self.solvers:
+            eigvals_, eigvecs_ = solver.get_eigenfunctions(*args, **kwargs)
+            eigvals.append(eigvals_)
+
+            if isinstance(eigvecs_, tuple):
+                hermitian = False
+                eigvecs_l.append(eigvecs_[0])
+                eigvecs_r.append(eigvecs_[1])
+            else:
+                eigvecs_l.append(eigvecs_)
+                eigvecs_r.append(eigvecs_)
+
+        eigvals = np.concatenate(eigvals)
+
+        if hermitian:
+            eigvecs = np.concatenate(eigvecs_l, axis=1)
+        else:
+            eigvecs_l = np.concatenate(eigvecs_l, axis=1)
+            eigvecs_r = np.concatenate(eigvecs_r, axis=1)
+            eigvecs = (eigvecs_l, eigvecs_r)
+
+        return eigvals, eigvecs
+
+    def get_dyson_orbitals(self, *args, **kwargs):
+        eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
+
+        if isinstance(eigvecs, tuple):
+            # The eigvecs are already inverted if in a tuple
+            eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
+        else:
+            eigvecs = eigvecs[: self.nphys]
+
+        return eigvals, eigvecs
+
+    def get_self_energy(self, *args, chempot=0.0, **kwargs):
+        return Lehmann(*self.get_auxiliaries(*args, **kwargs), chempot=chempot)
+
+    def get_greens_function(self, *args, chempot=0.0, **kwargs):
+        return Lehmann(*self.get_dyson_orbitals(*args, **kwargs), chempot=chempot)
+
+    def _check_moment_error(self, *args, **kwargs):
+        error = 0
+        for solver in self.solvers:
+            error += solver._check_moment_error(*args, **kwargs)
+        return error
+
+    @property
+    def static(self):
+        # Static part of the combined system can be determined when
+        # rotating back into an auxiliary representation using
+        # self.get_auxiliaries()
+        if self._static is None:
+            raise ValueError(
+                "To determine `MixedMBLGF.static`, one must first call "
+                "`MixedMBLGF.get_auxiliaries()`."
+            )
+        return self._static
+
+    @property
+    def nphys(self):
+        return self.solvers[0].nphys

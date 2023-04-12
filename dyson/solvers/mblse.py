@@ -839,14 +839,27 @@ def MBLSE(static, moments, **kwargs):
 
 class MixedMBL:
     """
-    Mix multiple moment block Lanczos solvers, overloading the
-    appropriate functions - useful for example when applying particle
-    and hole separation. Solvers must correspond to the same physical
-    space (same dimension, and same static part).
+    Deprecated class - immediately raises a `NotImplementedError`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError(
+            "`MixedMBL` is deprecated in favour of "
+            "`dyson.mblse.MixedMBLSE` and `dyson.mblgf.MixedMBLGF."
+        )
+
+
+class MixedMBLSE:
+    """
+    Mix multiple moment block Lanczos solvers for moments of the
+    self-energy, overloading the appropriate functions - useful for
+    example when applying particle and hole separation. Solvers must
+    correspond to the same physical space (same dimension, and same
+    static part).
 
     Input
     -----
-    solvers : MBLSE_Symm, MBLGF_Symm, MBLGF_NoSymm
+    solvers : iterable of MBLSE_Symm
         List of solvers to combine.
     """
 
@@ -861,14 +874,7 @@ class MixedMBL:
 
             static_parts = []
             for solver in solvers:
-                if hasattr(solver, "static"):
-                    static_parts.append(solver.static)
-                # NOTE: I don't think this is necessarily correct for MBLGF
-                # else:
-                #    static_parts.append(solver.moments[0])
-
-                if len(static_parts) > 1:
-                    assert np.allclose(static_parts[-1], static_parts[-2])
+                static_parts.append(solver.static)
 
         except AssertionError as e:
             raise NotImplementedError(
@@ -969,7 +975,4 @@ class MixedMBL:
 
     @property
     def static(self):
-        if hasattr(self.solvers[0], "static"):
-            return self.solvers[0].static
-        else:
-            return self.solvers[0].moments[0]
+        return self.solvers[0].static

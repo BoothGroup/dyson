@@ -6,7 +6,7 @@ leverage the plug-and-play callback.
 
 import numpy as np
 from pyscf import gto, scf, lib
-from dyson import Lehmann, NullLogger, MBLSE, MixedMBL, DensityRelaxation, SelfConsistent
+from dyson import Lehmann, NullLogger, MBLSE, MixedMBLSE, DensityRelaxation, SelfConsistent
 from dyson.expressions import MP2
 
 nmom = 2
@@ -46,7 +46,7 @@ def get_se(gf, se_prev=None):
     solverp = MBLSE(fock, tp, log=NullLogger())
     solverp.kernel()
 
-    solver = MixedMBL(solverh, solverp)
+    solver = MixedMBLSE(solverh, solverp)
 
     return solver.get_self_energy()
 

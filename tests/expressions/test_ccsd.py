@@ -10,7 +10,7 @@ import numpy as np
 import scipy.linalg
 
 from dyson import util, Lehmann, NullLogger
-from dyson import MBLGF, MixedMBL, Davidson
+from dyson import MBLGF, Davidson
 from dyson.expressions import CCSD
 
 

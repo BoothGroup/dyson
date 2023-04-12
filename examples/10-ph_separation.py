@@ -5,7 +5,7 @@ Example of mixing MBL solvers.
 import numpy as np
 import matplotlib.pyplot as plt
 from pyscf import gto, scf, agf2, lib
-from dyson import MBLSE, MixedMBL, util
+from dyson import MBLSE, MixedMBLSE, util
 
 niter_occ = 1
 niter_vir = 2
@@ -28,7 +28,7 @@ solver_vir = MBLSE(se_static, se_vir.moment(range(2*niter_vir+2)))
 solver_vir.kernel()
 
 # Mix the solvers
-mix = MixedMBL(solver_occ, solver_vir)
+mix = MixedMBLSE(solver_occ, solver_vir)
 
 # Use the mixed solver to get the spectral function
 e, v = mix.get_dyson_orbitals()

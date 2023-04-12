@@ -21,13 +21,27 @@ class Lehmann:
     chempot : float, optional
         Chemical potential, indicating the position of the Fermi
         energy.  Default value is `0.0`.
+    sort : bool, optional
+        Whether to sort the Lehmann representation by energy.  Default
+        value is `True`.
     """
 
-    def __init__(self, energies, couplings, chempot=0.0):
+    def __init__(self, energies, couplings, chempot=0.0, sort=True):
         # Input:
         self.energies = energies
         self.couplings = couplings
         self.chempot = chempot
+
+        # Check sanity:
+        if self.hermitian:
+            assert self.energies.size == self.couplings.shape[-1]
+        else:
+            assert self.energies.size == self.couplings[0].shape[-1]
+            assert self.energies.size == self.couplings[1].shape[-1]
+
+        # Sort by energies:
+        if sort:
+            self.sort_()
 
     @classmethod
     def from_pyscf(cls, lehmann_pyscf):
@@ -54,6 +68,18 @@ class Lehmann:
                 lehmann_pyscf.coupling,
                 chempot=lehmann_pyscf.chempot,
             )
+
+    def sort_(self):
+        """
+        Sort the Lehmann representation by energy.
+        """
+
+        idx = np.argsort(self.energies)
+        self.energies = self.energies[idx]
+        if self.hermitian:
+            self.couplings = self.couplings[:, idx]
+        else:
+            self.couplings = (self.couplings[0][:, idx], self.couplings[1][:, idx])
 
     def moment(self, order):
         """
