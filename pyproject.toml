@@ -81,7 +81,6 @@ branch = true
 source = [
     "dyson",
 ]
-omit = []
 
 [tool.coverage.report]
 exclude_lines = [
