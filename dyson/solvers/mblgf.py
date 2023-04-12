@@ -359,7 +359,10 @@ class MBLGF_Symm(BaseSolver):
         )
 
         energies, rotated_couplings = np.linalg.eigh(h_tri[self.nphys :, self.nphys :])
-        couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[: self.nphys])
+        if energies.size:
+            couplings = np.dot(self.off_diagonal[0].T.conj(), rotated_couplings[: self.nphys])
+        else:
+            couplings = np.zeros((self.nphys, 0), dtype=rotated_couplings.dtype)
 
         return energies, couplings
 

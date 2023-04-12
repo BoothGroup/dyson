@@ -63,6 +63,16 @@ def _fci_constructor(δalph, δbeta, func_sq):
                 0.5,
             )
 
+            self.diag = fci.direct_spin1.make_hdiag(
+                h1e,
+                h2e,
+                self.nmo,
+                (self.nalph + δalph, self.nbeta + δbeta),
+            )
+
+        def diagonal(self):
+            return self.diag
+
         def apply_hamiltonian(self, vector):
             hvec = fci.direct_spin1.contract_2e(
                 self.hamiltonian,

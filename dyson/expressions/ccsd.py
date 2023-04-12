@@ -22,7 +22,7 @@ class CCSD_1h(BaseExpression):
         ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
         ccsd.verbose = 0
 
-        if t1 is None and l1 is None:
+        if t1 is None or l1 is None:
             ccsd.kernel()
         if t1 is None:
             t1, t2 = ccsd.t1, ccsd.t2
@@ -118,7 +118,7 @@ class CCSD_1p(BaseExpression):
         ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
         ccsd.verbose = 0
 
-        if t1 is None and l1 is None:
+        if t1 is None or l1 is None:
             ccsd.kernel()
         if t1 is None:
             t1, t2 = ccsd.t1, ccsd.t2

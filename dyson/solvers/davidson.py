@@ -5,11 +5,10 @@ upfolded self-energy.
 Interfaces pyscf.lib.
 """
 
-try:
-    from pyscf import lib
-except ImportError:
-    lib = None
+import warnings
+
 import numpy as np
+from pyscf import lib
 
 from dyson import util
 from dyson.solvers import BaseSolver
