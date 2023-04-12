@@ -94,6 +94,57 @@ class Lehmann:
 
         return moment
 
+    def chebyshev_moment(self, order, scaling=None):
+        """
+        Get a spectral Chebyshev moment (or range of moments) of the
+        Lehmann representation.
+
+        Parameters
+        ----------
+        order : int or iterable of int
+            Order(s) to calculate
+        scaling : tuple of float
+            Scaling parameters, such that the energy scale of the
+            Lehmann representation is scaled as
+            `(energies - scaling[1]) / scaling[0]`.  If `None`, the
+            scaling paramters are computed as
+            `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
+            `(max(energies) + min(energies)) / 2.0`, respectively.
+
+        Returns
+        -------
+        chebyshev : numpy.ndarray
+            Spectral Chebyshev moments, if `order` is an `int` then the
+            moment is a 2D matrix, and if `order` is an `iterable` then
+            it is a 3D matrix enumerating the orders.
+        """
+
+        if scaling is not None:
+            a, b = scaling
+        else:
+            emin = min(self.energies)
+            emax = max(self.energies)
+            a = (emax - emin) / (2.0 - 1e-3)
+            b = (emax + emin) / 2.0
+
+        nmoms = set((order,) if isinstance(order, int) else order)
+        nmom_max = max(nmoms)
+
+        couplings_l, couplings_r = self._unpack_couplings()
+        energies_scaled = (self.energies - b) / a
+
+        c = np.zeros((nmom_max + 1, self.nphys, self.naux), dtype=self.dtype)
+        c[0] = couplings_l
+        c[1] = couplings_l * energies_scaled
+
+        for i in range(2, nmom_max + 1):
+            c[i] = 2 * energies_scaled * c[i - 1] - c[i - 2]
+
+        c = c[list(nmoms)]
+        chebyshev = np.einsum("qk,npx->npq", couplings_r, c)
+
+        return chebyshev
+
     def matrix(self, physical, chempot=False, out=None):
         """
         Build a dense matrix consisting of a matrix (i.e. a
@@ -351,3 +402,7 @@ class Lehmann:
             )
 
         return self.__class__(energies, couplings, chempot=self.chempot)
+
+    @property
+    def dtype(self):
+        return np.result_type(self.energies, self.couplings)
