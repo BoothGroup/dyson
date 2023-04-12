@@ -10,6 +10,18 @@ import numpy as np
 def format_value(val, prec=8):
     """
     Format a float or complex value.
+
+    Parameters
+    ----------
+    val : float or complex
+        The value to be formatted.
+    prec : int, optional
+        The number of decimal places to use.  Default value is `8`.
+
+    Returns
+    -------
+    out : str
+        String representation of the value.
     """
 
     if not np.iscomplexobj(val):
@@ -22,6 +34,23 @@ def format_value(val, prec=8):
 def print_eigenvalues(eigvals, nroots=5, abs_sort=True, header=True):
     """
     Return a string summarising some eigenvalues.
+
+    Parameters
+    ----------
+    eigvals : numpy.ndarray
+        The eigenvalues.
+    nroots : int, optional
+        The number of eigenvalues to print.  Default value is `5`.
+    abs_sort : bool, optional
+        Whether to sort the eigenvalues by absolute value.  Default
+        value is `True`.
+    header : bool, optional
+        Whether to print a header.  Default value is `True`.
+
+    Returns
+    -------
+    out : str
+        String summarising the eigenvalues.
     """
 
     lines = ["-" * 30]
@@ -51,6 +80,30 @@ def print_dyson_orbitals(
     """
     Returns a string summarising the projection of some eigenfunctions
     into the physical space, resulting in Dyson orbitals.
+
+    Parameters
+    ----------
+    eigvals : numpy.ndarray
+        The eigenvalues.
+    eigvecs : numpy.ndarray
+        The eigenvectors.
+    nphys : int
+        The number of physical orbitals.
+    nroots : int, optional
+        The number of eigenvalues to print.  Default value is `5`.
+    abs_sort : bool, optional
+        Whether to sort the eigenvalues by absolute value.  Default
+        value is `True`.
+    phys_threshold : float, optional
+        The threshold for the projection of the eigenvectors into the
+        physical space.  Default value is `1e-8`.
+    header : bool, optional
+        Whether to print a header.  Default value is `True`.
+
+    Returns
+    -------
+    out : str
+        String summarising the dyson obritals.
     """
 
     lines = ["-" * 98]

@@ -25,7 +25,9 @@ def cache(function):
 
 
 def inherit_docstrings(cls):
-    """Inherit docstring from superclass."""
+    """
+    Inherit docstring from superclass.
+    """
 
     for name, func in inspect.getmembers(cls, inspect.isfunction):
         if not func.__doc__:

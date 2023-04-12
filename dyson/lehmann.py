@@ -434,4 +434,5 @@ class Lehmann:
 
     @property
     def dtype(self):
+        """Data type of the Lehmann representation."""
         return np.result_type(self.energies, self.couplings)
