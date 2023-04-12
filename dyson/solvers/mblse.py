@@ -872,7 +872,7 @@ class MixedMBL:
 
         except AssertionError as e:
             raise NotImplementedError(
-                "Solvers with different physical degrees of " "freedom cannot currently be mixed."
+                "Solvers with different physical degrees of freedom cannot currently be mixed."
             )
 
     def initialise_recurrence(self):

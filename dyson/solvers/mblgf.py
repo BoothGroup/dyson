@@ -736,7 +736,34 @@ class MBLGF_NoSymm(MBLGF_Symm):
         return eigvals, eigvecs
 
     def get_auxiliaries(self, iteration=None):
-        raise NotImplementedError  # TODO
+        """
+        Return the self-energy auxiliaries.
+        """
+
+        if iteration is None:
+            iteration = self.iteration
+
+        h_tri = util.build_block_tridiagonal(
+            [self.on_diagonal[i] for i in range(iteration + 1)],
+            [self.off_diagonal[0][i] for i in range(iteration)],
+            [self.off_diagonal[1][i] for i in range(iteration)],
+        )
+
+        energies, rotated_couplings = np.linalg.eig(h_tri[self.nphys :, self.nphys :])
+        if energies.size:
+            couplings_l = np.dot(
+                    self.off_diagonal[0][0].T.conj(),
+                    rotated_couplings[: self.nphys],
+            )
+            couplings_r = np.dot(
+                    self.off_diagonal[1][0].T.conj(),
+                    np.linalg.inv(rotated_couplings).T.conj()[: self.nphys],
+            )
+        else:
+            couplings_l = np.zeros((self.nphys, 0), dtype=rotated_couplings.dtype)
+            couplings_r = np.zeros((self.nphys, 0), dtype=rotated_couplings.dtype)
+
+        return energies, (couplings_l, couplings_r)
 
 
 def MBLGF(moments, **kwargs):
