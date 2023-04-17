@@ -32,6 +32,9 @@ jobs:
         run: |
           python -m pip install wheel
           python -m pip install .[dev]
+      - name: Install Vayesta
+        run: |
+          python -m pip install git+https://github.com/BoothGroup/Vayesta.git
       - name: Install momentGW
         run: |
           python -m pip install git+https://github.com/BoothGroup/momentGW.git
