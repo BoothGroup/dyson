@@ -49,6 +49,8 @@ dev = [
     "coverage[toml]",
     "pytest",
     "pytest-cov",
+    "vayesta @ git+https://github.com/BoothGroup/Vayesta@master",
+    "momentGW @ git+https://github.com/BoothGroup/momentGW@master",
 ]
 
 [tool.black]
