@@ -10,8 +10,18 @@ from dyson import util
 from dyson.solvers import BaseSolver
 
 
+def as_trace(arr):
+    """Return the trace of `arr`, if it has more than one dimension."""
+
+    if arr.ndim > 1:
+        arr = np.trace(arr, axis1=-2, axis2=-1)
+
+    return arr
+
+
 class KPMGF(BaseSolver):
     """
+    Kernel polynomial method.
 
     Input
     -----
@@ -41,6 +51,10 @@ class KPMGF(BaseSolver):
         Can be one of `{None, "lorentz", "lanczos", "jackson"}, or a
         callable whose arguments are the solver object and the
         iteration number. Default value is `None`.
+    trace : bool, optional
+        Whether to compute the trace of the Green's function.  If
+        `False`, the entire Green's function is computed.  Default
+        value is `True`.
     lorentz_parameter : float or callable, optional
         Lambda parameter for the Lorentz kernel, a float value which
         is then scaled by the number of Chebyshev moments. Default
@@ -64,6 +78,7 @@ class KPMGF(BaseSolver):
         self.max_cycle = kwargs.pop("max_cycle", None)
         # self.hermitian = True
         self.kernel_type = kwargs.pop("kernel_type", None)
+        self.trace = kwargs.pop("trace", True)
         self.lorentz_parameter = kwargs.pop("lorentz_parameter", 0.1)
         self.lanczos_order = kwargs.pop("lanczos_order", 2)
 
@@ -72,7 +87,7 @@ class KPMGF(BaseSolver):
             self.max_cycle = max_cycle_limit
         if self.max_cycle > max_cycle_limit:
             raise ValueError(
-                "`max_cycle` cannot be more than the number of " "inputted moments minus one."
+                "`max_cycle` cannot be more than the number of inputted moments minus one."
             )
 
         # Base class:
@@ -85,21 +100,15 @@ class KPMGF(BaseSolver):
         self.log.info(" > grid:  %s[%d]", type(self.grid), len(self.grid))
         self.log.info(" > scale: %s", scale)
         self.log.info(" > kernel_type:  %s", self.kernel_type)
+        self.log.info(" > trace:  %s", self.trace)
         self.log.info(" > lorentz_parameter:  %s", self.lorentz_parameter)
         self.log.info(" > lanczos_order:  %s", self.lanczos_order)
 
-        # Caching:
-        self.iteration = None
-        self.polynomial = None
-
-    def get_expansion_coefficients(self, iteration=None):
+    def get_expansion_coefficients(self, iteration):
         """
         Compute the expansion coefficients to modify the moments,
         thereby damping the Gibbs oscillations.
         """
-
-        if iteration is None:
-            iteration = self.iteration
 
         n = iteration
         x = np.arange(1, iteration + 1)
@@ -142,53 +151,56 @@ class KPMGF(BaseSolver):
         self.log.info("{:^4s} {:^16s}".format("Iter", "Integral"))
         self.log.info("{:^4s} {:^16s}".format("-" * 4, "-" * 16))
 
-        self.iteration = 0
-        self.polynomial = np.concatenate((self.moments[0],) * self.grid.size)
-        self.polynomial = self.polynomial.reshape(self.grid.size, self.nphys, self.nphys)
-
-    def _kernel(self, iteration=None, trace=True):
-        if self.iteration is None:
-            self.initialise_recurrence()
+    def _kernel(self, iteration=None):
+        self.initialise_recurrence()
 
         if iteration is None:
             iteration = self.max_cycle
-        if iteration < self.iteration:
-            raise ValueError(
-                "Cannot compute spectral function for an iteration number already passed."
-            )
 
-        coefficients = self.get_expansion_coefficients(iteration + 1)
-        moments = np.einsum("n,npq->npq", coefficients, self.moments[: iteration + 1])
+        # Get the moments - allow input to already be traced
+        if self.trace:
+            moments = as_trace(self.moments[: iteration + 1])
+        else:
+            moments = self.moments[: iteration + 1]
 
-        # Skip forward polynomial values to starting iteration
+        # Initialise scaled grids
         a, b = self.scale
         scaled_grid = (self.grid - b) / a
         grids = (np.ones_like(scaled_grid), scaled_grid)
-        for n in range(1, self.iteration):
-            grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
-        f = self._get_spectral_function(trace=True)
+        # Initialise the polynomial
+        coefficients = self.get_expansion_coefficients(iteration + 1)
+        moments = np.einsum("n,n...->n...", coefficients, moments[: iteration + 1])
+        polynomial = np.array([moments[0]] * self.grid.size)
+
+        def _get_spectral_function(polynomial):
+            f = polynomial / np.pi
+            f /= np.sqrt(1 - scaled_grid**2)
+            # FIXME should this be here?
+            # f /= np.pi
+            f /= np.sqrt(a**2 - (self.grid - b**2))
+            return f
+
+        f = _get_spectral_function(as_trace(polynomial))
         integral = scipy.integrate.simps(f, self.grid)
-        self.log.info("%4d %16.8g", self.iteration, integral)
+        self.log.info("%4d %16.8g", 0, integral)
 
-        while self.iteration < iteration:
-            self.iteration += 1
-            self.polynomial += np.einsum("pq,w->wpq", moments[self.iteration], grids[-1]) * 2
+        for niter in range(1, iteration+1):
+            polynomial += np.multiply.outer(grids[-1], moments[niter]) * 2
             grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
-            if self.iteration in (1, 2, 3, 4, 5, 10, iteration) or self.iteration % 100 == 0:
-                f = self._get_spectral_function(trace=True)
+            if niter in (1, 2, 3, 4, 5, 10, iteration) or niter % 100 == 0:
+                f = _get_spectral_function(as_trace(polynomial))
                 integral = scipy.integrate.simps(f, self.grid)
-                self.log.info("%4d %16.8g", self.iteration, integral)
+                self.log.info("%4d %16.8g", niter, integral)
 
-        f = self._get_spectral_function(trace=trace)
+        f = _get_spectral_function(polynomial)
 
-        if self.iteration == self.max_cycle:
-            self.log.info("-" * 89)
+        self.log.info("-" * 21)
 
         return f
 
-    def _get_spectral_function(self, trace=True):
+    def _get_spectral_function(self, polynomial):
         """
         Get the spectral function corresponding to the current
         iteration.
@@ -196,17 +208,6 @@ class KPMGF(BaseSolver):
 
         a, b = self.scale
         grid = (self.grid - b) / a
-
-        f = self.polynomial.copy()
-        f /= np.pi
-        f /= np.sqrt(1 - grid**2)[:, None, None]
-        # FIXME should this be here?
-        # f /= np.pi
-        f /= np.sqrt(a**2 - (self.grid - b**2))[:, None, None]
-
-        if trace:
-            # FIXME do this sooner?
-            return np.trace(f, axis1=1, axis2=2)
 
         return f
 

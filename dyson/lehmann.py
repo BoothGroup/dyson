@@ -364,6 +364,30 @@ class Lehmann:
 
         return static_potential
 
+    def as_perturbed_mo_energy(self):
+        """
+        Return a list akin to the `mo_energy` attribute of a
+        `pyscf.scf.hf.SCF` object, but with the energies replaced by
+        those in the Lehmann representation that overlap the most with
+        each orbital.
+
+        Returns
+        -------
+        mo_energy : numpy.ndarray
+            Perturbed molecular orbital energies.  May not necessarily
+            be sorted.
+        """
+
+        mo_energy = np.zeros((self.nphys,))
+
+        couplings_l, couplings_r = self._unpack_couplings()
+        weights = couplings_l * couplings_r.conj()
+
+        for i in range(self.nphys):
+            mo_energy[i] = self.energies[np.argmax(np.abs(weights[i, :]))]
+
+        return mo_energy
+
     @property
     def hermitian(self):
         """Boolean flag for the Hermiticity."""
@@ -396,15 +420,22 @@ class Lehmann:
 
         return self.__class__(energies, couplings, chempot=self.chempot)
 
+    def physical(self, deep=True, weight=0.1):
+        """Return the part of the Lehmann representation with large
+        weights in the physical space.
+        """
+
+        return self._mask(self.weights() > weight, deep=deep)
+
     def occupied(self, deep=True):
         """Return the occupied part of the Lehmann representation."""
 
-        return self._mask(self.energies < self.chempot)
+        return self._mask(self.energies < self.chempot, deep=deep)
 
     def virtual(self, deep=True):
         """Return the virtual part of the Lehmann representation."""
 
-        return self._mask(self.energies >= self.chempot)
+        return self._mask(self.energies >= self.chempot, deep=deep)
 
     def copy(self, chempot=None, deep=True):
         """Return a copy with optionally updated chemical potential."""

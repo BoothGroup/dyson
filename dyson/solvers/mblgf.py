@@ -987,3 +987,7 @@ class MixedMBLGF:
     @property
     def nphys(self):
         return self.solvers[0].nphys
+
+    @property
+    def log(self):
+        return self.solvers[0].log

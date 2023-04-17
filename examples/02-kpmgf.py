@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pyscf import gto, scf, agf2, lib
 from dyson import KPMGF, util
 
-ncheb = 50  # Number of Chebyshev moments
+ncheb = 10  # Number of Chebyshev moments
 kernel_type = "lorentz"  # Kernel method
 
 # Define a self-energy using PySCF
@@ -40,14 +40,19 @@ moments = lib.einsum("qx,npx->npq", gf.coupling, c)
 # Use the solver to get the spectral function
 solver = KPMGF(moments, grid, (a, b), kernel_type=kernel_type)
 sf = solver.kernel()
+from dyson import CPGF
+solver = CPGF(moments, grid, (a, b), eta=1.0)
+sf = solver.kernel()
 
 # Get a reference spectral function for comparison
 sf_ref = util.build_spectral_function(gf.energy, gf.coupling, grid, eta=1.0)
 
 # Plot the results
 plt.plot(grid, sf_ref, "C0-", label="Reference")
+ylim = plt.ylim()
 plt.plot(grid, sf, "C1-", label="KPMGF")
 plt.legend()
 plt.xlabel("Frequency (Ha)")
 plt.ylabel("Spectral function")
+plt.ylim(ylim)
 plt.show()

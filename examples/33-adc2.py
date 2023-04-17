@@ -14,7 +14,7 @@ mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="sto3g", verbose=0)
 mf = scf.RHF(mol).run()
 
 # Get the expressions
-mp2 = MP2["1h"](mf, non_dyson=True)
+mp2 = MP2["1h"](mf)
 static = mp2.get_static_part()
 diag = mp2.diagonal(static=static)
 matvec = lambda v: mp2.apply_hamiltonian(v, static=static)

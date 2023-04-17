@@ -30,23 +30,16 @@ def get_se(gf, se_prev=None):
     mo_energy, mo_coeff, mo_occ = gf.as_orbitals(mo_coeff=mf.mo_coeff, occupancy=2)
     fock = get_fock(gf.occupied().moment(0) * 2)
 
-    mp2h = MP2["1h"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    th = mp2h.build_se_moments(nmom)
+    mp2 = MP2["Dyson"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
+    th, tp = mp2.build_se_moments(nmom)
     th = lib.einsum("...ij,pi,qj->...pq", th, gf.couplings, gf.couplings)
-
-    mp2p = MP2["1p"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
-    tp = mp2p.build_se_moments(nmom)
     tp = lib.einsum("...ij,pi,qj->...pq", tp, gf.couplings, gf.couplings)
-
     th, tp = diis.update(np.array([th, tp]), xerr=None)
 
     solverh = MBLSE(fock, th, log=NullLogger())
-    solverh.kernel()
-
     solverp = MBLSE(fock, tp, log=NullLogger())
-    solverp.kernel()
-
     solver = MixedMBLSE(solverh, solverp)
+    solver.kernel()
 
     return solver.get_self_energy()
 

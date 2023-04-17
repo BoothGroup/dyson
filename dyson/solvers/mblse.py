@@ -976,3 +976,7 @@ class MixedMBLSE:
     @property
     def static(self):
         return self.solvers[0].static
+
+    @property
+    def log(self):
+        return self.solvers[0].log

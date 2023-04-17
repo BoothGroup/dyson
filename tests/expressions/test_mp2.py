@@ -51,23 +51,16 @@ class MP2_Tests(unittest.TestCase):
             mo_energy, mo_coeff, mo_occ = gf.as_orbitals(mo_coeff=mf.mo_coeff, occupancy=2)
             fock = get_fock(gf.occupied().moment(0) * 2)
 
-            mp2h = MP2["1h"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
-            th = mp2h.build_se_moments(2)
+            mp2 = MP2["Dyson"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
+            th, tp = mp2.build_se_moments(2)
             th = lib.einsum("...ij,pi,qj->...pq", th, gf.couplings, gf.couplings)
-
-            mp2p = MP2["1p"](mf, mo_energy=mo_energy, mo_coeff=mo_coeff, mo_occ=mo_occ)
-            tp = mp2p.build_se_moments(2)
             tp = lib.einsum("...ij,pi,qj->...pq", tp, gf.couplings, gf.couplings)
-
             th, tp = diis.update(np.array([th, tp]), xerr=None)
 
             solverh = MBLSE(fock, th, log=NullLogger())
-            solverh.kernel()
-
             solverp = MBLSE(fock, tp, log=NullLogger())
-            solverp.kernel()
-
             solver = MixedMBLSE(solverh, solverp)
+            solver.kernel()
 
             return solver.get_self_energy()
 
@@ -95,7 +88,7 @@ class MP2_Tests(unittest.TestCase):
     def test_ip_adc2(self):
         mf = self.mf
 
-        mp2 = MP2["1h"](mf, non_dyson=True)
+        mp2 = MP2["1h"](mf)
         static = mp2.get_static_part()
         diag = mp2.diagonal(static=static)
         matvec = lambda v: mp2.apply_hamiltonian(v, static=static)
@@ -116,7 +109,6 @@ class MP2_Tests(unittest.TestCase):
         mf = self.mf
 
         mp2 = MP2["1p"](mf)
-        mp2.non_dyson = True
         static = mp2.get_static_part()
         diag = mp2.diagonal(static=static)
         matvec = lambda v: mp2.apply_hamiltonian(v, static=static)
