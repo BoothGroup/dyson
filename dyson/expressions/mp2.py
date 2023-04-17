@@ -136,10 +136,10 @@ class MP2_Dyson(BaseExpression):
         BaseExpression.__init__(self, *args, **kwargs)
 
         self._agf2 = agf2.ragf2_slow.RAGF2(
-                self.mf,
-                mo_energy=self.mo_energy,
-                mo_coeff=self.mo_coeff,
-                mo_occ=self.mo_occ,
+            self.mf,
+            mo_energy=self.mo_energy,
+            mo_coeff=self.mo_coeff,
+            mo_occ=self.mo_occ,
         )
 
     def get_static_part(self):
@@ -149,7 +149,7 @@ class MP2_Dyson(BaseExpression):
         raise NotImplementedError  # TODO
 
     def diagonal(self, static=None):
-        raise NotImplementedError # TODO
+        raise NotImplementedError  # TODO
 
     def get_wavefunction(self, orb):
         nija = self.nocc * self.nocc * self.nvir
@@ -161,11 +161,11 @@ class MP2_Dyson(BaseExpression):
         return r
 
     def build_se_moments(self, nmom):
-        eo = self.mo_energy[:self.nocc]
-        ev = self.mo_energy[self.nocc:]
+        eo = self.mo_energy[: self.nocc]
+        ev = self.mo_energy[self.nocc :]
         c = self.mo_coeff
-        co = self.mo_coeff[:, :self.nocc]
-        cv = self.mo_coeff[:, self.nocc:]
+        co = self.mo_coeff[:, : self.nocc]
+        cv = self.mo_coeff[:, self.nocc :]
 
         xija = ao2mo.incore.general(self.mf._eri, (c, co, co, cv), compact=False)
         xija = xija.reshape([x.shape[-1] for x in (c, co, co, cv)])

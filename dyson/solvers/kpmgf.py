@@ -185,7 +185,7 @@ class KPMGF(BaseSolver):
         integral = scipy.integrate.simps(f, self.grid)
         self.log.info("%4d %16.8g", 0, integral)
 
-        for niter in range(1, iteration+1):
+        for niter in range(1, iteration + 1):
             polynomial += np.multiply.outer(grids[-1], moments[niter]) * 2
             grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
