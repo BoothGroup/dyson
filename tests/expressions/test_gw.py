@@ -9,6 +9,11 @@ from pyscf import gto, dft, adc, agf2, lib
 import numpy as np
 import scipy.linalg
 
+try:
+    import momentGW
+except ImportError:
+    momentGW = None
+
 from dyson import util, Lehmann, NullLogger
 from dyson import MBLSE, MixedMBLSE, Davidson
 from dyson.expressions import GW
@@ -30,6 +35,7 @@ class GW_Tests(unittest.TestCase):
     def tearDownClass(cls):
         del cls.mf
 
+    @pytest.mark.skipif(momentGW is None, reason="Moment GW tests require momentGW")
     def test_moment_gw(self):
         gw = GW["Dyson"](self.mf)
         static = gw.get_static_part()
@@ -57,6 +63,7 @@ class GW_Tests(unittest.TestCase):
         static = gw.get_static_part()
         matvec = lambda v: gw.apply_hamiltonian(v, static=static)
         diag = gw.diagonal(static=static)
+        # TODO
 
 
 if __name__ == "__main__":
