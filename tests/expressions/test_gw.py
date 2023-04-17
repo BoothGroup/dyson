@@ -20,6 +20,7 @@ from dyson.expressions import GW
 
 
 @pytest.mark.regression
+@pytest.mark.skipif(momentGW is None, reason="Moment GW tests require momentGW")
 class GW_Tests(unittest.TestCase):
     """
     Test the `GW` expressions.
@@ -35,7 +36,6 @@ class GW_Tests(unittest.TestCase):
     def tearDownClass(cls):
         del cls.mf
 
-    @pytest.mark.skipif(momentGW is None, reason="Moment GW tests require momentGW")
     def test_moment_gw(self):
         gw = GW["Dyson"](self.mf)
         static = gw.get_static_part()
