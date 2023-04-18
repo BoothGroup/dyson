@@ -132,8 +132,12 @@ class SelfConsistent(BaseSolver):
             )
         )
         self.log.info(
-                "%6s %12s %12s %12s %12s",
-                "-" * 6, "-" * 12, "-" * 12, "-" * 12, "-" * 12,
+            "%6s %12s %12s %12s %12s",
+            "-" * 6,
+            "-" * 12,
+            "-" * 12,
+            "-" * 12,
+            "-" * 12,
         )
 
         for i in range(1, self.max_cycle + 1):
@@ -173,7 +177,11 @@ class SelfConsistent(BaseSolver):
 
             self.log.info(
                 "{:6d} {:12.8f} {:12.6g} {:12.6g} {:12.6f}".format(
-                    i, gap, gap_error, n_error, gf.chempot,
+                    i,
+                    gap,
+                    gap_error,
+                    n_error,
+                    gf.chempot,
                 )
             )
 
