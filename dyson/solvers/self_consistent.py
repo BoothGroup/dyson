@@ -19,6 +19,9 @@ class SelfConsistent(BaseSolver):
         function in the format of a `Lehmann` object as input, which
         provides the basis in which the self-energy is to be
         constructed.
+    get_fock : callable
+        Callable that returns the Fock matrix.  Takes a density matrix
+        in the MO basis as input.  Default value is `None`.
     gf_init : dyson.Lehmann
         Initial guess for the Green's function.
     nelec : int, optional
@@ -35,9 +38,6 @@ class SelfConsistent(BaseSolver):
         `dyson.solvers.DensityRelaxation`}.  If provided, the
         `get_fock` argument must be provided.  Default value is
         `None`.
-    get_fock : callable, optional
-        Callable that returns the Fock matrix.  Takes a density matrix
-        in the MO basis as input.  Default value is `None`.
     max_cycle : int, optional
         Maximum number of iterations.  Default value is `50`.
     conv_tol : float, optional
@@ -45,16 +45,16 @@ class SelfConsistent(BaseSolver):
         function.  Default value is `1e-8`.
     """
 
-    def __init__(self, get_se, gf_init, **kwargs):
+    def __init__(self, get_se, get_fock, gf_init, **kwargs):
         # Input:
         self._get_se = get_se
+        self._get_fock = get_fock
         self.gf_init = gf_init
 
         # Parameters:
         self._nelec = kwargs.pop("nelec", None)
         self.occupancy = kwargs.pop("occupancy", 2)
         self.relax_solver = kwargs.pop("relax_solver", None)
-        self._get_fock = kwargs.pop("get_fock", None)
         self.max_cycle = kwargs.pop("max_cycle", 50)
         self.conv_tol = kwargs.pop("conv_tol", 1e-8)
 
@@ -66,7 +66,6 @@ class SelfConsistent(BaseSolver):
         self.log.info(" > nelec:  %s", self.nelec)
         self.log.info(" > occupancy:  %s", self.occupancy)
         self.log.info(" > relax_solver:  %s", self.relax_solver)
-        self.log.info(" > get_fock:  %s", self.get_fock)
         self.log.info(" > max_cycle:  %s", self.max_cycle)
         self.log.info(" > conv_tol:  %s", self.conv_tol)
 
@@ -120,24 +119,27 @@ class SelfConsistent(BaseSolver):
         gf_prev = gf
         se = self.get_se(gf)
         se_prev = None
+        gap = gf.physical().virtual().energies[0] - gf.physical().occupied().energies[-1]
 
-        self.log.info("-" * 45)
+        self.log.info("-" * 58)
         self.log.info(
-            "{:^6s} {:^12s} {:^12s} {:^12s}".format(
+            "{:^6s} {:^12s} {:^12s} {:^12s} {:^12s}".format(
                 "Iter",
-                "GF error",
+                "Gap",
+                "Gap error",
                 "Nelec error",
                 "Chempot",
             )
         )
-        self.log.info("%6s %12s %12s %12s", "-" * 6, "-" * 12, "-" * 12, "-" * 12)
-
-        if not self.relax_solver:
-            # Infer the Fock matrix from the moments of the Green's function
-            fock = gf.moment(1)
+        self.log.info(
+                "%6s %12s %12s %12s %12s",
+                "-" * 6, "-" * 12, "-" * 12, "-" * 12, "-" * 12,
+        )
 
         for i in range(1, self.max_cycle + 1):
             gf_prev = gf
+            gap_prev = gap
+
             if self.relax_solver:
                 if self.relax_solver is DensityRelaxation:
                     fock = self.get_fock
@@ -152,24 +154,34 @@ class SelfConsistent(BaseSolver):
                 se = solver.get_self_energy()
 
             else:
+                rdm1 = gf.occupied().moment(0) * self.occupancy
+                fock = self.get_fock(rdm1)
+
                 w, v = se.diagonalise_matrix_with_projection(fock)
                 gf = Lehmann(w, v, chempot=se.chempot)
 
             se_prev = se.copy()
             se = self.get_se(gf, se_prev=se_prev)
 
-            gf_error = np.max(np.abs(gf.moment(1) - gf_prev.moment(1)))
+            gap_prev = gap
+            ip = -gf.physical().occupied().energies[-1]
+            ea = gf.physical().virtual().energies[0]
+            gap = ip + ea
+
             n_error = abs(np.trace(gf.occupied().moment(0)) * self.occupancy - self.nelec)
+            gap_error = abs(gap - gap_prev)
 
             self.log.info(
-                "{:6d} {:12.6g} {:12.6g} {:12.6f}".format(i, gf_error, n_error, gf.chempot)
+                "{:6d} {:12.8f} {:12.6g} {:12.6g} {:12.6f}".format(
+                    i, gap, gap_error, n_error, gf.chempot,
+                )
             )
 
-            if gf_error < self.conv_tol:
+            if gap_error < self.conv_tol:
                 self.converged = True
                 break
 
-        self.log.info("-" * 45)
+        self.log.info("-" * 58)
 
         self.flag_convergence(self.converged)
 

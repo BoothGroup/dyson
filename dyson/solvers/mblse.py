@@ -365,8 +365,6 @@ class MBLSE_Symm(BaseSolver):
             error_sqrt,
             error_inv_sqrt,
         )
-        if self.iteration == self.max_cycle:
-            self.log.info("-" * 89)
 
     def get_auxiliaries(self, iteration=None):
         """
@@ -414,6 +412,7 @@ class MBLSE_Symm(BaseSolver):
         while self.iteration < iteration:
             self.recurrence_iteration()
 
+        self.log.info("-" * 89)
         self.log.info("Block Lanczos moment recurrence completed to iteration %d.", self.iteration)
 
         if iteration is None:

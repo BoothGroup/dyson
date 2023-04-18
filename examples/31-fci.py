@@ -5,7 +5,7 @@ solver and the `FCI` expressions.
 
 import numpy as np
 from pyscf import gto, scf, lib
-from dyson import Lehmann, NullLogger, Davidson
+from dyson import Lehmann, NullLogger, Davidson, MBLGF
 from dyson.expressions import FCI
 
 
@@ -21,5 +21,11 @@ matvec = fci.apply_hamiltonian
 # Run the Davidson algorithm
 solver = Davidson(matvec, diag, nroots=5, nphys=fci.nocc)
 solver.conv_tol = 1e-10
+solver.kernel()
+solver.log.info("IP: %.8f", -solver.get_greens_function().occupied().energies[-1])
+
+# Use MBLGF
+moments = fci.build_gf_moments(4)
+solver = MBLGF(moments)
 solver.kernel()
 solver.log.info("IP: %.8f", -solver.get_greens_function().occupied().energies[-1])
