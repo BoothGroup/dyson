@@ -49,9 +49,9 @@ gf = Lehmann(mf.mo_energy, np.eye(mf.mo_energy.size))
 # Run the solver
 solver = SelfConsistent(
         get_se,
+        get_fock,
         gf,
         relax_solver=DensityRelaxation,
-        get_fock=get_fock,
         conv_tol=1e-10,
 )
 solver.kernel()
