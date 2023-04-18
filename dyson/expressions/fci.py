@@ -9,7 +9,7 @@ from dyson import util
 from dyson.expressions import BaseExpression
 
 
-def _fci_constructor(δalph, δbeta, func_sq):
+def _fci_constructor(δalph, δbeta, func_sq, sign):
     """Construct FCI expressions classes for a given change in the
     number of alpha and beta electrons.
     """
@@ -22,7 +22,7 @@ def _fci_constructor(δalph, δbeta, func_sq):
 
         hermitian = True
 
-        def __init__(self, *args, h1e=None, h2e=None, e_ci=None, c_ci=None, chempot=0.0, **kwargs):
+        def __init__(self, *args, h1e=None, h2e=None, e_ci=None, c_ci=None, chempot=None, **kwargs):
             BaseExpression.__init__(self, *args, **kwargs)
 
             if e_ci is None:
@@ -48,7 +48,7 @@ def _fci_constructor(δalph, δbeta, func_sq):
 
             self.e_ci = e_ci
             self.c_ci = c_ci
-            self.chempot = chempot
+            self.chempot = e_ci if chempot is None else chempot
 
             self.link_index = (
                 fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nalph + δalph),
@@ -71,7 +71,7 @@ def _fci_constructor(δalph, δbeta, func_sq):
             )
 
         def diagonal(self):
-            return self.diag
+            return sign * self.diag
 
         def apply_hamiltonian(self, vector):
             hvec = fci.direct_spin1.contract_2e(
@@ -83,7 +83,7 @@ def _fci_constructor(δalph, δbeta, func_sq):
             )
             hvec -= self.chempot * vector
 
-            return hvec.ravel()
+            return sign * hvec.ravel()
 
         def get_wavefunction(self, orb):
             wfn = func_sq(self.c_ci, self.nmo, (self.nalph, self.nbeta), orb)
@@ -92,9 +92,9 @@ def _fci_constructor(δalph, δbeta, func_sq):
     return _FCI
 
 
-FCI_1h = _fci_constructor(-1, 0, fci.addons.des_a)
+FCI_1h = _fci_constructor(-1, 0, fci.addons.des_a, -1)
 
-FCI_1p = _fci_constructor(1, 0, fci.addons.cre_a)
+FCI_1p = _fci_constructor(1, 0, fci.addons.cre_a, 1)
 
 FCI = {
     "1h": FCI_1h,
