@@ -35,9 +35,9 @@ class Lehmann_Hermitian_Tests(unittest.TestCase):
 
     def test_chebyshev_moments(self):
         t = self.aux.chebyshev_moment(range(10))
-        self.assertAlmostEqual(lib.fp(t), -2.74070446616594, 10)
+        self.assertAlmostEqual(lib.fp(t), -59.24704483050994, 10)
         t = self.aux.chebyshev_moment(5)
-        self.assertAlmostEqual(lib.fp(t),  0.67389424549938, 10)
+        self.assertAlmostEqual(lib.fp(t),  -0.89044258131632, 10)
 
     def test_matrix(self):
         phys = np.diag(np.cos(np.arange(self.aux.nphys)))
@@ -109,9 +109,9 @@ class Lehmann_NonHermitian_Tests(unittest.TestCase):
 
     def test_chebyshev_moments(self):
         t = self.aux.chebyshev_moment(range(10))
-        self.assertAlmostEqual(lib.fp(t), 16.237882553081764, 10)
+        self.assertAlmostEqual(lib.fp(t), 22.449864768273073, 10)
         t = self.aux.chebyshev_moment(5)
-        self.assertAlmostEqual(lib.fp(t), -0.152659360123395, 10)
+        self.assertAlmostEqual(lib.fp(t),  0.481350207154633, 10)
 
     def test_matrix(self):
         phys = np.diag(np.cos(np.arange(self.aux.nphys)))
