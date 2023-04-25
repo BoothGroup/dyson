@@ -163,12 +163,10 @@ class Lehmann:
         vecs = (couplings_l, couplings_l * energies_scaled)
 
         j = 0
-        if 0 in nmoms:
-            moments[0] = np.dot(vecs[0], couplings_r.T.conj())
-            j += 1
-        if 1 in nmoms:
-            moments[1] = np.dot(vecs[1], couplings_r.T.conj())
-            j += 1
+        for i in range(2):
+            if i in nmoms:
+                moments[i] = np.dot(vecs[i], couplings_r.T.conj())
+                j += 1
 
         for i in range(2, nmom_max + 1):
             vec_next = 2 * energies_scaled * vecs[1] - vecs[0]
