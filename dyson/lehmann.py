@@ -159,17 +159,25 @@ class Lehmann:
         couplings_l, couplings_r = self._unpack_couplings()
         energies_scaled = (self.energies - b) / a
 
-        c = np.zeros((nmom_max + 1, self.nphys, self.naux), dtype=self.dtype)
-        c[0] = couplings_l
-        c[1] = couplings_l * energies_scaled
+        moments = np.zeros((len(nmoms), self.nphys, self.nphys), dtype=self.dtype)
+        vecs = (couplings_l, couplings_l * energies_scaled)
+
+        j = 0
+        if 0 in nmoms:
+            moments[0] = np.dot(vecs[0], couplings_r.T.conj())
+            j += 1
+        if 1 in nmoms:
+            moments[1] = np.dot(vecs[1], couplings_r.T.conj())
+            j += 1
 
         for i in range(2, nmom_max + 1):
-            c[i] = 2 * energies_scaled * c[i - 1] - c[i - 2]
+            vec_next = 2 * energies_scaled * vecs[1] - vecs[0]
+            vecs = (vecs[1], vec_next)
+            if i in nmoms:
+                moments[j] = np.dot(vec_next, couplings_r.T.conj())
+                j += 1
 
-        c = c[list(nmoms)]
-        chebyshev = np.einsum("qk,npx->npq", couplings_r, c)
-
-        return chebyshev
+        return moments
 
     def matrix(self, physical, chempot=False, out=None):
         """
@@ -492,4 +500,7 @@ class Lehmann:
     @property
     def dtype(self):
         """Data type of the Lehmann representation."""
-        return np.result_type(self.energies, self.couplings)
+        if self.hermitian:
+            return np.result_type(self.energies, self.couplings)
+        else:
+            return np.result_type(self.energies, *self.couplings)
