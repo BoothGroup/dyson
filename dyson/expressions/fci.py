@@ -5,7 +5,7 @@ FCI expressions.
 import numpy as np
 from pyscf import ao2mo, fci, lib
 
-from dyson import util, default_log
+from dyson import default_log, util
 from dyson.expressions import BaseExpression
 
 
