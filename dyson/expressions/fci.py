@@ -5,7 +5,7 @@ FCI expressions.
 import numpy as np
 from pyscf import ao2mo, fci, lib
 
-from dyson import util
+from dyson import util, default_log
 from dyson.expressions import BaseExpression
 
 
@@ -22,8 +22,34 @@ def _fci_constructor(δalph, δbeta, func_sq, sign):
 
         hermitian = True
 
-        def __init__(self, *args, h1e=None, h2e=None, e_ci=None, c_ci=None, chempot=None, **kwargs):
-            BaseExpression.__init__(self, *args, **kwargs)
+        def __init__(
+            self,
+            *args,
+            h1e=None,
+            h2e=None,
+            e_ci=None,
+            c_ci=None,
+            chempot=None,
+            nelec=None,
+            **kwargs,
+        ):
+            if len(args):
+                if nelec is not None:
+                    raise ValueError(
+                        "nelec keyword argument only valid when mean-field object is not " "passed."
+                    )
+                BaseExpression.__init__(self, *args, **kwargs)
+            else:
+                # Allow initialisation without MF object
+                if h1e is None or h2e is None:
+                    raise ValueError(
+                        "h1e and h2e keyword arguments are required to initialise FCI "
+                        "without mean-field object."
+                    )
+                self.log = kwargs.get("log", default_log)
+                self.mf = None
+                self._nelec = nelec
+                self._nmo = h1e.shape[0]
 
             if e_ci is None:
                 if h1e is None:
@@ -88,6 +114,26 @@ def _fci_constructor(δalph, δbeta, func_sq, sign):
         def get_wavefunction(self, orb):
             wfn = func_sq(self.c_ci, self.nmo, (self.nalph, self.nbeta), orb)
             return wfn.ravel()
+
+        # Override properties to allow initialisation without a mean-field
+
+        @property
+        def nmo(self):
+            if self.mf is None:
+                return self._nmo
+            return self.mo_coeff.shape[-1]
+
+        @property
+        def nocc(self):
+            if self.mf is None:
+                return self._nelec // 2
+            return np.sum(self.mo_occ > 0)
+
+        @property
+        def nvir(self):
+            if self.mf is None:
+                return self.nmo - self.nocc
+            return np.sum(self.mo_occ == 0)
 
     return _FCI
 
