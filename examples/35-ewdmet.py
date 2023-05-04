@@ -78,6 +78,9 @@ def construct_bath(mo_energy, mo_coeff, mo_occ, tol=1e-10):
     """Construct an EwDMET bath.
     """
 
+    # ghb: Is this the same as the EwDMET bath in vayesta?
+    # The key is that the space from which the bath space is constructed *should* include
+
     def part(s):
         en = np.power.outer(mo_energy[s], np.arange(nmom_max_bath+1)).T
         c_env_s = np.dot(c_env.T, mo_coeff[:, s])
@@ -149,7 +152,11 @@ for cycle in range(1, 21):
     print("-" * len(f"Iteration {cycle}"))
 
     # Update the self-energy
+    # Is this just getting the auxiliary states?
     se = get_se(gf)
+    print(se)
+    print(se.__dir__())
+    1./0
 
     # Update the Green's function, relaxing the density
     nelec = hubbard.nelectron
