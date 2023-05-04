@@ -15,7 +15,7 @@ from dyson import MBLGF, MixedMBLGF, DensityRelaxation, FCI, Lehmann, util, Null
 from dyson import DensityRelaxation, AufbauPrinciple, SelfConsistent
 np.set_printoptions(edgeitems=1000, linewidth=1000, precision=3)
 
-nsite = 16
+nsite = 10
 u = 4.0
 nmom_max_fci = 1
 nmom_max_bath = 1
@@ -49,7 +49,6 @@ h2e_frag = ao2mo.kernel(mf._eri, c_frag)  # (frag,frag|frag,frag)
 
 # Initialise a self-energy
 se = Lehmann(np.zeros((0,)), np.zeros((nfrag, 0)), chempot=chempot)  # (frag|aux)
-fock = np.linalg.multi_dot((c_frag.T, mf.get_fock(), c_frag))  # (frag frag)
 
 print(f"\nSystem")
 print("-" * len(f"System"))
@@ -70,6 +69,12 @@ print("IP = {:.8f}".format(-mf.mo_energy[nsite//2-1]))
 print("EA = {:.8f}".format(mf.mo_energy[nsite//2]))
 print("Gap = {:.8f}".format(mf.mo_energy[nsite//2] - mf.mo_energy[nsite//2-1]))
 
+def tile_se(se, nimage):
+    # Block diagonally tile a self-energy
+    e = np.concatenate([se.energies] * nimage, axis=0)
+    c = scipy.linalg.block_diag(*([se.couplings] * nimage))
+    return Lehmann(e, c, chempot=se.chempot)
+
 # Run the EwDMET calculation
 e_tot = mf.e_tot
 for cycle in range(1, 11):
@@ -77,12 +82,13 @@ for cycle in range(1, 11):
     print("-" * len(f"Iteration {cycle}"))
 
     # Get the DM in the environment
-    # TODO fock in full site basis, tile local SEs
-    e, c = se.diagonalise_matrix(fock)  # (site+aux|QMO)
+    fock = mf.get_fock()
+    se_full = tile_se(se, nsite//nfrag)
+    fock_ext = se_full.matrix(fock)  # (site+aux|site+aux)
+    e, c = np.linalg.eigh(fock_ext)  # (site+aux|QMO)
     # TODO chempot, fock opt over physical space
-    c_moaux = np.linalg.multi_dot((mo_coeff, c[:nsite], c.T))  # (site|MO+aux)
     dm = np.dot(c[:, e < se.chempot], c[:, e < se.chempot].T)  # (site+aux|site+aux)
-    # TODO project out fragment and local auxiliaries from dm
+    dm[:nfrag] = dm[:, :nfrag] = 0
 
     # Build the DMET bath orbitals
     eig, r = np.linalg.eigh(dm)
@@ -100,31 +106,33 @@ for cycle in range(1, 11):
     for c_partenv in [c_occenv, c_virenv]:
         if c_partenv.size:
             # Span also the fragment space
-            c_part = np.zeros((c_partenv.shape[0], nsite + c_partenv.shape[1]))  # (MO+aux|MO+part-env)
-            c_part[:nsite, :nsite] = p_mo_frag
-            c_part[:, nsite:] = c_partenv
-            fock_ext = se.matrix(fock)  # (MO+aux|MO+aux)
-            fock_ext = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (MO+part-env|MO+part-env)
-            # TODO n should be frag+aux, fock_ext spans frag+aux+occenv
-            r_part, sv_part, orders_part = recursive_block_svd(fock_ext, n=nsite, tol=tol, maxblock=nmom_max_bath)
-            c_partewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (MO+aux|part-ewdmet)
-            c_bath.append(c_partewdmet)
-    c_bath = np.hstack(c_bath)  # (MO+aux|bath)
-    c_bath = np.dot(c_moaux, c_bath)  # (site|bath)
+            c_part = np.zeros((nsite+se_full.naux, nfrag+se_full.naux+c_partenv.shape[-1]))  # (site+aux|frag+aux+part-env)
+            c_part[:nsite, :nfrag] = c_frag
+            c_part[nsite:, nfrag:(nfrag+se_full.naux)] = np.eye(se_full.naux)
+            c_part[:, (nfrag+se_full.naux):] = c_partenv
+            fock_ext_proj = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (frag+aux+part-env|frag+aux+part-env)
+            r_part, sv_part, orders_part = recursive_block_svd(fock_ext_proj, n=nfrag+se_full.naux, tol=tol, maxblock=nmom_max_bath)  # (part-env|ewdmet)
+            c_ewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (site+aux|ewdmet)
+            c_bath.append(c_ewdmet)
+    c_bath = np.hstack(c_bath)  # (site+aux|bath)
     print("EwDMET: n(bath) = {}".format(c_bath.shape[1]))
 
     # Build the cluster orbitals
-    c_cls = np.hstack((c_frag, c_bath))  # (site|cls)
-    fock_proj = np.linalg.multi_dot((c_cls.T, fock, c_cls))  # (cls|cls)
-    e_cls, rot = np.linalg.eigh(fock_proj)
-    c_cls = np.dot(c_cls, rot)
+    c_cls = np.zeros((nsite+se_full.naux, nfrag+c_bath.shape[-1]))  # (site+aux|frag+bath)
+    c_cls[:nsite, :nfrag] = c_frag
+    c_cls[:, nfrag:] = c_bath
+    fock_ext_proj = np.linalg.multi_dot((c_cls.T, fock_ext, c_cls))  # (frag+bath|frag+bath)
+    e_cls, rot = np.linalg.eigh(fock_ext_proj)
+    c_cls = np.dot(c_cls, rot)  # (site+aux|cls)
     c_cls, signs = fix_orbital_sign(c_cls)
+    c_cls = c_cls[:nsite]  # (site|cls)
     o_cls = (e_cls < se.chempot).astype(float) * 2
     print("Cluster size: {} ({}o, {}v)".format(c_cls.shape[-1], np.sum(o_cls > 0), np.sum(o_cls == 0)))
 
-    # Get the Hamiltonian  # TODO won't scale
-    h1e = np.linalg.multi_dot((c_cls.T, mf.get_hcore(), c_cls))
-    h2e = ao2mo.kernel(mf._eri, c_cls)
+    # Get the Hamiltonian
+    c_frag_cls = np.dot(c_frag.T, c_cls)  # (frag|cls)
+    h1e = np.linalg.multi_dot((c_frag_cls.T, h1e_frag, c_frag_cls))
+    h2e = ao2mo.kernel(h2e_frag, c_frag_cls)
 
     # Get the FCI moments
     expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=np.sum(e_cls < se.chempot) * 2)
@@ -140,10 +148,7 @@ for cycle in range(1, 11):
 
     # Get the auxiliaries in the site basis
     se = solver.get_self_energy(chempot=se.chempot)  # (cls|aux)
-    se.couplings = np.linalg.multi_dot((mo_coeff.T, c_cls, se.couplings))  # (MO|aux)
-
-    # Project out the environment couplings
-    se.couplings = np.dot(p_mo_frag, se.couplings)  # (MO|aux)
+    se.couplings = np.dot(c_frag_cls, se.couplings)  # (frag|aux)
 
     # Get the energy, IP, EA, gap
     e_prev = e_tot
