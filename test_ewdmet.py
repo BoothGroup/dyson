@@ -48,8 +48,8 @@ h1e_frag = np.linalg.multi_dot((c_frag.T, mf.get_hcore(), c_frag))  # (frag|frag
 h2e_frag = ao2mo.kernel(mf._eri, c_frag)  # (frag,frag|frag,frag)
 
 # Initialise a self-energy
-se = Lehmann(np.zeros((0,)), np.zeros((mo_occ.size, 0)), chempot=chempot)  # (MO|aux)
-fock = np.diag(mo_energy)  # (MO|MO)
+se = Lehmann(np.zeros((0,)), np.zeros((nfrag, 0)), chempot=chempot)  # (frag|aux)
+fock = np.linalg.multi_dot((c_frag.T, mf.get_fock(), c_frag))  # (frag frag)
 
 print(f"\nSystem")
 print("-" * len(f"System"))
@@ -77,19 +77,21 @@ for cycle in range(1, 11):
     print("-" * len(f"Iteration {cycle}"))
 
     # Get the DM in the environment
-    e, c = se.diagonalise_matrix(fock)  # (MO+aux|QMO)
+    # TODO fock in full site basis, tile local SEs
+    e, c = se.diagonalise_matrix(fock)  # (site+aux|QMO)
+    # TODO chempot, fock opt over physical space
     c_moaux = np.linalg.multi_dot((mo_coeff, c[:nsite], c.T))  # (site|MO+aux)
-    c[:nsite] = np.dot(p_mo_env, c[:nsite])  # (MO+aux|QMO)
-    dm = np.dot(c[:, e < se.chempot], c[:, e < se.chempot].T)  # (MO+aux|MO+aux)
+    dm = np.dot(c[:, e < se.chempot], c[:, e < se.chempot].T)  # (site+aux|site+aux)
+    # TODO project out fragment and local auxiliaries from dm
 
     # Build the DMET bath orbitals
     eig, r = np.linalg.eigh(dm)
     eig, r = eig[::-1], r[:, ::-1]
     c_all = r.copy()
     c_all = fix_orbital_sign(c_all)[0]
-    c_dmet = c_all[:, np.logical_and(eig >= tol, eig <= 1-tol)]  # (MO+aux|bath)
-    c_occenv = c_all[:, eig > 1-tol]  # (MO+aux|occ-env)
-    c_virenv = c_all[:, eig < tol]  # (MO+aux|vir-env)
+    c_dmet = c_all[:, np.logical_and(eig >= tol, eig <= 1-tol)]  # (site+aux|bath)
+    c_occenv = c_all[:, eig > 1-tol]  # (site+aux|occ-env)
+    c_virenv = c_all[:, eig < tol]  # (site+aux|vir-env)
     print("DMET: n(bath) = {}, n(occ-env) = {}, n(vir-env) = {}".format(
         c_dmet.shape[1], c_occenv.shape[1], c_virenv.shape[1]))
 
@@ -103,6 +105,7 @@ for cycle in range(1, 11):
             c_part[:, nsite:] = c_partenv
             fock_ext = se.matrix(fock)  # (MO+aux|MO+aux)
             fock_ext = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (MO+part-env|MO+part-env)
+            # TODO n should be frag+aux, fock_ext spans frag+aux+occenv
             r_part, sv_part, orders_part = recursive_block_svd(fock_ext, n=nsite, tol=tol, maxblock=nmom_max_bath)
             c_partewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (MO+aux|part-ewdmet)
             c_bath.append(c_partewdmet)
