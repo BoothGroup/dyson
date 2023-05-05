@@ -12,20 +12,22 @@ from vayesta.core.util import fix_orbital_sign
 from vayesta.lattmod import Hubbard1D, LatticeRHF
 from vayesta.core.linalg import recursive_block_svd
 from dyson import MBLGF, MixedMBLGF, DensityRelaxation, FCI, Lehmann, util, NullLogger
-from dyson import DensityRelaxation, AufbauPrinciple, SelfConsistent
+from dyson import DensityRelaxation, AufbauPrinciple, SelfConsistent, AuxiliaryShift
 np.set_printoptions(edgeitems=1000, linewidth=1000, precision=3)
 
 nsite = 10
-u = 4.0
+latt_elec = 10
+u = 12.
 nmom_max_fci = 1
 nmom_max_bath = 1
 nfrag = 2
 tol = 1e-10
+keep_nbath_fixed = True
 
 # Define a Hubbard model
 hubbard = Hubbard1D(
         nsite=nsite,
-        nelectron=nsite,
+        nelectron=latt_elec,
         hubbard_u=u,
         verbose=0,
 )
@@ -82,15 +84,25 @@ for cycle in range(1, 11):
     print(f"\nIteration {cycle}")
     print("-" * len(f"Iteration {cycle}"))
 
-    # Get the DM in the environment
     fock = mf.get_fock()
+    # Periodically replicate self-energy
     se_full = tile_se(se, nsite//nfrag)
-    fock_ext = se_full.matrix(fock)  # (site+aux|site+aux)
-    e, c = np.linalg.eigh(fock_ext)  # (site+aux|QMO)
-    # TODO chempot, fock opt over physical space
+    # Optimize chemical potential of the self-energy to get the right number of global electrons
+    # TODO: Fock opt too?
+    shift = AuxiliaryShift(fock, se_full, latt_elec, occupancy=2, log=NullLogger())
+    shift.kernel()
+    se_full = shift.get_self_energy()
+    fock_ext = se_full.matrix(fock)
+    e, c = se_full.diagonalise_matrix(fock)
+    #fock_ext = se_full.matrix(fock)  # (site+aux|site+aux)
+    #e, c = np.linalg.eigh(fock_ext)  # (site+aux|QMO)
+    print('SE auxiliaries after shift: {} ({}o, {}v)'.format(se.naux, se.occupied().naux, se.virtual().naux))
+
     # Construct QMO density matrix over full space
-    dm = np.dot(c[:, e < se.chempot], c[:, e < se.chempot].T)  # (site+aux|site+aux)
+    dm = np.dot(c[:, e < se_full.chempot], c[:, e < se_full.chempot].T)  # (site+aux|site+aux)
+    print('Trace of dm: {:.6f}'.format(np.trace(dm) * 2))
     # Project out both fragment and fragment-local auxiliary degrees of freedom
+    # Get the DM in the environment
     #dm[:nfrag, :] = dm[:, :nfrag] = 0
     #dm[nsite:nsite+se.naux, nsite:nsite+se.naux] = 0
     dm_env = np.zeros((nsite-nfrag+se_full.naux-se.naux,) * 2)
@@ -104,9 +116,24 @@ for cycle in range(1, 11):
     eig, r = eig[::-1], r[:, ::-1]
     c_all = r.copy()
     c_all = fix_orbital_sign(c_all)[0]
-    c_dmet = c_all[:, np.logical_and(eig >= tol, eig <= 1-tol)]  # (envsite+envaux|bath)
-    c_occenv = c_all[:, eig > 1-tol]  # (envsite+envaux|occenv)
-    c_virenv = c_all[:, eig < tol]  # (envsite+envaux|virenv)
+    # TODO: Print DMET eigenvalues
+    print(eig)
+    if keep_nbath_fixed:
+        # TODO: Rather than defining threshold, ensure that DMET bath space size = nfrag.
+        if cycle == 1:
+            dmet_inds = np.argsort(np.abs(eig - 0.5))[:2]
+        else:
+            dmet_inds = [15, 16]
+        print('Chosen DMET eigs: {}'.format(eig[dmet_inds]))
+        mask_occenv = np.logical_and(eig > 0.5, [x not in dmet_inds for x in range(eig.size)])
+        mask_virenv = np.logical_and(eig < 0.5, [x not in dmet_inds for x in range(eig.size)])
+        c_dmet = c_all[:, dmet_inds]
+        c_occenv = c_all[:, mask_occenv]
+        c_virenv = c_all[:, mask_virenv]
+    else:
+        c_dmet = c_all[:, np.logical_and(eig >= tol, eig <= 1-tol)]  # (envsite+envaux|bath)
+        c_occenv = c_all[:, eig > 1-tol]  # (envsite+envaux|occenv)
+        c_virenv = c_all[:, eig < tol]  # (envsite+envaux|virenv)
     print("DMET: n(bath) = {}, n(occ-env) = {}, n(vir-env) = {}".format(
         c_dmet.shape[1], c_occenv.shape[1], c_virenv.shape[1]))
 
@@ -132,7 +159,11 @@ for cycle in range(1, 11):
         fock_ext_proj = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (frag+aux+part-env|frag+aux+part-env)
         r_part, sv_part, orders_part = recursive_block_svd(fock_ext_proj, n=nfrag+se.naux, tol=tol, maxblock=nmom_max_bath)  # (part-env|ewdmet)
         print(sv_part, orders_part)
-        c_ewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (site+aux|ewdmet)
+        if keep_nbath_fixed and 0:
+            # Take the largest bath orbitals corresponding to the largest nfrag sing. vals. from each order
+            pass
+        else:
+            c_ewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (site+aux|ewdmet)
         return c_ewdmet
     c_occewdmet = build_part(c_occenv)  # (site+aux|occewdmet)
     c_virewdmet = build_part(c_virenv)  # (site+aux|virewdmet)
@@ -171,8 +202,10 @@ for cycle in range(1, 11):
     nelec_exact = np.trace(dm_cls) * 2
     nelec = int(np.rint(nelec_exact))
     print("Nelec in cluster: {:.6f} (rounded to {})".format(nelec_exact, nelec))
+    if se.naux == 0:
+        assert(np.isclose(nelec_exact, nelec))
 
-    # Optimize a chemical potential in the fragment space, such that the ground state FCI calculation
+    # TODO: Optimize a chemical potential in the fragment space, such that the ground state FCI calculation
     # has the right number of electrons in it. This obviously might be fractional.
 
     # Get the FCI moments
@@ -187,9 +220,12 @@ for cycle in range(1, 11):
     solver = MixedMBLGF(solverh, solverp)
     solver.kernel()
 
-    # Get the auxiliaries in the site basis
+    # Get the auxiliaries in the cluster basis
     se = solver.get_self_energy(chempot=se.chempot)  # (cls|aux)
     se.couplings = np.dot(c_frag_cls, se.couplings)  # (frag|aux)
+    print('Number of auxiliaries (full cluster): {}'.format(se.naux))
+    se = se._mask(se.weights() > 1e-10)
+    print('Number of auxiliaries (coupled to fragment sites): {}'.format(se.naux))
 
     # Get the energy, IP, EA, gap
     e_prev = e_tot
