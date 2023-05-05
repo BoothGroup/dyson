@@ -121,25 +121,29 @@ for cycle in range(1, 11):
     c_virenv = enlarge(c_virenv)
 
     # Build the EwDMET bath orbitals
-    c_bath = [c_dmet]
-    for c_partenv in [c_occenv, c_virenv]:
-        if c_partenv.size:
-            # Span also the fragment space
-            c_part = np.zeros((nsite+se_full.naux, nfrag+se.naux+c_partenv.shape[-1]))  # (site+aux|frag+aux+part-env)
-            c_part[:nsite, :nfrag] = c_frag
-            c_part[nsite:(nsite+se.naux), nfrag:(nfrag+se.naux)] = np.eye(se.naux)
-            c_part[:, (nfrag+se.naux):] = c_partenv
-            fock_ext_proj = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (frag+aux+part-env|frag+aux+part-env)
-            r_part, sv_part, orders_part = recursive_block_svd(fock_ext_proj, n=nfrag+se.naux, tol=tol, maxblock=nmom_max_bath)  # (part-env|ewdmet)
-            c_ewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (site+aux|ewdmet)
-            c_bath.append(c_ewdmet)
-    c_bath = np.hstack(c_bath)  # (site+aux|bath)
-    print("EwDMET: n(bath) = {}".format(c_bath.shape[1]))
+    def build_part(c_partenv):
+        if not c_partenv.size:
+            return np.zeros((nsite+se_full.naux, 0))
+        # Span also the fragment space
+        c_part = np.zeros((nsite+se_full.naux, nfrag+se.naux+c_partenv.shape[-1]))  # (site+aux|frag+aux+part-env)
+        c_part[:nsite, :nfrag] = c_frag
+        c_part[nsite:(nsite+se.naux), nfrag:(nfrag+se.naux)] = np.eye(se.naux)
+        c_part[:, (nfrag+se.naux):] = c_partenv
+        fock_ext_proj = np.linalg.multi_dot((c_part.T, fock_ext, c_part))  # (frag+aux+part-env|frag+aux+part-env)
+        r_part, sv_part, orders_part = recursive_block_svd(fock_ext_proj, n=nfrag+se.naux, tol=tol, maxblock=nmom_max_bath)  # (part-env|ewdmet)
+        print(sv_part, orders_part)
+        c_ewdmet = np.dot(c_partenv, r_part[:, sv_part > tol])  # (site+aux|ewdmet)
+        return c_ewdmet
+    c_occewdmet = build_part(c_occenv)  # (site+aux|occewdmet)
+    c_virewdmet = build_part(c_virenv)  # (site+aux|virewdmet)
+    c_bath = np.hstack([c_dmet, c_occewdmet, c_virewdmet])  # (site+aux|bath)
+    print("EwDMET: n(bath) = {} ({}o, {}v)".format(c_bath.shape[1], c_occewdmet.shape[1], c_virewdmet.shape[1]))
 
     # Build the cluster orbitals
     c_cls = np.zeros((nsite+se_full.naux, nfrag+c_bath.shape[-1]))  # (site+aux|frag+bath)
     c_cls[:nsite, :nfrag] = c_frag
     c_cls[:, nfrag:] = c_bath
+    print("Cluster size: {}".format(c_cls.shape[-1]))
 
     # TODO: Optionally semi-canonicalize (after cluster hamiltonian construction?)
     #fock_ext_proj = np.linalg.multi_dot((c_cls.T, fock_ext, c_cls))  # (frag+bath|frag+bath)
@@ -156,22 +160,25 @@ for cycle in range(1, 11):
     h1e[:nfrag, :nfrag] = np.linalg.multi_dot((c_frag.T, mf.get_hcore(), c_frag))
     h1e[:nfrag, nfrag:] = np.linalg.multi_dot((c_frag.T, mf.get_hcore(), c_bath[:nsite]))
     h1e[nfrag:, :nfrag] = h1e[:nfrag, nfrag:].T
-    c_frag_cls = np.dot(c_frag.T, c_cls)  # (frag|cls)
+    c_frag_cls = np.dot(c_frag.T, c_cls[:nsite])  # (frag|cls)
     h2e = ao2mo.kernel(h2e_frag, c_frag_cls)
 
-    # TODO: Get number of electrons in the cluster.
+    # Get number of electrons in the cluster.
     # To do this, we need to project dm into the cluster space, trace, x 2.
     # I (unfortunately) DO NOT THINK THIS WILL BE AN INTEGER (other than without auxiliaries - check this)
-
     # Choose the nearest integer number of electrons (eek...)
+    dm_cls = np.linalg.multi_dot((c_cls.T, dm, c_cls))
+    nelec_exact = np.trace(dm_cls) * 2
+    nelec = int(np.rint(nelec_exact))
+    print("Nelec in cluster: {:.6f} (rounded to {})".format(nelec_exact, nelec))
 
     # Optimize a chemical potential in the fragment space, such that the ground state FCI calculation
     # has the right number of electrons in it. This obviously might be fractional.
 
     # Get the FCI moments
-    expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=np.sum(e_cls < se.chempot) * 2)
+    expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=nelec)
     th = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
-    expr = FCI["1p"](h1e=h1e, h2e=h2e, nelec=np.sum(e_cls < se.chempot) * 2)
+    expr = FCI["1p"](h1e=h1e, h2e=h2e, nelec=nelec)
     tp = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
 
     # Run the solver
