@@ -7,8 +7,8 @@ import numpy as np
 
 def self_energy_to_greens_function(se_static, se_moments):
     """
-    Convert moments of the Green's function to those of the
-    self-energy. The first m moments of the self-energy, along with
+    Convert moments of the self-energy to those of the Green's
+    function. The first m moments of the self-energy, along with
     the static part, are sufficient to define the first m+2 moments
     of the Green's function. See Eqns 2.103-105 of Backhouse's thesis.
 
@@ -42,6 +42,68 @@ def self_energy_to_greens_function(se_static, se_moments):
                 )
 
     return gf_moments
+
+
+def greens_function_to_self_energy(gf_moments):
+    """
+    Convert moments of the Green's function to those of the
+    self-energy. The first m+2 moments of the Green's function
+    are sufficient to define the first m moments of the self-energy,
+    along with the static part. See Eqns 2.103-105 of Backhouse's
+    thesis.
+
+    Parameters
+    ----------
+    gf_moments : numpy.ndarray (m+2, n, n)
+        Moments of the Green's function.
+
+    Returns
+    -------
+    se_static : numpy.ndarray (n, n)
+        Static part of the self-energy.
+    se_moments : numpy.ndarray (m, n, n)
+        Moments of the self-energy.
+    """
+
+    nmom, nphys, _ = gf_moments.shape
+
+    if nmom < 2:
+        raise ValueError(
+            "At least 2 moments of the Green's function are required to "
+            "find those of the self-energy."
+        )
+
+    if not np.allclose(gf_moments[0], np.eye(nphys)):
+        raise ValueError("The first moment of the Green's function must be the identity.")
+
+    se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
+    se_static = gf_moments[1]
+
+    # Invert the recurrence relations:
+    #
+    #   G_{n} = F^{n} + \sum_{l+m+k}^{n-2} F^{l} \Sigma_{m} G_{k}
+    #   \Sigma_{n} = G_{n} - F^{n} - \sum_{l+m+k}^{n-2} F^{l} \Sigma_{m} G_{k}
+    #
+    # where the sum is over all possible combinations of l, m, and k but
+    # with the constraint that m != n. This case is F^{0} \Sigma_{n} G_{0}
+    # which is equal to the desired LHS.
+
+    for i in range(nmom - 2):
+        se_moments[i] = gf_moments[i + 2].copy()
+        se_moments[i] -= np.linalg.matrix_power(se_static, i + 2)
+        for l in range(i + 1):
+            for m in range(i + 1 - l):
+                k = i - l - m
+                if m != i:
+                    se_moments[i] -= np.linalg.multi_dot(
+                        (
+                            np.linalg.matrix_power(se_static, l),
+                            se_moments[m],
+                            gf_moments[k],
+                        )
+                    )
+
+    return se_static, se_moments
 
 
 def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=None):

@@ -121,7 +121,7 @@ class BaseExpression:
             Moments of the Green's function.
         """
 
-        t = np.zeros((nmom, self.nmo, self.nmo))
+        t = np.zeros((nmom, self.nphys, self.nphys))
 
         if left:
             get_wavefunction_bra = self.get_wavefunction_ket
@@ -133,13 +133,13 @@ class BaseExpression:
             apply_hamiltonian = self.apply_hamiltonian
 
         if store_vectors:
-            v = [get_wavefunction_bra(i) for i in range(self.nmo)]
+            v = [get_wavefunction_bra(i) for i in range(self.nphys)]
 
-        for i in range(self.nmo):
+        for i in range(self.nphys):
             u = get_wavefunction_ket(i)
 
             for n in range(nmom):
-                for j in range(i if self.hermitian else 0, self.nmo):
+                for j in range(i if self.hermitian else 0, self.nphys):
                     if not store_vectors:
                         v = {j: get_wavefunction_bra(j)}
 
@@ -150,6 +150,96 @@ class BaseExpression:
 
                 if n != (nmom - 1):
                     u = apply_hamiltonian(u)
+
+        if left:
+            t = t.transpose(1, 2).conj()
+
+        return t
+
+    def build_gf_chebyshev_moments(self, nmom, store_vectors=True, left=False, scaling=None):
+        """Build moments of the Green's function using Chebyshev polynomials.
+
+        Parameters
+        ----------
+        nmom : int or tuple of int
+            Number of moments to compute.
+        store_vectors : bool, optional
+            Store all vectors on disk rather than storing them all
+            ahead of time.  With `store_vectors=True`, the memory
+            overhead of the vectors is O(N) larger.  With
+            `store_vectors=False`, the CPU overhead of the vectors is
+            O(N) larger.  Default value is `True`.
+        left : bool, optional
+            Use the left-handed Hamiltonian application instead of the
+            right-handed one.  Default value is `False`.
+        scaling : tuple of float
+            Scaling parameters, such that the energy scale of the
+            Lehmann representation is scaled as
+            `(energies - scaling[1]) / scaling[0]`.  If `None`, the
+            scaling paramters are computed as
+            `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
+            `(max(energies) + min(energies)) / 2.0`, respectively.
+
+        Returns
+        -------
+        t : numpy.ndarray
+            Chebyshev moments of the Green's function.
+        """
+
+        if scaling is not None:
+            a, b = scaling
+        else:
+            # Calculate the scaling parameters by the range of the
+            # eigenvalues of the Hamiltonian. These can be approximated
+            # using the diagonal of the Hamiltonian. A more effective
+            # method would be to use the Lanczos or Davidson algorithms
+            # to compute the extremum eigenvalues and pass them in as
+            # an argument.
+            diag = self.diagonal()
+            emin = min(diag)
+            emax = max(diag)
+            a = (emax - emin) / (2.0 - 1e-3)
+            b = (emax + emin) / 2.0
+
+        t = np.zeros((nmom, self.nphys, self.nphys))
+
+        if left:
+            get_wavefunction_bra = self.get_wavefunction_ket
+            get_wavefunction_ket = self.get_wavefunction_bra
+            apply_hamiltonian = self.apply_hamiltonian_left
+        else:
+            get_wavefunction_bra = self.get_wavefunction_bra
+            get_wavefunction_ket = self.get_wavefunction_ket
+            apply_hamiltonian = self.apply_hamiltonian
+
+        def apply_scaled_hamiltonian(v):
+            # [(H - b) / a] v = H (v / a) - b (v / a)
+            v_scaled = v / a
+            return apply_hamiltonian(v_scaled) - b * v_scaled
+
+        if store_vectors:
+            v = [get_wavefunction_bra(i) for i in range(self.nphys)]
+
+        for i in range(self.nphys):
+            u = get_wavefunction_ket(i)
+
+            for n in range(nmom):
+                for j in range(i if self.hermitian else 0, self.nphys):
+                    if not store_vectors:
+                        v = {j: get_wavefunction_bra(j)}
+
+                    t[n, i, j] = np.dot(v[j], u)
+
+                    if self.hermitian:
+                        t[n, j, i] = t[n, i, j]
+
+                if n != (nmom - 1):
+                    if n == 0:
+                        # u_{1} = H u_{0}
+                        u, u_prev = apply_scaled_hamiltonian(u), u
+                    else:
+                        # u_{i} = 2 H u_{i-1} - u_{i-2}
+                        u, u_prev = 2.0 * apply_scaled_hamiltonian(u) - u_prev, u
 
         if left:
             t = t.transpose(1, 2).conj()
@@ -191,3 +281,7 @@ class BaseExpression:
     @property
     def nbeta(self):
         return self.nocc
+
+    @property
+    def nphys(self):
+        return self.nmo

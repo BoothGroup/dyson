@@ -25,7 +25,7 @@ class Moments_Tests(unittest.TestCase):
         se = agf2.AGF2(mf, nmom=(None, None)).build_se().get_virtual()
         se.coupling = se.coupling[mf.mo_occ > 0]
         gf = se.get_greens_function(f)
-        cls.f, cls.se, cls.gf = f, se, gf
+        cls.f, cls.se, cls.gf, = f, se, gf
 
     @classmethod
     def tearDownClass(cls):
@@ -36,6 +36,14 @@ class Moments_Tests(unittest.TestCase):
         t_gf = self.gf.moment(range(12))
         t_gf_recov = util.self_energy_to_greens_function(self.f, t_se)
         for i, (a, b) in enumerate(zip(t_gf, t_gf_recov)):
+            self.assertAlmostEqual(util.scaled_error(a, b), 0, 10)
+
+    def test_greens_function_to_self_energy(self):
+        t_gf = self.gf.moment(range(12))
+        t_se = self.se.moment(range(10))
+        static_recov, t_se_recov = util.greens_function_to_self_energy(t_gf)
+        self.assertAlmostEqual(util.scaled_error(static_recov, self.f), 0, 10)
+        for i, (a, b) in enumerate(zip(t_se, t_se_recov)):
             self.assertAlmostEqual(util.scaled_error(a, b), 0, 10)
 
     def test_matvec_to_greens_function(self):

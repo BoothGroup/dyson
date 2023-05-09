@@ -123,6 +123,10 @@ def _mp2_constructor(occ, vir):
 
             return np.array(t)
 
+        @property
+        def nphys(self):
+            return np.sum(occ(self))
+
     return _MP2
 
 
@@ -155,7 +159,7 @@ class MP2_Dyson(BaseExpression):
         nija = self.nocc * self.nocc * self.nvir
         niab = self.nocc * self.nvir * self.nvir
 
-        r = np.zeros((self.nmo + nija + niab,))
+        r = np.zeros((self.nphys + nija + niab,))
         r[orb] = 1.0
 
         return r

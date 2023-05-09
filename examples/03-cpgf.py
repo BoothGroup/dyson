@@ -1,15 +1,15 @@
 """
-Example of the Green's function moment kernel polynomial method
-(KMPGF) solver, leveraging a Chebyshev moment representation.
+Example of the Chebyshev polynomial Green's function method
+(CPGF) solver, which is similar to KPMGF but more accurately
+produces the correctly normalised Lorentzian spectral function.
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
 from pyscf import gto, scf, agf2, lib
-from dyson import KPMGF, util
+from dyson import CPGF, util
 
-ncheb = 10  # Number of Chebyshev moments
-kernel_type = "lorentz"  # Kernel method
+ncheb = 50  # Number of Chebyshev moments
 
 # Define a self-energy using PySCF
 mol = gto.M(atom="O 0 0 0; O 0 0 1", basis="6-31g", verbose=0)
@@ -38,7 +38,7 @@ for i in range(2, ncheb):
 moments = lib.einsum("qx,npx->npq", gf.coupling, c)
 
 # Use the solver to get the spectral function
-solver = KPMGF(moments, grid, (a, b), kernel_type=kernel_type)
+solver = CPGF(moments, grid, (a, b), eta=1.0)
 sf = solver.kernel()
 
 # Get a reference spectral function for comparison
@@ -47,7 +47,7 @@ sf_ref = util.build_spectral_function(gf.energy, gf.coupling, grid, eta=1.0)
 # Plot the results
 plt.plot(grid, sf_ref, "C0-", label="Reference")
 ylim = plt.ylim()
-plt.plot(grid, sf, "C1-", label="KPMGF")
+plt.plot(grid, sf, "C1-", label="CPGF")
 plt.legend()
 plt.xlabel("Frequency (Ha)")
 plt.ylabel("Spectral function")
