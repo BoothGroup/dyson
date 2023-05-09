@@ -108,25 +108,24 @@ class CPGF(BaseSolver):
         a, b = self.scale
         scaled_grid = (self.grid - b) / a
         scaled_eta = self.eta / a
-        z = scaled_grid - 1.0j * scaled_eta
+        z = scaled_grid + 1.0j * scaled_eta
 
         # Initialise the Green's function
-        fac = lambda n: (2.0 / 1.0j) / (1.0 + int(n == 0))
+        fac = lambda n: -1.0j * (2.0 - int(n == 0))
         num = z - 1.0j * np.sqrt(1.0 - z**2)
         den = np.sqrt(1.0 - z**2)
         gn = lambda n: fac(n) * num**n / den
-        gf = -np.einsum("z,...->z...", gn(0), moments[0])
-        #gf /= a * np.pi
+        gf = np.zeros((len(z), *moments[0].shape), dtype=complex)
 
         integral = scipy.integrate.simps(as_trace(gf.imag), self.grid)
         self.log.info("%4d %16.8g", 0, integral)
 
-        for niter in range(1, iteration + 1):
-            part = -np.einsum("z,...->z...", gn(niter), moments[niter])
-            #part /= a * np.pi
-            gf += part
+        for niter in range(iteration + 1):
+            part = np.einsum("z,...->z...", gn(niter), moments[niter])
+            part /= a * np.pi
+            gf -= part
 
-            if niter in (1, 2, 3, 4, 5, 10, iteration) or niter % 100 == 0:
+            if niter in (0, 1, 2, 3, 4, 5, 10, iteration) or niter % 100 == 0:
                 integral = scipy.integrate.simps(as_trace(gf.imag), self.grid)
                 self.log.info("%4d %16.8g", niter, integral)
 
