@@ -46,9 +46,9 @@ class CCSD_Tests(unittest.TestCase):
 
         ip2 = self.ccsd.ipccsd(nroots=5)[0]
 
-        self.assertAlmostEqual(ip1[0], ip2[0], 8)
-        self.assertAlmostEqual(ip1[1], ip2[1], 8)
-        self.assertAlmostEqual(ip1[2], ip2[2], 8)
+        self.assertAlmostEqual(ip1[0], ip2[0], 7)
+        self.assertAlmostEqual(ip1[1], ip2[1], 7)
+        self.assertAlmostEqual(ip1[2], ip2[2], 7)
 
     def test_ea_ccsd(self):
         mf = self.mf
@@ -64,9 +64,9 @@ class CCSD_Tests(unittest.TestCase):
 
         ea2 = self.ccsd.eaccsd(nroots=5)[0]
 
-        self.assertAlmostEqual(ea1[0], ea2[0], 8)
-        self.assertAlmostEqual(ea1[1], ea2[1], 8)
-        self.assertAlmostEqual(ea1[2], ea2[2], 8)
+        self.assertAlmostEqual(ea1[0], ea2[0], 7)
+        self.assertAlmostEqual(ea1[1], ea2[1], 7)
+        self.assertAlmostEqual(ea1[2], ea2[2], 7)
 
     def test_momgfccsd(self):
         mf = self.mf

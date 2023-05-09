@@ -103,7 +103,7 @@ class GW_Dyson(BaseExpression):
         ija = slice(self.nmo, self.nmo + self.nocc * self.nocc * self.nvir)
         iab = slice(self.nmo + self.nocc * self.nocc * self.nvir, None)
 
-        Lpq = self._gw.ao2mo(self.mo_coeff)
+        Lpq, Lia = self._gw.ao2mo(self.mo_coeff)
         Lia = Lpq[:, i, a]
         Lai = Lpq[:, a, i]
         Lij = Lpq[:, i, i]
@@ -142,8 +142,8 @@ class GW_Dyson(BaseExpression):
         return r
 
     def build_se_moments(self, nmom):
-        Lpq = self._gw.ao2mo(self.mo_coeff)
-        moments = self._gw.build_se_moments(nmom, Lpq)
+        Lpq, Lia = self._gw.ao2mo(self.mo_coeff)
+        moments = self._gw.build_se_moments(nmom, Lpq, Lia)
 
         return moments
 

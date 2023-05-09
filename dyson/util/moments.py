@@ -69,14 +69,12 @@ def greens_function_to_self_energy(gf_moments):
 
     if nmom < 2:
         raise ValueError(
-                "At least 2 moments of the Green's function are required to "
-                "find those of the self-energy."
+            "At least 2 moments of the Green's function are required to "
+            "find those of the self-energy."
         )
 
     if not np.allclose(gf_moments[0], np.eye(nphys)):
-        raise ValueError(
-                "The first moment of the Green's function must be the identity."
-        )
+        raise ValueError("The first moment of the Green's function must be the identity.")
 
     se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
     se_static = gf_moments[1]
@@ -90,18 +88,20 @@ def greens_function_to_self_energy(gf_moments):
     # with the constraint that m != n. This case is F^{0} \Sigma_{n} G_{0}
     # which is equal to the desired LHS.
 
-    for i in range(nmom-2):
-        se_moments[i] = gf_moments[i+2].copy()
-        se_moments[i] -= np.linalg.matrix_power(se_static, i+2)
-        for l in range(i+1):
-            for m in range(i+1-l):
+    for i in range(nmom - 2):
+        se_moments[i] = gf_moments[i + 2].copy()
+        se_moments[i] -= np.linalg.matrix_power(se_static, i + 2)
+        for l in range(i + 1):
+            for m in range(i + 1 - l):
                 k = i - l - m
                 if m != i:
-                    se_moments[i] -= np.linalg.multi_dot((
-                        np.linalg.matrix_power(se_static, l),
-                        se_moments[m],
-                        gf_moments[k],
-                    ))
+                    se_moments[i] -= np.linalg.multi_dot(
+                        (
+                            np.linalg.matrix_power(se_static, l),
+                            se_moments[m],
+                            gf_moments[k],
+                        )
+                    )
 
     return se_static, se_moments
 

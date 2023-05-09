@@ -248,10 +248,10 @@ class Lehmann:
 
         if out is None:
             dtype = np.result_type(
-                    couplings_l.dtype,
-                    couplings_r.dtype,
-                    physical.dtype,
-                    vector.dtype,
+                couplings_l.dtype,
+                couplings_r.dtype,
+                physical.dtype,
+                vector.dtype,
             )
             out = np.zeros(self.nphys + self.naux, dtype=dtype)
 
