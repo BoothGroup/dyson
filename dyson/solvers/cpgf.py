@@ -118,7 +118,6 @@ class CPGF(BaseSolver):
         gf = np.zeros((len(z), *moments[0].shape), dtype=complex)
 
         integral = scipy.integrate.simps(as_trace(gf.imag), self.grid)
-        self.log.info("%4d %16.8g", 0, integral)
 
         for niter in range(iteration + 1):
             part = np.einsum("z,...->z...", gn(niter), moments[niter])
