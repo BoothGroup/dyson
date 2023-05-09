@@ -215,6 +215,53 @@ class Lehmann:
 
         return out
 
+    def matvec(self, physical, vector, chempot=False, out=None):
+        """
+        Apply the dense matrix representation of the Lehmann
+        representation to a vector. This is equivalent to
+        `self.matrix(physical, chempot=chempot) @ vector`.
+
+        Parameters
+        ----------
+        physical : numpy.ndarray
+            Physical space part of the matrix.
+        vector : numpy.ndarray
+            Vector to apply the matrix to.
+        chempot : bool or float, optional
+            Include the chemical potential in the energies.  If given
+            as a `bool`, use `self.chempot`.  If a `float` then use
+            this as the chemical potential.  Default value is `False`.
+
+        Returns
+        -------
+        result : numpy.ndarray
+            Result of applying the matrix to the vector.
+        """
+
+        couplings_l, couplings_r = self._unpack_couplings()
+
+        energies = self.energies
+        if chempot:
+            energies = energies - chempot
+
+        assert vector.shape == (self.nphys + self.naux,)
+
+        if out is None:
+            dtype = np.result_type(
+                    couplings_l.dtype,
+                    couplings_r.dtype,
+                    physical.dtype,
+                    vector.dtype,
+            )
+            out = np.zeros(self.nphys + self.naux, dtype=dtype)
+
+        out[: self.nphys] += physical @ vector[: self.nphys]
+        out[: self.nphys] += couplings_l @ vector[self.nphys :]
+        out[self.nphys :] += couplings_r.T.conj() @ vector[: self.nphys]
+        out[self.nphys :] += energies * vector[self.nphys :]
+
+        return out
+
     def diagonalise_matrix(self, physical, chempot=False, out=None):
         """
         Diagonalise the dense matrix representation of the Lehmann

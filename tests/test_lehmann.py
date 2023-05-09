@@ -46,6 +46,14 @@ class Lehmann_Hermitian_Tests(unittest.TestCase):
         mat = self.aux.matrix(phys, chempot=0.1, out=mat)
         self.assertAlmostEqual(lib.fp(mat), -1.6486800825995238, 10)
 
+    def test_matvec(self):
+        phys = np.diag(np.cos(np.arange(self.aux.nphys)))
+        v = np.cos(np.arange(1e3, 1e3+self.aux.nphys+self.aux.naux))
+        mat = self.aux.matrix(phys)
+        u1 = np.dot(mat, v)
+        u2 = self.aux.matvec(phys, v)
+        np.testing.assert_allclose(u1, u2, atol=1e-10)
+
     def test_diagonalise_matrix(self):
         phys = np.diag(np.cos(np.arange(self.aux.nphys)))
         e, c = self.aux.diagonalise_matrix(phys)
