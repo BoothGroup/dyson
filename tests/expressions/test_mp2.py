@@ -126,6 +126,30 @@ class MP2_Tests(unittest.TestCase):
         self.assertAlmostEqual(ea1[1], ea2[1], 8)
         self.assertAlmostEqual(ea1[2], ea2[2], 8)
 
+    def test_gf_moments(self):
+        mf = self.mf
+
+        mp2 = MP2["1h"](mf)
+        diag = mp2.diagonal()
+        matrix = np.array([mp2.apply_hamiltonian(v) for v in np.eye(diag.size)])
+        w, v = np.linalg.eig(matrix)
+        v = (v, np.linalg.inv(v).T)
+        v = (v[0][:mp2.nocc], v[1][:mp2.nocc])
+        gf = Lehmann(w, v)
+
+        t1 = gf.moment(range(6))
+        t2 = mp2.build_gf_moments(6)
+        np.testing.assert_allclose(t1, t2, atol=1e-8)
+
+        a = (np.max(w) - np.min(w)) / (2.0 - 1e-3)
+        b = (np.max(w) + np.min(w)) / 2.0
+        t1 = gf.chebyshev_moment(range(20), scaling=(a, b))
+        t2 = mp2.build_gf_chebyshev_moments(20, scaling=(a, b))
+        for i in range(20):
+            assert np.allclose(t1[i], t2[i]), i
+        np.testing.assert_allclose(t1, t2, atol=1e-8)
+
+
 
 if __name__ == "__main__":
     unittest.main()
