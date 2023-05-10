@@ -237,7 +237,7 @@ def qp_ewdmet_hubbard1d(
         v_cls = se.as_static_potential(e_cls, eta=eta)  # (cls|cls)
 
         # Rotate into the fragment basis and tile for all fragments
-        v_frag = np.linalg.multi_dot((c, v_cls, c.T))  # (frag|frag)
+        v_frag = np.linalg.multi_dot((c_frag_canon, v_cls, c_frag_canon.T))  # (frag|frag)
         v_frag = diis.update(v_frag)
         # TODO: Will this only work for the 1D model? Check tiling with other models.
         v = scipy.linalg.block_diag(*[v_frag] * (nsite // nfrag))  # (site|site)
@@ -268,9 +268,9 @@ def qp_ewdmet_hubbard1d(
 
 
 if __name__ == "__main__":
-    nsite = 10  # Number of sites
-    nelec = 10  # Number of electrons
-    u = 2.0  # Hubbard U parameter
+    nsite = 128 # Number of sites
+    nelec = 128 # Number of electrons
+    u = 4.0  # Hubbard U parameter
     nfrag = 2  # Number of sites per fragment
 
     # Define the model
