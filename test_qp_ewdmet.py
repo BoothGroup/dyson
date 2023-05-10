@@ -167,8 +167,8 @@ def qp_ewdmet_hubbard1d(
         # Rotate into the fragment basis and tile for all fragments
         c = np.linalg.multi_dot((c_frag.T, c_cls))  # (frag|cls)
         v_frag = np.linalg.multi_dot((c, v_cls, c.T))  # (frag|frag)
+        v_frag = diis.update(v_frag)
         v = scipy.linalg.block_diag(*[v_frag] * (nsite // nfrag))  # (site|site)
-        v = diis.update(v)
 
         # Get the energy, IP, EA, gap
         fock = mf.get_fock() + v
