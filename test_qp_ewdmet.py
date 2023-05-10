@@ -118,6 +118,9 @@ def qp_ewdmet_hubbard1d(
         e, c = np.linalg.eigh(fock)
         dm = np.dot(c[:, :nelec//2], c[:, :nelec//2].T)  # (site|site)
 
+        nelec_frag = np.trace(np.linalg.multi_dot((c_frag.T, dm, c_frag))) * 2.
+        print("Number of fragment electrons on the lattice state: {}".format(nelec_frag))
+
         # Build the DMET bath orbitals
         dm_env = np.linalg.multi_dot((c_env.T, dm, c_env))  # (env|env)
         eig, r = np.linalg.eigh(dm_env)
