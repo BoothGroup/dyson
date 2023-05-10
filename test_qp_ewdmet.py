@@ -306,7 +306,7 @@ if __name__ == "__main__":
     print('Number of electrons in final (shifted) GF with dynamical self-energy: {}'.format(nelec_gf))
     assert(np.isclose(nelec_gf, float(nelec)))
 
-    # TODO: Also, get the energy, IP, EA and gap in the presence of the auxiliaries, as 
+    # TODO: Also, get the energy, IP, EA and gap from GF in the presence of the auxiliaries, as 
     # well as Fermi liquid parameters from the self-energy
 
     # Find qp-Green's function (used to define the self-consistent bath space
