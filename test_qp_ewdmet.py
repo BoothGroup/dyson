@@ -6,7 +6,7 @@ import numpy as np
 import scipy.linalg
 from vayesta.lattmod import Hubbard1D, LatticeRHF
 from vayesta.core.linalg import recursive_block_svd
-from dyson import Lehmann, FCI, MBLGF, MixedMBLGF, NullLogger
+from dyson import Lehmann, FCI, MBLGF, MixedMBLGF, NullLogger, AuxiliaryShift
 from pyscf import ao2mo, lib
 
 
@@ -208,7 +208,7 @@ def qp_ewdmet_hubbard1d(
     # TODO: Will this only work for the 1D model? Check tiling with other models.
     se = tile_se(se, nsite//nfrag)  # (site|aux)
 
-    return se
+    return se, v
 
 
 if __name__ == "__main__":
@@ -227,20 +227,40 @@ if __name__ == "__main__":
     mf = LatticeRHF(hubbard)
     mf.kernel()
 
-    # Run the EwDMET calculation
-    se = qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+    # Run the EwDMET calculation. Return the (dynamic) self-energy, and its qp-approx on the lattice
+    se, v = qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+
+    # Shift final auxiliaries to ensure right particle number
+    shift = AuxiliaryShift(mf.get_fock(), se, nelec, occupancy=2, log=NullLogger())
+    shift.kernel()
+    se_shifted = shift.get_self_energy()
+    print('Final (shifted) auxiliaries: {} ({}o, {}v)'.format(se_shifted.naux, se_shifted.occupied().naux, se_shifted.virtual().naux))
 
     # Find the Green's function
-    gf = Lehmann(*se.diagonalise_matrix_with_projection(mf.get_fock()))
+    gf = Lehmann(*se_shifted.diagonalise_matrix_with_projection(mf.get_fock()))
+    dm = gf.occupied().moment(0) * 2.0
+    nelec_gf = np.trace(dm)
+    assert(np.isclose(nelec_gf, gf.occupied().weights(occupancy=2).sum()))
+    print('Number of electrons in final (shifted) GF with dynamical self-energy: {}'.format(nelec_gf))
+    assert(np.isclose(nelec_gf, float(nelec)))
+
+    # Find qp-Green's function (used to define the self-consistent bath space
+    # (and bath effective interactions if not using an interacting bath)
+    qp_ham = mf.get_fock() + v
+    qp_e, qp_c = np.linalg.eigh(qp_ham)
+    qp_mu = (qp_e[nelec//2-1] + qp_e[nelec//2] ) / 2
+    gf_qp = Lehmann(qp_e, qp_c, chempot=qp_mu)
 
     # Plot the spectrum
     from dyson.util import build_spectral_function
     import matplotlib.pyplot as plt
     grid = np.linspace(-5, 5, 1024)
     sf_hf = build_spectral_function(mf.mo_energy, np.eye(mf.mo_occ.size), grid, eta=0.1)
-    sf_qp = build_spectral_function(gf.energies, gf.couplings, grid, eta=0.1)
+    sf_dynamic = build_spectral_function(gf.energies, gf.couplings, grid, eta=0.1)
+    sf_static = build_spectral_function(gf_qp.energies, gf_qp.couplings, grid, eta=0.1)
     plt.plot(grid, sf_hf, "C0-", label="HF")
-    plt.plot(grid, sf_qp, "C1-", label="QP-EwDMET")
+    plt.plot(grid, sf_dynamic, "C1-", label="QP-EwDMET (dynamic)")
+    plt.plot(grid, sf_static, "C2-", label="QP-EwDMET (static)")
     plt.xlabel("Frequency")
     plt.ylabel("Spectral function")
     plt.legend()
