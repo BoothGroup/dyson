@@ -330,5 +330,5 @@ if __name__ == "__main__":
     plt.ylabel("Spectral function")
     plt.legend()
     plt.tight_layout()
-    #plt.show()
-    plt.savefig('1Dhub_specta.pdf')
+    plt.show()
+    #plt.savefig('1Dhub_specta.pdf')
