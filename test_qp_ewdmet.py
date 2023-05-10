@@ -10,6 +10,13 @@ from dyson import Lehmann, FCI, MBLGF, MixedMBLGF, NullLogger
 from pyscf import ao2mo, lib
 
 
+def tile_se(se, nimage):
+    # Block diagonally tile a self-energy
+    e = np.concatenate([se.energies] * nimage, axis=0)
+    c = scipy.linalg.block_diag(*([se.couplings] * nimage))
+    return Lehmann(e, c, chempot=se.chempot)
+
+
 def qp_ewdmet_hubbard1d(
         mf,
         nmom_max_fci=1,
@@ -186,6 +193,13 @@ def qp_ewdmet_hubbard1d(
         if abs(e_tot - e_prev) < conv_tol:
             break
 
+    # Get the tiled self-energy
+    c = np.linalg.multi_dot((c_frag.T, c_cls))  # (frag|cls)
+    se.couplings = np.dot(c, se.couplings)  # (frag|aux)
+    se = tile_se(se, nsite//nfrag)  # (site|aux)
+
+    return se
+
 
 if __name__ == "__main__":
     nsite = 10  # Number of sites
@@ -204,4 +218,21 @@ if __name__ == "__main__":
     mf.kernel()
 
     # Run the EwDMET calculation
-    qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+    se = qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+
+    # Find the Green's function
+    gf = Lehmann(*se.diagonalise_matrix_with_projection(mf.get_fock()))
+
+    # Plot the spectrum
+    from dyson.util import build_spectral_function
+    import matplotlib.pyplot as plt
+    grid = np.linspace(-5, 5, 1024)
+    sf_hf = build_spectral_function(mf.mo_energy, np.eye(mf.mo_occ.size), grid, eta=0.1)
+    sf_qp = build_spectral_function(gf.energies, gf.couplings, grid, eta=0.1)
+    plt.plot(grid, sf_hf, "C0-", label="HF")
+    plt.plot(grid, sf_qp, "C1-", label="QP-EwDMET")
+    plt.xlabel("Frequency")
+    plt.ylabel("Spectral function")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
