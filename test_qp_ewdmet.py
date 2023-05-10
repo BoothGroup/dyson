@@ -4,6 +4,7 @@ EwDMET with a quasiparticle approximation to the self-consistent self-energy.
 
 import numpy as np
 import scipy.linalg
+import scipy.optimize
 from vayesta.lattmod import Hubbard1D, LatticeRHF
 from vayesta.core.linalg import recursive_block_svd
 from dyson import Lehmann, FCI, MBLGF, MixedMBLGF, NullLogger, AuxiliaryShift
@@ -161,16 +162,42 @@ def qp_ewdmet_hubbard1d(
             # Fock+qp_se in bath, h_core everywhere else. Interactions only in fragment.
             h1e += np.linalg.multi_dot((p_bath, c_cls_canon.T, fock-mf.get_hcore(), c_cls_canon, p_bath))  # (cls|cls)
             h2e = ao2mo.kernel(mf._eri, c)  # (cls,cls|cls,cls)
-    
-        # TODO: Optimize a chemical potential in the fragment space, 
-        # such that the ground state *FCI* calculation
-        # has the right number of electrons in it. This obviously might be fractional.
 
-        # Get the FCI moments
-        expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=int(np.rint(nelec_cls)))
-        th = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
-        expr = FCI["1p"](h1e=h1e, h2e=h2e, nelec=int(np.rint(nelec_cls)))
-        tp = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
+        # Optimize a chemical potential in the fragment space, such that the ground
+        # state *FCI* calculation has the right number of electrons in it. This
+        # obviously might be fractional.
+
+        # Define function to get the moments for a given chemical potential
+        def get_moments(chempot):
+            # Apply the chemical potential in the bath
+            mu = np.diag([np.array(chempot).ravel()[0]] * c_bath.shape[1])  # (bath|bath)
+            mu = np.linalg.multi_dot((c_cls_canon.T, c_bath, mu, c_bath.T, c_cls_canon))  # (cls|cls)
+            h1e_mu = h1e - mu
+
+            # Get the FCI moments
+            expr = FCI["1h"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
+            th = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
+            expr = FCI["1p"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
+            tp = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
+
+            return th, tp
+
+        # Define objective function for optimisation
+        def obj(chempot):
+            # Project the zeroth hole moment into the fragment
+            th, tp = get_moments(chempot)
+            c = np.linalg.multi_dot((c_frag.T, c_cls_canon)) # (frag|cls)
+            nelec = np.trace(np.linalg.multi_dot((c, th[0], c.T))) * 2
+            nelec_target = np.trace(np.linalg.multi_dot((c_frag.T, mf.make_rdm1(), c_frag)))
+
+            # Return the squared difference
+            return (nelec - nelec_target)**2
+
+        # Optimise
+        opt = scipy.optimize.minimize(obj, x0=0.0, method="BFGS")
+        th, tp = get_moments(opt.x[0])
+        print("Chemical potential for FCI ground state: {:.6f}".format(opt.x[0]))
+        print("Error in nelec in cluster: {:.2e}".format(np.trace(th[0])*2 - nelec_cls))
 
         # Run the solver
         solverh = MBLGF(th, log=NullLogger())
@@ -233,6 +260,7 @@ if __name__ == "__main__":
 
     # Run the EwDMET calculation. Return the (dynamic) self-energy, and its qp-approx on the lattice
     se, v = qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+    print()
 
     # Shift final auxiliaries to ensure right particle number
     shift = AuxiliaryShift(mf.get_fock(), se, nelec, occupancy=2, log=NullLogger())
@@ -241,7 +269,7 @@ if __name__ == "__main__":
     print('Final (shifted) auxiliaries: {} ({}o, {}v)'.format(se_shifted.naux, se_shifted.occupied().naux, se_shifted.virtual().naux))
 
     # Find the Green's function
-    gf = Lehmann(*se_shifted.diagonalise_matrix_with_projection(mf.get_fock()))
+    gf = Lehmann(*se_shifted.diagonalise_matrix_with_projection(mf.get_fock()), chempot=se_shifted.chempot)
     dm = gf.occupied().moment(0) * 2.0
     nelec_gf = np.trace(dm)
     assert(np.isclose(nelec_gf, gf.occupied().weights(occupancy=2).sum()))
