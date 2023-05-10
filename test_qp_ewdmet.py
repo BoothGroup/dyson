@@ -141,10 +141,10 @@ def qp_ewdmet_hubbard1d(
         print("Cluster: ncls = {}, nelec = {:.6f}".format(c_cls.shape[1], nelec_cls))
 
         # Get the Hamiltonian in the cluster
+        p_bath = np.linalg.multi_dot((c_cls.T, c_bath, c_bath.T, c_cls))  # (cls|cls)
+        h1e = np.linalg.multi_dot((c_cls.T, mf.get_hcore(), c_cls))  # (cls|cls)
+        h1e += np.linalg.multi_dot((p_bath, c_cls.T, fock-mf.get_hcore(), c_cls, p_bath))  # (cls|cls)
         c = np.linalg.multi_dot((c_frag, c_frag.T, c_cls))  # (site|cls)
-        p_bath = np.linalg.multi_dot((c.T, c_bath, c_bath.T, c))  # (cls|cls)
-        h1e = np.linalg.multi_dot((c.T, mf.get_hcore(), c))  # (cls|cls)
-        h1e += np.linalg.multi_dot((p_bath, c.T, fock-mf.get_hcore(), c, p_bath))  # (cls|cls)
         h2e = ao2mo.kernel(mf._eri, c)  # (cls,cls|cls,cls)
 
         # Get the FCI moments
