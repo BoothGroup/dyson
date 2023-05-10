@@ -171,26 +171,29 @@ def qp_ewdmet_hubbard1d(
         # obviously might be fractional.
 
         # Define function to get the moments for a given chemical potential
-        def get_moments(chempot):
+        def get_moments(chempot, dm_only=True):
             # Apply the chemical potential in the bath
             mu = np.diag([np.array(chempot).ravel()[0]] * c_bath.shape[1])  # (bath|bath)
             mu = np.linalg.multi_dot((c_cls_canon.T, c_bath, mu, c_bath.T, c_cls_canon))  # (cls|cls)
             h1e_mu = h1e - mu
 
             # Get the FCI moments
-            expr = FCI["1h"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
-            th = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
-            expr = FCI["1p"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
-            tp = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
-
-            return th, tp
+            if dm_only:
+                expr = FCI["1h"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
+                return expr.build_gf_moments(1).squeeze()  # (cls|cls)
+            else:
+                expr = FCI["1h"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
+                th = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
+                expr = FCI["1p"](h1e=h1e_mu, h2e=h2e, nelec=int(np.rint(nelec_cls)))
+                tp = expr.build_gf_moments(nmom_max_fci+1)  # (cls|cls)
+                return th, tp
 
         # Define objective function for optimisation
         def obj(chempot):
             # Project the zeroth hole moment into the fragment
-            th, tp = get_moments(chempot)
+            dm = get_moments(chempot, dm_only=True)
             c = np.linalg.multi_dot((c_frag.T, c_cls_canon)) # (frag|cls)
-            nelec = np.trace(np.linalg.multi_dot((c, th[0], c.T))) * 2
+            nelec = np.trace(np.linalg.multi_dot((c, dm, c.T))) * 2
             nelec_target = np.trace(np.linalg.multi_dot((c_frag.T, mf.make_rdm1(), c_frag)))
 
             # Return the squared difference
@@ -198,7 +201,7 @@ def qp_ewdmet_hubbard1d(
 
         # Optimise
         opt = scipy.optimize.minimize(obj, x0=0.0, method="BFGS")
-        th, tp = get_moments(opt.x[0])
+        th, tp = get_moments(opt.x[0], dm_only=False)
         print("Chemical potential for FCI ground state: {:.6f}".format(opt.x[0]))
         print("Error in nelec in cluster: {:.2e}".format(np.trace(th[0])*2 - nelec_cls))
 
