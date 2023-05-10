@@ -161,6 +161,10 @@ def qp_ewdmet_hubbard1d(
             # Fock+qp_se in bath, h_core everywhere else. Interactions only in fragment.
             h1e += np.linalg.multi_dot((p_bath, c_cls_canon.T, fock-mf.get_hcore(), c_cls_canon, p_bath))  # (cls|cls)
             h2e = ao2mo.kernel(mf._eri, c)  # (cls,cls|cls,cls)
+    
+        # TODO: Optimize a chemical potential in the fragment space, 
+        # such that the ground state *FCI* calculation
+        # has the right number of electrons in it. This obviously might be fractional.
 
         # Get the FCI moments
         expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=int(np.rint(nelec_cls)))
