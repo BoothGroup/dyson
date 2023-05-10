@@ -29,7 +29,8 @@ def qp_ewdmet_hubbard1d(
         diis_space=10,
         eta=1e-2,
         v_init=None,
-        interacting_bath=False
+        interacting_bath=False,
+        trans_sym=True
 ):
     """
     Run the QP-EwDMET calculation for the 1D Hubbard model.
