@@ -20,7 +20,7 @@ def tile_se(se, nimage):
 
 def qp_ewdmet_hubbard1d(
         mf,
-        nmom_max_fci=1,
+        nmom_max_fci=3,
         nmom_max_bath=1,
         nfrag=2,
         bath_tol=1e-10,
@@ -40,7 +40,7 @@ def qp_ewdmet_hubbard1d(
     mf : LatticeRHF
         Mean-field object.
     nmom_max_fci : int, optional
-        Maximum moment order to used for MBLGF. Default is 1.
+        Maximum moment order to used for MBLGF. Default is 3.
     nmom_max_bath : int, optional
         Maximum EwDMET bath order. Default is 1.
     nfrag : int, optional
@@ -69,6 +69,10 @@ def qp_ewdmet_hubbard1d(
     nelec = mf.mol.nelectron
     assert nsite % nfrag == 0
     assert nelec % 2 == 0
+    assert nmom_max_fci % 2 == 1 # nmom_max_fci corresponds to the power, and should be odd
+    
+    # nmom_max_fci should be 2*nmom_max_bath+1 (or more, but is then approximate)
+    assert nmom_max_fci >= 2*nmom_max_bath+1
 
     if trans_sym:
         nelec_frag_target = nfrag * nelec / nsite
@@ -219,6 +223,7 @@ def qp_ewdmet_hubbard1d(
         th, tp = get_moments(opt.x[0], dm_only=False)
         print("Chemical potential for FCI ground state: {:.6f}".format(opt.x[0]))
         print("Error in nelec in cluster: {:.2e}".format(np.trace(th[0])*2 - nelec_cls))
+        # TODO: Get other cluster FCI properties you may want, such as double occupancy
 
         # Check number of electrons in the DM
         c_frag_canon = np.linalg.multi_dot((c_frag.T, c_cls_canon))  # (frag|cls)
@@ -230,7 +235,7 @@ def qp_ewdmet_hubbard1d(
         solverp = MBLGF(tp, log=NullLogger())
         solver = MixedMBLGF(solverh, solverp)
         solver.kernel()
-        print("Moment error: {:.2e}".format(solver._check_moment_error()))
+        print("Moment error: {:.2e}, number of p/h cluster moments evaluated: {}".format(solver._check_moment_error(),len(th)))
 
         # Get the dynamical self-energy and convert to a static potential
         se = solver.get_self_energy()  # (cls|aux)
@@ -284,7 +289,7 @@ if __name__ == "__main__":
     mf.kernel()
 
     # Run the EwDMET calculation. Return the (dynamic) self-energy, and its qp-approx on the lattice
-    se, v = qp_ewdmet_hubbard1d(mf, nfrag=nfrag)
+    se, v = qp_ewdmet_hubbard1d(mf, nfrag=nfrag, nmom_max_fci=3, nmom_max_bath=1)
     print()
 
     # Shift final auxiliaries to ensure right particle number
@@ -300,6 +305,9 @@ if __name__ == "__main__":
     assert(np.isclose(nelec_gf, gf.occupied().weights(occupancy=2).sum()))
     print('Number of electrons in final (shifted) GF with dynamical self-energy: {}'.format(nelec_gf))
     assert(np.isclose(nelec_gf, float(nelec)))
+
+    # TODO: Also, get the energy, IP, EA and gap in the presence of the auxiliaries, as 
+    # well as Fermi liquid parameters from the self-energy
 
     # Find qp-Green's function (used to define the self-consistent bath space
     # (and bath effective interactions if not using an interacting bath)
@@ -322,4 +330,5 @@ if __name__ == "__main__":
     plt.ylabel("Spectral function")
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+    plt.savefig('1Dhub_specta.pdf')
