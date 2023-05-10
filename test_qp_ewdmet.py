@@ -56,6 +56,11 @@ def qp_ewdmet_hubbard1d(
         Broadening parameter for the static potential. Default is 1e-2.
     v_init : ndarray, optional
         Initial static potential. Default is None.
+    interacting_bath : bool, optional
+        Whether to include interactions in the bath space or just fragment. Default False.
+    trans_sym : bool, optional
+        Whether the system has translational symmetry (and therefore we know the fragment occupation a priori).
+        Default True.
     """
 
     # Check arguments
@@ -63,6 +68,11 @@ def qp_ewdmet_hubbard1d(
     nelec = mf.mol.nelectron
     assert nsite % nfrag == 0
     assert nelec % 2 == 0
+
+    if trans_sym:
+        nelec_frag_target = nfrag * nelec / nsite
+    else:
+        nelec_frag_target = None
 
     # Initialise rotations into fragment and environment
     c_frag, c_env = np.split(np.eye(nsite), [nfrag], axis=1)  # (site|frag), (site|env)
@@ -172,7 +182,7 @@ def qp_ewdmet_hubbard1d(
 
         # Define function to get the moments for a given chemical potential
         def get_moments(chempot):
-            # Apply the chemical potential in the bath
+            # Apply the chemical potential in the bath (this is done in a bit of a silly way!)
             mu = np.diag([np.array(chempot).ravel()[0]] * c_bath.shape[1])  # (bath|bath)
             mu = np.linalg.multi_dot((c_cls_canon.T, c_bath, mu, c_bath.T, c_cls_canon))  # (cls|cls)
             h1e_mu = h1e - mu
@@ -189,9 +199,13 @@ def qp_ewdmet_hubbard1d(
         def obj(chempot):
             # Project the zeroth hole moment into the fragment
             th, tp = get_moments(chempot)
-            c = np.linalg.multi_dot((c_frag.T, c_cls_canon)) # (frag|cls)
-            nelec = np.trace(np.linalg.multi_dot((c, th[0], c.T))) * 2
-            nelec_target = np.trace(np.linalg.multi_dot((c_frag.T, mf.make_rdm1(), c_frag)))
+            c_frag_canon = np.linalg.multi_dot((c_frag.T, c_cls_canon)) # (frag|cls)
+            nelec = np.trace(np.linalg.multi_dot((c_frag_canon, th[0], c_frag_canon.T))) * 2
+            if nelec_frag_target is None:
+                # Get it to equal the number of fragment electrons from lattice description.
+                nelec_target = np.trace(np.linalg.multi_dot((c_frag.T, dm, c_frag)))
+            else:
+                nelec_target = nelec_frag_target
 
             # Return the squared difference
             return (nelec - nelec_target)**2
@@ -201,6 +215,11 @@ def qp_ewdmet_hubbard1d(
         th, tp = get_moments(opt.x[0])
         print("Chemical potential for FCI ground state: {:.6f}".format(opt.x[0]))
         print("Error in nelec in cluster: {:.2e}".format(np.trace(th[0])*2 - nelec_cls))
+
+        # Check number of electrons in the DM
+        c_frag_canon = np.linalg.multi_dot((c_frag.T, c_cls_canon))  # (frag|cls)
+        nelec_frag_cls = np.trace(np.linalg.multi_dot((c_frag_canon, th[0], c_frag_canon.T))) * 2
+        print("Number of fragment electrons from FCI cluster: {}".format(nelec_frag_cls))
 
         # Run the solver
         solverh = MBLGF(th, log=NullLogger())
@@ -214,7 +233,6 @@ def qp_ewdmet_hubbard1d(
         v_cls = se.as_static_potential(e_cls, eta=eta)  # (cls|cls)
 
         # Rotate into the fragment basis and tile for all fragments
-        c = np.linalg.multi_dot((c_frag.T, c_cls_canon))  # (frag|cls)
         v_frag = np.linalg.multi_dot((c, v_cls, c.T))  # (frag|frag)
         v_frag = diis.update(v_frag)
         # TODO: Will this only work for the 1D model? Check tiling with other models.
