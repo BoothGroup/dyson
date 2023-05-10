@@ -1,5 +1,5 @@
 """
-EwDMET with a quasiparticle approximation.
+EwDMET with a quasiparticle approximation to the self-consistent self-energy.
 """
 
 import numpy as np
@@ -28,6 +28,7 @@ def qp_ewdmet_hubbard1d(
         diis_space=10,
         eta=1e-2,
         v_init=None,
+        interacting_bath=False
 ):
     """
     Run the QP-EwDMET calculation for the 1D Hubbard model.
@@ -108,7 +109,7 @@ def qp_ewdmet_hubbard1d(
         print(f"\nIteration {cycle}")
         print("-" * len(f"Iteration {cycle}"))
 
-        # Get the Fock matrix and add the static potential
+        # Get the Fock matrix and add the static potential over the lattice
         fock = mf.get_fock()  # (site|site)
         fock += v
 
@@ -142,17 +143,24 @@ def qp_ewdmet_hubbard1d(
 
         # Build the cluster orbitals and canonicalise them
         c_cls = np.hstack((c_frag, c_bath))  # (site|cls)
-        e_cls, c_cls = canonicalize_mo(c_cls, fock)
-        dm_cls = np.linalg.multi_dot((c_cls.T, dm, c_cls))  # (cls|cls)
+        e_cls, c_cls_canon = canonicalize_mo(c_cls, fock) # (site|cls_canon)
+        dm_cls = np.linalg.multi_dot((c_cls_canon.T, dm, c_cls_canon))  # (cls|cls)
         nelec_cls = np.trace(dm_cls) * 2
         print("Cluster: ncls = {}, nelec = {:.6f}".format(c_cls.shape[1], nelec_cls))
+        assert(np.isclose(nelec_cls, np.rint(nelec_cls)))
+
+        p_bath = np.linalg.multi_dot((c_cls_canon.T, c_bath, c_bath.T, c_cls_canon))  # (cls|cls)
+        c = np.linalg.multi_dot((c_frag, c_frag.T, c_cls_canon))  # (site|cls)
 
         # Get the Hamiltonian in the cluster
-        p_bath = np.linalg.multi_dot((c_cls.T, c_bath, c_bath.T, c_cls))  # (cls|cls)
-        h1e = np.linalg.multi_dot((c_cls.T, mf.get_hcore(), c_cls))  # (cls|cls)
-        h1e += np.linalg.multi_dot((p_bath, c_cls.T, fock-mf.get_hcore(), c_cls, p_bath))  # (cls|cls)
-        c = np.linalg.multi_dot((c_frag, c_frag.T, c_cls))  # (site|cls)
-        h2e = ao2mo.kernel(mf._eri, c)  # (cls,cls|cls,cls)
+        h1e = np.linalg.multi_dot((c_cls_canon.T, mf.get_hcore(), c_cls_canon))  # (cls|cls)
+        if interacting_bath:
+            # full interactions and h_core everywhere.
+            h2e = ao2mo.kernel(mf._eri, c_cls_canon)
+        else:
+            # Fock+qp_se in bath, h_core everywhere else. Interactions only in fragment.
+            h1e += np.linalg.multi_dot((p_bath, c_cls_canon.T, fock-mf.get_hcore(), c_cls_canon, p_bath))  # (cls|cls)
+            h2e = ao2mo.kernel(mf._eri, c)  # (cls,cls|cls,cls)
 
         # Get the FCI moments
         expr = FCI["1h"](h1e=h1e, h2e=h2e, nelec=int(np.rint(nelec_cls)))
@@ -167,14 +175,15 @@ def qp_ewdmet_hubbard1d(
         solver.kernel()
         print("Moment error: {:.2e}".format(solver._check_moment_error()))
 
-        # Get the self-energy and convert to a static potential
+        # Get the dynamical self-energy and convert to a static potential
         se = solver.get_self_energy()  # (cls|aux)
         v_cls = se.as_static_potential(e_cls, eta=eta)  # (cls|cls)
 
         # Rotate into the fragment basis and tile for all fragments
-        c = np.linalg.multi_dot((c_frag.T, c_cls))  # (frag|cls)
+        c = np.linalg.multi_dot((c_frag.T, c_cls_canon))  # (frag|cls)
         v_frag = np.linalg.multi_dot((c, v_cls, c.T))  # (frag|frag)
         v_frag = diis.update(v_frag)
+        # TODO: Will this only work for the 1D model? Check tiling with other models.
         v = scipy.linalg.block_diag(*[v_frag] * (nsite // nfrag))  # (site|site)
 
         # Get the energy, IP, EA, gap
@@ -194,8 +203,9 @@ def qp_ewdmet_hubbard1d(
             break
 
     # Get the tiled self-energy
-    c = np.linalg.multi_dot((c_frag.T, c_cls))  # (frag|cls)
+    c = np.linalg.multi_dot((c_frag.T, c_cls_canon))  # (frag|cls)
     se.couplings = np.dot(c, se.couplings)  # (frag|aux)
+    # TODO: Will this only work for the 1D model? Check tiling with other models.
     se = tile_se(se, nsite//nfrag)  # (site|aux)
 
     return se
@@ -212,7 +222,7 @@ if __name__ == "__main__":
             nsite=nsite,
             nelectron=nelec,
             hubbard_u=u,
-            verbose=0,
+            verbose=0
     )
     mf = LatticeRHF(hubbard)
     mf.kernel()
