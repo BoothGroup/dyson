@@ -120,7 +120,7 @@ class Lehmann:
 
         return moment
 
-    def chebyshev_moment(self, order, scaling=None):
+    def chebyshev_moment(self, order, scaling=None, scale_couplings=False):
         """
         Get a spectral Chebyshev moment (or range of moments) of the
         Lehmann representation.
@@ -136,6 +136,10 @@ class Lehmann:
             scaling paramters are computed as
             `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
             `(max(energies) + min(energies)) / 2.0`, respectively.
+        scale_couplings : bool, optional
+            Whether to also scale the couplings.  Necessary when one
+            wishes to calculate Chebyshev moments for a self-energy.
+            Default value is `False`.
 
         Returns
         -------
@@ -158,6 +162,9 @@ class Lehmann:
 
         couplings_l, couplings_r = self._unpack_couplings()
         energies_scaled = (self.energies - b) / a
+        if scale_couplings:
+            couplings_l = couplings_l / a
+            couplings_r = couplings_r / a
 
         moments = np.zeros((len(nmoms), self.nphys, self.nphys), dtype=self.dtype)
         vecs = (couplings_l, couplings_l * energies_scaled)

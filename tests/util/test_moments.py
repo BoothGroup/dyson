@@ -31,17 +31,17 @@ class Moments_Tests(unittest.TestCase):
     def tearDownClass(cls):
         del cls.f, cls.se, cls.gf
 
-    def test_self_energy_to_greens_function(self):
+    def test_se_moments_to_gf_moments(self):
         t_se = self.se.moment(range(10))
         t_gf = self.gf.moment(range(12))
-        t_gf_recov = util.self_energy_to_greens_function(self.f, t_se)
+        t_gf_recov = util.se_moments_to_gf_moments(self.f, t_se)
         for i, (a, b) in enumerate(zip(t_gf, t_gf_recov)):
             self.assertAlmostEqual(util.scaled_error(a, b), 0, 10)
 
-    def test_greens_function_to_self_energy(self):
+    def test_gf_moments_to_se_moments(self):
         t_gf = self.gf.moment(range(12))
         t_se = self.se.moment(range(10))
-        static_recov, t_se_recov = util.greens_function_to_self_energy(t_gf)
+        static_recov, t_se_recov = util.gf_moments_to_se_moments(t_gf)
         self.assertAlmostEqual(util.scaled_error(static_recov, self.f), 0, 10)
         for i, (a, b) in enumerate(zip(t_se, t_se_recov)):
             self.assertAlmostEqual(util.scaled_error(a, b), 0, 10)

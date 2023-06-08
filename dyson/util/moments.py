@@ -5,7 +5,7 @@ Moment utilities.
 import numpy as np
 
 
-def self_energy_to_greens_function(se_static, se_moments):
+def se_moments_to_gf_moments(se_static, se_moments):
     """
     Convert moments of the self-energy to those of the Green's
     function. The first m moments of the self-energy, along with
@@ -44,7 +44,7 @@ def self_energy_to_greens_function(se_static, se_moments):
     return gf_moments
 
 
-def greens_function_to_self_energy(gf_moments):
+def gf_moments_to_se_moments(gf_moments):
     """
     Convert moments of the Green's function to those of the
     self-energy. The first m+2 moments of the Green's function
