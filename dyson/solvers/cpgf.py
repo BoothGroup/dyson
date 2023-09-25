@@ -128,6 +128,9 @@ class CPGF(BaseSolver):
                 integral = scipy.integrate.simps(as_trace(gf.imag), self.grid)
                 self.log.info("%4d %16.8g", niter, integral)
 
+        # Not sure why we need to do this...
+        gf = -gf.conj()
+
         self.log.info("-" * 21)
 
         return filter_type(gf)

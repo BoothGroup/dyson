@@ -51,8 +51,8 @@ class GW_Tests(unittest.TestCase):
 
         import momentGW
         gw_ref = momentGW.GW(self.mf)
-        _, gf_ref, se_ref = gw_ref.kernel(9)
-        gf_ref.remove_uncoupled(tol=0.1)
+        _, gf_ref, se_ref, _ = gw_ref.kernel(9)
+        gf_ref = gf_ref.physical(weight=0.1)
 
         np.testing.assert_allclose(gf_ref.moment(0), gf.moment(0), rtol=1e10, atol=1e-10)
         np.testing.assert_allclose(gf_ref.moment(1), gf.moment(1), rtol=1e10, atol=1e-10)

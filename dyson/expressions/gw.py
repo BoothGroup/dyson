@@ -33,7 +33,7 @@ class GW_Dyson(BaseExpression):
             raise ImportError("momentGW is required for GW expressions.")
 
     def get_static_part(self):
-        static = self._gw.build_se_static()
+        static = self._gw.build_se_static(self._gw.ao2mo())
 
         return static
 
@@ -103,7 +103,9 @@ class GW_Dyson(BaseExpression):
         ija = slice(self.nmo, self.nmo + self.nocc * self.nocc * self.nvir)
         iab = slice(self.nmo + self.nocc * self.nocc * self.nvir, None)
 
-        Lpq, Lia = self._gw.ao2mo(self.mo_coeff)
+        integrals = self._gw.ao2mo()
+        Lpq = integrals.Lpx
+        Lia = integrals.Lia
         Lia = Lpq[:, i, a]
         Lai = Lpq[:, a, i]
         Lij = Lpq[:, i, i]
@@ -142,8 +144,8 @@ class GW_Dyson(BaseExpression):
         return r
 
     def build_se_moments(self, nmom):
-        Lpq, Lia = self._gw.ao2mo(self.mo_coeff)
-        moments = self._gw.build_se_moments(nmom, Lpq, Lia)
+        integrals = self._gw.ao2mo()
+        moments = self._gw.build_se_moments(nmom, integrals)
 
         return moments
 

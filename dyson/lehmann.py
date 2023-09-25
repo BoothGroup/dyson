@@ -3,6 +3,7 @@ Containers for Lehmann representations.
 """
 
 import numpy as np
+from pyscf import lib
 
 
 class Lehmann:
@@ -350,10 +351,8 @@ class Lehmann:
             Weights of the states.
         """
 
-        if self.hermitian:
-            wt = np.sum(self.couplings**2, axis=0) * occupancy
-        else:
-            wt = np.sum(self.couplings[0] * self.couplings[1].conj(), axis=0) * occupancy
+        couplings_l, couplings_r = self._unpack_couplings()
+        wt = np.sum(couplings_l * couplings_r.conj(), axis=0) * occupancy
 
         return wt
 
@@ -391,7 +390,7 @@ class Lehmann:
             orb_coeff = self.couplings
 
         orb_occ = np.zeros_like(orb_energy)
-        orb_occ[orb_energy < self.chempot] = self.occupied().weights(occupancy=occupancy)
+        orb_occ[orb_energy < self.chempot] = np.abs(self.occupied().weights(occupancy=occupancy))
 
         return orb_energy, orb_coeff, orb_occ
 
@@ -447,6 +446,44 @@ class Lehmann:
             mo_energy[i] = self.energies[np.argmax(np.abs(weights[i, :]))]
 
         return mo_energy
+
+    def on_grid(self, grid, eta=1e-1, ordering="time-ordered"):
+        """
+        Return the Lehmann representation realised on a real frequency
+        grid.
+
+        Parameters
+        ----------
+        grid : numpy.ndarray
+            Array of real frequency points.
+        eta : float, optional
+            Broadening parameter.  Default value is `1e-1`.
+        ordering : str, optional
+            Time ordering.  Can be one of `{"time-ordered",
+            "advanced", "retarded"}`.  Default value is
+            `"time-ordered"`.
+
+        Returns
+        -------
+        f : numpy.ndarray
+            Lehmann representation realised at each frequency point.
+        """
+
+        if ordering == "time-ordered":
+            signs = np.sign(self.energies - self.chempot)
+        elif ordering == "advanced":
+            signs = -np.ones_like(self.energies)
+        elif ordering == "retarded":
+            signs = np.ones_like(self.energies)
+        else:
+            raise ValueError("ordering = {}".format(ordering))
+
+        couplings_l, couplings_r = self._unpack_couplings()
+
+        denom = 1.0 / lib.direct_sum("w+k-k->wk", grid, signs * 1.0j * eta, self.energies)
+        f = lib.einsum("pk,qk,wk->wpq", couplings_l, couplings_r.conj(), denom)
+
+        return f
 
     @property
     def hermitian(self):
