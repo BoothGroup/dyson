@@ -31,10 +31,8 @@ class CCSD_1h(BaseExpression):
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
-            print("THIS IS BAD")
             ccsd.kernel()
         if ccsd.l1 is None or ccsd.l2 is None:
-            print("THIS IS ALSO BAD")
             l1, l2 = ccsd.solve_lambda()
 
         self.t1 = ccsd.t1
@@ -130,10 +128,8 @@ class CCSD_1p(BaseExpression):
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
-            print("THIS IS BAD")
             ccsd.kernel()
         if ccsd.l1 is None or ccsd.l2 is None:
-            print("THIS IS ALSO BAD")
             l1, l2 = ccsd.solve_lambda()
 
         self.t1 = ccsd.t1
