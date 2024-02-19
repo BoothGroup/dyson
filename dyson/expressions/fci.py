@@ -51,7 +51,7 @@ def _fci_constructor(δalph, δbeta, func_sq, sign):
                 self._nelec = nelec
                 self._nmo = h1e.shape[0]
 
-            if e_ci is None:
+            if c_ci is None:
                 if h1e is None:
                     h1e = np.linalg.multi_dot(
                         (
