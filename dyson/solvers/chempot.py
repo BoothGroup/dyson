@@ -225,8 +225,13 @@ class AuxiliaryShift(BaseSolver):
         h1 = -np.dot(c[gf.nphys :, gf_occ.naux :].conj().T, c[gf.nphys :, : gf_occ.naux])
         z = h1 / (gf_vir.energies[:, None] - gf_occ.energies[None])
 
-        c_occ = np.dot(gf_vir.couplings, z)
-        d_rdm1 = np.dot(c_occ, c_occ.T.conj()) * 4.0
+        if gf_vir.hermitian:
+            c_occ = np.dot(gf_vir.couplings, z)
+            d_rdm1 = np.dot(c_occ, c_occ.T.conj()) * 4.0
+        else:
+            c_occ_l = np.dot(gf_vir.couplings[0], z)
+            c_occ_r = np.dot(gf_vir.couplings[1], z)
+            d_rdm1 = np.dot(c_occ_l, c_occ_r.conj().T) * 4.0
 
         dif = np.trace(d_rdm1).real * error * self.occupancy
 
