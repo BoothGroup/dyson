@@ -16,28 +16,26 @@ class CCSD_1h(BaseExpression):
 
     hermitian = False
 
-    def __init__(self, *args, t1=None, t2=None, l1=None, l2=None, **kwargs):
+    def __init__(self, *args, ccsd=None, t1=None, t2=None, l1=None, l2=None, **kwargs):
         BaseExpression.__init__(self, *args, **kwargs)
 
-        ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-        ccsd.verbose = 0
+        if ccsd is None:
+            ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
+            ccsd.verbose = 0
 
-        if t1 is None or l1 is None:
+        # Update amplitudes if provided as kwargs
+        self.t1 = t1 if t1 is not None else ccsd.t1
+        self.t2 = t2 if t2 is not None else ccsd.t2
+        self.l1 = l1 if l1 is not None else ccsd.l1
+        self.l2 = l2 if l2 is not None else ccsd.l2
+
+        # Solve CCSD if amplitudes are not provided
+        if ccsd.t1 is None or ccsd.t2 is None:
             ccsd.kernel()
-        if t1 is None:
-            t1, t2 = ccsd.t1, ccsd.t2
-        if l1 is None:
-            l1, l2 = ccsd.solve_lambda()
-
-        assert t1 is not None
-        assert t2 is not None
-        assert l1 is not None
-        assert l2 is not None
-
-        self.t1 = ccsd.t1 = t1
-        self.t2 = ccsd.t2 = t2
-        self.l1 = ccsd.l1 = l1
-        self.l2 = ccsd.l2 = l2
+            self.t1 = ccsd.t1
+            self.t2 = ccsd.t2
+        if ccsd.l1 is None or ccsd.l2 is None:
+            self.l1, self.l2 = ccsd.solve_lambda()
 
         self.eris = ccsd.ao2mo()
         self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
@@ -112,28 +110,26 @@ class CCSD_1p(BaseExpression):
 
     hermitian = False
 
-    def __init__(self, *args, t1=None, t2=None, l1=None, l2=None, **kwargs):
+    def __init__(self, *args, ccsd=None, t1=None, t2=None, l1=None, l2=None, **kwargs):
         BaseExpression.__init__(self, *args, **kwargs)
 
-        ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-        ccsd.verbose = 0
+        if ccsd is None:
+            ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
+            ccsd.verbose = 0
 
-        if t1 is None or l1 is None:
+        # Update amplitudes if provided as kwargs
+        self.t1 = t1 if t1 is not None else ccsd.t1
+        self.t2 = t2 if t2 is not None else ccsd.t2
+        self.l1 = l1 if l1 is not None else ccsd.l1
+        self.l2 = l2 if l2 is not None else ccsd.l2
+
+        # Solve CCSD if amplitudes are not provided
+        if ccsd.t1 is None or ccsd.t2 is None:
             ccsd.kernel()
-        if t1 is None:
-            t1, t2 = ccsd.t1, ccsd.t2
-        if l1 is None:
-            l1, l2 = ccsd.solve_lambda()
-
-        assert t1 is not None
-        assert t2 is not None
-        assert l1 is not None
-        assert l2 is not None
-
-        self.t1 = ccsd.t1 = t1
-        self.t2 = ccsd.t2 = t2
-        self.l1 = ccsd.l1 = l1
-        self.l2 = ccsd.l2 = l2
+            self.t1 = ccsd.t1
+            self.t2 = ccsd.t2
+        if ccsd.l1 is None or ccsd.l2 is None:
+            self.l1, self.l2 = ccsd.solve_lambda()
 
         self.eris = ccsd.ao2mo()
         self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
