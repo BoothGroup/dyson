@@ -6,6 +6,7 @@ import unittest
 import pytest
 
 from pyscf import gto, scf, cc, lib
+from pyscf.cc.momgfccsd import MomGFCCSD
 import numpy as np
 import scipy.linalg
 
@@ -90,7 +91,7 @@ class CCSD_Tests(unittest.TestCase):
         eta = 1e-1
         sf = util.build_spectral_function(gf.energies, gf.couplings, grid, eta=eta)
 
-        momgfcc = cc.momgfccsd.MomGFCCSD(ccsd, ((nmom-2)//2, (nmom-2)//2))
+        momgfcc = MomGFCCSD(ccsd, ((nmom-2)//2, (nmom-2)//2))
         eh, vh, ep, vp = momgfcc.kernel()
         e = np.concatenate((eh, ep), axis=0)
         v = np.concatenate((vh[0], vp[0]), axis=1)
