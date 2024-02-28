@@ -24,21 +24,18 @@ class CCSD_1h(BaseExpression):
             ccsd.verbose = 0
         
         # Update amplitudes if provided as kwargs
-        ccsd.t1 = t1 if t1 is not None else ccsd.t1
-        ccsd.t2 = t2 if t2 is not None else ccsd.t2 
-        ccsd.l1 = l1 if l1 is not None else ccsd.l1
-        ccsd.l2 = l2 if l2 is not None else ccsd.l2
+        self.t1 = t1 if t1 is not None else ccsd.t1
+        self.t2 = t2 if t2 is not None else ccsd.t2 
+        self.l1 = l1 if l1 is not None else ccsd.l1
+        self.l2 = l2 if l2 is not None else ccsd.l2
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
             ccsd.kernel()
+            self.t1 = ccsd.t1
+            self.t2 = ccsd.t2
         if ccsd.l1 is None or ccsd.l2 is None:
-            l1, l2 = ccsd.solve_lambda()
-
-        self.t1 = ccsd.t1
-        self.t2 = ccsd.t2
-        self.l1 = ccsd.l1
-        self.l2 = ccsd.l2
+            self.l1, self.l2 = ccsd.solve_lambda()
 
         self.eris = ccsd.ao2mo()
         self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
@@ -121,21 +118,18 @@ class CCSD_1p(BaseExpression):
             ccsd.verbose = 0
 
         # Update amplitudes if provided as kwargs
-        ccsd.t1 = t1 if t1 is not None else ccsd.t1
-        ccsd.t2 = t2 if t2 is not None else ccsd.t2 
-        ccsd.l1 = l1 if l1 is not None else ccsd.l1
-        ccsd.l2 = l2 if l2 is not None else ccsd.l2
+        self.t1 = t1 if t1 is not None else ccsd.t1
+        self.t2 = t2 if t2 is not None else ccsd.t2 
+        self.l1 = l1 if l1 is not None else ccsd.l1
+        self.l2 = l2 if l2 is not None else ccsd.l2
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
             ccsd.kernel()
+            self.t1 = ccsd.t1
+            self.t2 = ccsd.t2
         if ccsd.l1 is None or ccsd.l2 is None:
-            l1, l2 = ccsd.solve_lambda()
-
-        self.t1 = ccsd.t1
-        self.t2 = ccsd.t2
-        self.l1 = ccsd.l1
-        self.l2 = ccsd.l2
+            self.l1, self.l2 = ccsd.solve_lambda()
 
         self.eris = ccsd.ao2mo()
         self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
