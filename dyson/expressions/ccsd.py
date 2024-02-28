@@ -22,10 +22,10 @@ class CCSD_1h(BaseExpression):
         if ccsd is None:
             ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
             ccsd.verbose = 0
-        
+
         # Update amplitudes if provided as kwargs
         self.t1 = t1 if t1 is not None else ccsd.t1
-        self.t2 = t2 if t2 is not None else ccsd.t2 
+        self.t2 = t2 if t2 is not None else ccsd.t2
         self.l1 = l1 if l1 is not None else ccsd.l1
         self.l2 = l2 if l2 is not None else ccsd.l2
 
@@ -119,7 +119,7 @@ class CCSD_1p(BaseExpression):
 
         # Update amplitudes if provided as kwargs
         self.t1 = t1 if t1 is not None else ccsd.t1
-        self.t2 = t2 if t2 is not None else ccsd.t2 
+        self.t2 = t2 if t2 is not None else ccsd.t2
         self.l1 = l1 if l1 is not None else ccsd.l1
         self.l2 = l2 if l2 is not None else ccsd.l2
 
