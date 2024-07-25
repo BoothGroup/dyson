@@ -23,7 +23,7 @@ class Energy_Tests(unittest.TestCase):
         mf = scf.RHF(mol)
         mf.conv_tol = 1e-14
         mf.kernel()
-        h = np.linalg.multi_dot((mf.mo_coeff.T, mol.get_hcore(), mf.mo_coeff))
+        h = np.linalg.multi_dot((mf.mo_coeff.T, mf.get_hcore(), mf.mo_coeff))
         f = np.diag(mf.mo_energy)
         gf2 = agf2.AGF2(mf, nmom=(None, None))
         se = gf2.build_se()
