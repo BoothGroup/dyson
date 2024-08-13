@@ -129,13 +129,15 @@ def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=
     m = np.block(
         [
             [
-                on_diagonal[i]
-                if i == j
-                else off_diagonal_upper[j]
-                if j == i - 1
-                else off_diagonal_lower[i]
-                if i == j - 1
-                else zero
+                (
+                    on_diagonal[i]
+                    if i == j
+                    else (
+                        off_diagonal_upper[j]
+                        if j == i - 1
+                        else off_diagonal_lower[i] if i == j - 1 else zero
+                    )
+                )
                 for j in range(len(on_diagonal))
             ]
             for i in range(len(on_diagonal))

@@ -44,7 +44,7 @@ build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
 dev = [
-    "black==23.1.0",
+    "black>=22.6.0",
     "isort>=5.10.1",
     "coverage[toml]",
     "pytest",

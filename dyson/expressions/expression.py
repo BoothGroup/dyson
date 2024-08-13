@@ -152,7 +152,7 @@ class BaseExpression:
                     u = apply_hamiltonian(u)
 
         if left:
-            t = t.transpose(1, 2).conj()
+            t = t.transpose(0, 2, 1).conj()
 
         return t
 
