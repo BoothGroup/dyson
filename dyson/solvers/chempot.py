@@ -119,6 +119,56 @@ class AufbauPrinciple(BaseSolver):
     def get_greens_function(self):
         return self.gf.copy(chempot=self.chempot, deep=False)
 
+class AufbauPrincipleBisect(AufbauPrinciple):
+
+    def _kernel(self):
+        energies = self.gf.energies
+        couplings_l, couplings_r = self.gf._unpack_couplings()
+        weights = self.gf.weights()
+        low, high = 0, self.gf.naux
+        mid = high//2
+        for iter in range(100):            
+            sum = self.occupancy * weights[:mid].sum()
+            if sum < self.nelec:
+                low = mid
+                mid = mid + (high-low)//2
+            else:
+                high = mid
+                mid = mid - (high-low)//2
+
+            if low == mid or high == mid:
+                break
+
+        n_low, n_high = self.occupancy * weights[:low].sum(), self.occupancy * weights[:high].sum()
+        # assert n_low < self.nelec
+        # assert n_high > self.nelec
+        
+        if abs(n_low - self.nelec) < abs(n_high - self.nelec):
+            homo = low - 1 
+            error = self.nelec - n_low
+        else:
+            homo = high - 1
+            error = self.nelec - n_high
+
+        try:
+            lumo = homo + 1
+            chempot = 0.5 * (energies[homo] + energies[lumo])
+        except:
+            raise ValueError("Failed to find Fermi energy.")
+        self.log.info('HOMO LUMO %s %s'%(homo, lumo))
+        self.log.info("HOMO = %.6f", energies[homo])
+        self.log.info("LUMO = %.6f", energies[lumo])
+        self.log.info("Chemical potential = %.6f", chempot)
+        self.log.info("Error in nelec = %.3g", error)
+
+        self.converged = True
+        self.homo = energies[homo]
+        self.lumo = energies[lumo]
+        self.chempot = chempot
+        self.error = error
+
+        return chempot, error
+
 
 class AuxiliaryShift(BaseSolver):
     """
