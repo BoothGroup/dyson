@@ -127,8 +127,9 @@ class AufbauPrincipleBisect(AufbauPrinciple):
         weights = self.gf.weights()
         low, high = 0, self.gf.naux
         mid = high//2
-        for iter in range(100):            
+        for iter in range(100):           
             sum = self.occupancy * weights[:mid].sum()
+            self.log.debug("Number of electrons [0:%d] = %.6f", iter + 1, sum) 
             if sum < self.nelec:
                 low = mid
                 mid = mid + (high-low)//2
