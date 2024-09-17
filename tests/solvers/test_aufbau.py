@@ -8,7 +8,7 @@ import pytest
 from pyscf import gto, scf, agf2
 import numpy as np
 
-from dyson import util, AufbauPrinciple, NullLogger
+from dyson import util, AufbauPrinciple, AufbauPrincipleBisect, NullLogger, MBLGF
 from dyson.lehmann import Lehmann
 
 
@@ -57,6 +57,26 @@ class AufbauPrinciple_Tests(unittest.TestCase):
         self.assertTrue(solver.converged)
         self.assertAlmostEqual(solver.error, 0.017171058925, 7)
 
+
+@pytest.mark.regression
+class AufbauPrincipleBisect_Tests(unittest.TestCase):
+    def test_wrt_AufbauPrinciple(self):
+        for i in range(10):
+            n = 100
+            moms = np.random.random((16, n, n))
+            moms = moms + moms.transpose(0, 2, 1)
+            mblgf = MBLGF(moms)
+            mblgf.kernel()
+            gf = mblgf.get_greens_function()
+            nelec = 25
+
+            solver = AufbauPrinciple(gf, nelec, occupancy=2)
+            solver.kernel()
+
+            solver_bisect = AufbauPrincipleBisect(gf, nelec, occupancy=2)
+            solver_bisect.kernel()
+
+            assert np.allclose(solver.chempot, solver_bisect.chempot)
 
 if __name__ == "__main__":
     unittest.main()
