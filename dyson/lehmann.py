@@ -108,7 +108,7 @@ class Lehmann:
 
         couplings_l, couplings_r = self._unpack_couplings()
 
-        moment = np.einsum(
+        moment = lib.einsum(
             "pk,qk,nk->npq",
             couplings_l,
             couplings_r.conj(),
