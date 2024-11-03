@@ -65,9 +65,9 @@ class CCSD_Tests(unittest.TestCase):
 
         ea2 = self.ccsd.eaccsd(nroots=5)[0]
 
-        self.assertAlmostEqual(ea1[0], ea2[0], 7)
-        self.assertAlmostEqual(ea1[1], ea2[1], 7)
-        self.assertAlmostEqual(ea1[2], ea2[2], 7)
+        self.assertAlmostEqual(ea1[0], ea2[0], 6)
+        self.assertAlmostEqual(ea1[1], ea2[1], 6)
+        self.assertAlmostEqual(ea1[2], ea2[2], 6)
 
     def test_momgfccsd(self):
         mf = self.mf

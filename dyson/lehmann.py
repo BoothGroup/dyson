@@ -447,7 +447,7 @@ class Lehmann:
 
         return mo_energy
 
-    def on_grid(self, grid, eta=1e-1, ordering="time-ordered", axis="real"):
+    def on_grid(self, grid, eta=1e-1, ordering="time-ordered", axis="real", trace=False):
         """
         Return the Lehmann representation realised on a frequency
         grid.
@@ -466,6 +466,8 @@ class Lehmann:
         axis : str, optional
             Frequency axis.  Can be one of `{"real", "imag"}`.  Default
             value is `"real"`.
+        trace : bool, optional
+            Only return the trace.
 
         Returns
         -------
@@ -485,12 +487,17 @@ class Lehmann:
         couplings_l, couplings_r = self._unpack_couplings()
 
         if axis == "real":
-            denom = 1.0 / lib.direct_sum("w+k-k->wk", grid, signs * 1.0j * eta, self.energies)
+            prednom = signs * 1.0j * eta - self.energies
+            denom = 1.0 / lib.direct_sum("w+k->wk", grid, prednom)
+            del predenom
         elif axis == "imag":
             denom = 1.0 / lib.direct_sum("w-k->wk", 1j * grid, self.energies)
         else:
             raise ValueError("axis = {}".format(axis))
-        f = lib.einsum("pk,qk,wk->wpq", couplings_l, couplings_r.conj(), denom)
+        if trace:
+            f = lib.einsum("pk,pk,wk->w", couplings_l, couplings_r.conj(), denom)
+        else:
+            f = lib.einsum("pk,qk,wk->wpq", couplings_l, couplings_r.conj(), denom)
 
         return f
 
