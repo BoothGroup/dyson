@@ -3,7 +3,8 @@ EOM-CCSD expressions.
 """
 
 import numpy as np
-from pyscf import ao2mo, cc, lib, scf, pbc
+from pyscf import ao2mo, cc, lib, pbc, scf
+
 from dyson import util
 from dyson.expressions import BaseExpression
 
@@ -24,12 +25,14 @@ class CCSD_1h(BaseExpression):
             elif isinstance(self.mf, pbc.scf.hf.RHF):
                 ccsd = pbc.cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
             else:
-                raise NotImplementedError("EOM-CCSD not implemented for this type of mean-field object.")
+                raise NotImplementedError(
+                    "EOM-CCSD not implemented for this type of mean-field object."
+                )
 
             ccsd.t1 = t1
             ccsd.t2 = t2
             ccsd.l1 = l1
-            ccsd.l2 = l2 
+            ccsd.l2 = l2
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
@@ -39,7 +42,7 @@ class CCSD_1h(BaseExpression):
         else:
             self.t1 = ccsd.t1
             self.t2 = ccsd.t2
-        
+
         if ccsd.l1 is None or ccsd.l2 is None:
             self.l1, self.l2 = ccsd.solve_lambda()
         else:
@@ -128,13 +131,15 @@ class CCSD_1p(BaseExpression):
             elif isinstance(self.mf, pbc.scf.hf.RHF):
                 ccsd = pbc.cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
             else:
-                raise NotImplementedError("momCCSD not implemented for this type of mean-field object.")
-            #ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
+                raise NotImplementedError(
+                    "momCCSD not implemented for this type of mean-field object."
+                )
+            # ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
             # Use provided amplitudes if available
             ccsd.t1 = t1
             ccsd.t2 = t2
             ccsd.l1 = l1
-            ccsd.l2 = l2 
+            ccsd.l2 = l2
 
         # Solve CCSD if amplitudes are not provided
         if ccsd.t1 is None or ccsd.t2 is None:
@@ -144,13 +149,13 @@ class CCSD_1p(BaseExpression):
         else:
             self.t1 = ccsd.t1
             self.t2 = ccsd.t2
-        
+
         if ccsd.l1 is None or ccsd.l2 is None:
             self.l1, self.l2 = ccsd.solve_lambda()
         else:
             self.l1 = ccsd.l1
             self.l2 = ccsd.l2
-            
+
         self.eris = ccsd.ao2mo()
         self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
         self.imds.make_ea()
