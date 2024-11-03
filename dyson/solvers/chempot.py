@@ -141,8 +141,6 @@ class AufbauPrincipleBisect(AufbauPrinciple):
                 break
 
         n_low, n_high = self.occupancy * weights[:low].sum(), self.occupancy * weights[:high].sum()
-        # assert n_low < self.nelec
-        # assert n_high > self.nelec
         
         if abs(n_low - self.nelec) < abs(n_high - self.nelec):
             homo = low - 1 

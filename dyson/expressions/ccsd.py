@@ -26,7 +26,6 @@ class CCSD_1h(BaseExpression):
             else:
                 raise NotImplementedError("EOM-CCSD not implemented for this type of mean-field object.")
 
-            #ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
             ccsd.t1 = t1
             ccsd.t2 = t2
             ccsd.l1 = l1
