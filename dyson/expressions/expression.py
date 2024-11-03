@@ -152,10 +152,9 @@ class BaseExpression:
                     u = apply_hamiltonian(u)
 
         if left:
-            t = t.transpose(0,2,1).conj()
+            t = t.transpose(0, 2, 1).conj()
 
         return t
-    
 
     def build_gf_chebyshev_moments(self, nmom, store_vectors=True, left=False, scaling=None):
         """Build moments of the Green's function using Chebyshev polynomials.
