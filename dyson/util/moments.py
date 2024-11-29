@@ -230,3 +230,27 @@ def matvec_to_greens_function_chebyshev(matvec, nmom, scale_factors, bra, ket=No
                 ket0[i], ket1[i] = ket1[i], ket2i
 
     return moments
+
+
+def shift_moments(moms, shift, flip=False):
+    """
+    Shift a set of moments by a constant.
+
+    Parameters
+    ----------
+    moms : numpy.ndarray (m, n, n)
+        Moments to shift.
+    shift : float
+        Amount to shift the moments by.
+    """
+
+    nmom, nphys, _ = moms.shape
+    shifted_moms = np.zeros_like(moms)
+
+    for n in range(nmom):
+        for i in range(n+1):
+            if flip:
+                shifted_moms[n] += scipy.special.binom(n, i) * shift**(n-i) * moms[i] * (-1)**(i)
+            else: 
+                shifted_moms[n] += scipy.special.binom(n, i) * shift**(n-i) * moms[i]
+    return shifted_moms

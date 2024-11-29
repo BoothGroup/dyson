@@ -97,6 +97,9 @@ class BaseExpression:
 
     def get_wavefunction_ket(self, orb):
         return self.get_wavefunction(orb)
+    
+    def dot(self, v1, v2):
+        return np.dot(v1, v2)
 
     def build_gf_moments(self, nmom, store_vectors=True, left=False):
         """Build moments of the Green's function.
@@ -140,10 +143,11 @@ class BaseExpression:
 
             for n in range(nmom):
                 for j in range(i if self.hermitian else 0, self.nphys):
+                    print("calc moment", n, i, j)
                     if not store_vectors:
                         v = {j: get_wavefunction_bra(j)}
 
-                    t[n, i, j] = np.dot(v[j], u)
+                    t[n, i, j] = self.dot(v[j], u)
 
                     if self.hermitian:
                         t[n, j, i] = t[n, i, j]
