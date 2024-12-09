@@ -73,7 +73,7 @@ class AufbauPrincipleBisect_Tests(unittest.TestCase):
             solver = AufbauPrinciple(gf, nelec, occupancy=2)
             solver.kernel()
 
-            solver_bisect = AufbauPrincipleBisect(gf, nelec, occupancy=2)
+            solver_bisect = AufbauPrincipleBisect(gf, nelec, occupancy=2, log=NullLogger())
             solver_bisect.kernel()
 
             assert np.allclose(solver.chempot, solver_bisect.chempot)
