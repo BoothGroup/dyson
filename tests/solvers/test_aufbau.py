@@ -70,7 +70,7 @@ class AufbauPrincipleBisect_Tests(unittest.TestCase):
             gf = mblgf.get_greens_function()
             nelec = 25
 
-            solver = AufbauPrinciple(gf, nelec, occupancy=2)
+            solver = AufbauPrinciple(gf, nelec, occupancy=2, log=NullLogger())
             solver.kernel()
 
             solver_bisect = AufbauPrincipleBisect(gf, nelec, occupancy=2, log=NullLogger())
