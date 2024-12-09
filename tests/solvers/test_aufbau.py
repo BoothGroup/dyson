@@ -78,5 +78,6 @@ class AufbauPrincipleBisect_Tests(unittest.TestCase):
 
             assert np.allclose(solver.chempot, solver_bisect.chempot)
 
+
 if __name__ == "__main__":
     unittest.main()
