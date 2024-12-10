@@ -169,7 +169,7 @@ class AufbauPrincipleBisect(AufbauPrinciple):
             chempot = 0.5 * (energies[homo] + energies[lumo])
         except:
             raise ValueError("Failed to find Fermi energy.")
-        
+
         self.log.info("HOMO LUMO %s %s" % (homo, lumo))
         self.log.info("HOMO = %.6f", energies[homo])
         self.log.info("LUMO = %.6f", energies[lumo])
