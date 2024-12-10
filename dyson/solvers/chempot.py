@@ -121,10 +121,24 @@ class AufbauPrinciple(BaseSolver):
 
 
 class AufbauPrincipleBisect(AufbauPrinciple):
+    """
+    Fill a series of orbitals according to the Aufbau principle using a bisection algorithim.
+
+    Parameters
+    ----------
+    *args : tuple
+        Input arguments.  Either `(gf, nelec)` or `(fock, se, nelec)`
+        where `gf` is the Lehmann representation of the Green's
+        function, `fock` is the Fock matrix, `se` is the Lehmann
+        representation of the self-energy and `nelec` is the number
+        of electrons in the physical space.
+    occupancy : int, optional
+        Occupancy of each state, i.e. `2` for a restricted reference
+        and `1` for other references.  Default value is `2`.
+    """
 
     def _kernel(self):
         energies = self.gf.energies
-        couplings_l, couplings_r = self.gf._unpack_couplings()
         weights = self.gf.weights()
         low, high = 0, self.gf.naux
         mid = high // 2
@@ -155,6 +169,7 @@ class AufbauPrincipleBisect(AufbauPrinciple):
             chempot = 0.5 * (energies[homo] + energies[lumo])
         except:
             raise ValueError("Failed to find Fermi energy.")
+        
         self.log.info("HOMO LUMO %s %s" % (homo, lumo))
         self.log.info("HOMO = %.6f", energies[homo])
         self.log.info("LUMO = %.6f", energies[lumo])
