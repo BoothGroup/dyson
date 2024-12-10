@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from pyscf import gto, scf, agf2, lib
 from dyson import CPGF, util
 
-ncheb = 100  # Number of Chebyshev moments
+ncheb = 50  # Number of Chebyshev moments
 
 # Define a self-energy using PySCF
 mol = gto.M(atom="O 0 0 0; O 0 0 1", basis="6-31g", verbose=0)
