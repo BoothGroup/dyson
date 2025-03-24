@@ -14,6 +14,8 @@ class BaseSolver:
 
     def __init__(self, *args, **kwargs):
         self.log = kwargs.pop("log", default_log)
+        if self.log is None:
+            self.log = default_log
         init_logging(self.log)
         self.log.info("")
         self.log.info("%s", self.__class__.__name__)
