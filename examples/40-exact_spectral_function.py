@@ -9,8 +9,8 @@ from pyscf import gto, scf
 from dyson import MBLGF, MixedMBLGF, util
 from dyson.expressions import CCSD
 
-niter_max = 3
-grid = np.linspace(-5, 5, 128)
+niter_max = 4
+grid = np.linspace(-4, 4, 256)
 
 # Define a system using PySCF
 mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="cc-pvdz", verbose=0)
