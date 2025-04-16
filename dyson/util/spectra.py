@@ -86,11 +86,6 @@ def build_exact_spectral_function(expression, grid, eta=1e-1, trace=True, imag=T
     If convergence isn't met for elements, they are set to NaN.
     """
 
-    if not trace:
-        subscript = "pk,qk,wk->wpq"
-    else:
-        subscript = "pk,pk,wk->w"
-
     # FIXME: Consistent interface
     apply_kwargs = {}
     if hasattr(expression, "get_static_part"):
