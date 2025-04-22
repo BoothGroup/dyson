@@ -1,5 +1,6 @@
 [project]
 name = "dyson"
+version = "0.1.0"
 description = "Dyson equation solvers for electron propagator methods"
 keywords = [
     "quantum", "chemistry",
@@ -10,7 +11,7 @@ keywords = [
     "greens", "function",
 ]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
 	"Development Status :: 2 - Pre-Alpha",
 	"Intended Audience :: Science/Research",
@@ -33,30 +34,21 @@ dynamic = [
 	"version",
 ]
 
-[tools.setuptools.dynamic]
-version = {attr = "dyson.__version__"}
-
-[build-system]
-requires = [
-    "setuptools>=46.1.0",
-]
-build-backend = "setuptools.build_meta"
-
 [project.optional-dependencies]
 dev = [
     "black>=22.6.0",
     "isort>=5.10.1",
-    "coverage[toml]",
-    "pytest",
-    "pytest-cov",
+    "coverage[toml]>=5.5.0",
+    "pytest>=6.2.4",
+    "pytest-cov>=4.0.0",
 ]
 
 [tool.black]
 line-length = 100
 target-version = [
-    "py311",
+    "py312",
 ]
-include = "dyson"
+include = '\.pyi?$'
 exclude = """
 /(
     | __pycache__
@@ -68,13 +60,98 @@ exclude = """
 atomic = true
 profile = "black"
 line_length = 100
-src_paths = [
+known_first_part = [
 	"dyson",
 ]
 skip_glob = [
-    "*__pycache__*",
-    "*__init__*",
+    "*/__pycache__/*",
+    "*/__init__.py",
 ]
+
+[tool.unimport]
+include_star_import = true
+ignore_init = true
+include = '\.pyi?$'
+exclude = """
+/(
+    | __init__.py
+)/
+"""
+
+[tool.flake8]
+max-line-length = 100
+max-doc-length = 100
+ignore = [
+    "E203",  # Whitespace before ':'
+    "E731",  # Do not assign a lambda expression, use a def
+    "E741",  # Ambiguous variable name
+    "W503",  # Line break before binary operator
+    "D400",  # First line should end with a period
+    "B007",  # Loop control variable not used within the loop body
+    "B019",  # Use of `functools.lru_cache` or `functools.cache` ...
+    "B027",  # Empty method in an abstract base class wit no abstract decorator
+]
+per-file-ignores = [
+    "__init__.py:E402,W605,F401,F811,D103,D205,D212,D415",
+    "tests/*:D101,D103,D104",
+]
+docstring-convention = "google"
+count = true
+include = '\.pyi?$'
+exclude = """
+/(
+    | __pycache__
+    | .git
+)/
+"""
+
+[tool.pylint.format]
+good-names = [
+    "mf", "ci",
+    "t1", "t2", "l1", "l2", "r1", "r2",
+    "i", "j", "n",
+]
+
+[tool.pylint.messages_control]
+max-line-length = 100
+disable = [
+    "duplicate-code",  # Similar lines in N files
+    "too-many-locals",  # Too many local variables
+    "too-many-public-methods",  # Too many public methods
+    "too-many-arguments",  # Too many arguments
+    "too-many-branches",  # Too many branches
+    "too-many-statements",  # Too many statements
+    "too-many-instance-attributes",  # Too many instance attributes
+    "unnecessary-pass",  # Unnecessary pass statement
+    "no-else-return",  # No else return
+    "non-ascii-name",  # Non-ASCII characters in identifier
+    "unnecessary-ellipsis",  # Unnecessary ellipsis constant
+    "fixme",  # FIXME comments
+]
+exclude = """
+/(
+    | __pycache__
+    | .git
+    | tests
+)/
+"""
+
+[tool.mypy]
+python_version = "3.12"
+exclude = """
+/(
+    | __pycache__
+    | .git
+)/
+"""
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pyscf.*"
+ignore_missing_imports = true
 
 [tool.coverage.run]
 branch = true
@@ -96,12 +173,7 @@ exclude_lines = [
 directory = "cov_html"
 
 [tool.pytest.ini_options]
-addopts = "-m 'not slow'"
 testpaths = [
+    "dyson",
     "tests",
-]
-markers = [
-    "slow",
-    "reference",
-    "regression",
 ]

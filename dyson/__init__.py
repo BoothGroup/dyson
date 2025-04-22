@@ -11,6 +11,12 @@ import os
 import subprocess
 import sys
 
+
+# --- NumPy backend:
+
+import numpy
+
+
 # --- Logging:
 
 

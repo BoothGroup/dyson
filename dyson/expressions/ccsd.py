@@ -1,225 +1,412 @@
-"""
-EOM-CCSD expressions.
-"""
+"""Coupled cluster singles and doubles (CCSD) expressions."""
 
-import numpy as np
-from pyscf import ao2mo, cc, lib, pbc, scf
+from __future__ import annotations
 
-from dyson import util
-from dyson.expressions import BaseExpression
+from abc import abstractmethod
+import functools
+from typing import TYPE_CHECKING
+import warnings
 
+from pyscf import cc
 
-class CCSD_1h(BaseExpression):
-    """
-    IP-EOM-CCSD expressions.
-    """
+from dyson import numpy as np
+from dyson.expressions.expression import BaseExpression
 
-    hermitian = False
+if TYPE_CHECKING:
+    from typing import Any
 
-    def __init__(self, *args, ccsd=None, t1=None, t2=None, l1=None, l2=None, **kwargs):
-        BaseExpression.__init__(self, *args, **kwargs)
+    from pyscf.cc.ccsd import CCSD as PySCFCCSD
+    from pyscf.gto.mole import Mole
+    from pyscf.scf.hf import RHF
 
-        if ccsd is None:
-            if isinstance(self.mf, scf.hf.RHF):
-                ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-            elif isinstance(self.mf, pbc.scf.hf.RHF):
-                ccsd = pbc.cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-            else:
-                raise NotImplementedError(
-                    "EOM-CCSD not implemented for this type of mean-field object."
-                )
+    from dyson.typing import Array
 
-            ccsd.t1 = t1
-            ccsd.t2 = t2
-            ccsd.l1 = l1
-            ccsd.l2 = l2
-
-        # Solve CCSD if amplitudes are not provided
-        if ccsd.t1 is None or ccsd.t2 is None:
-            ccsd.kernel()
-            self.t1 = ccsd.t1
-            self.t2 = ccsd.t2
-        else:
-            self.t1 = ccsd.t1
-            self.t2 = ccsd.t2
-
-        if ccsd.l1 is None or ccsd.l2 is None:
-            self.l1, self.l2 = ccsd.solve_lambda()
-        else:
-            self.l1 = ccsd.l1
-            self.l2 = ccsd.l2
-
-        self.eris = ccsd.ao2mo()
-        self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
-        self.imds.make_ip()
-
-        self.eom = lambda: None
-        self.eom.nmo = self.nmo
-        self.eom.nocc = self.nocc
-        self.eom.vector_to_amplitudes = cc.eom_rccsd.vector_to_amplitudes_ip
-        self.eom.amplitudes_to_vector = cc.eom_rccsd.amplitudes_to_vector_ip
-        self.eom.partition = None
-
-    def diagonal(self):
-        diag = -cc.eom_rccsd.ipccsd_diag(self.eom, imds=self.imds)
-        return diag
-
-    def apply_hamiltonian(self, vector):
-        hvec = -cc.eom_rccsd.ipccsd_matvec(self.eom, vector, imds=self.imds)
-        return hvec
-
-    def apply_hamiltonian_left(self, vector):
-        hvec = -cc.eom_rccsd.lipccsd_matvec(self.eom, vector, imds=self.imds)
-        return hvec
-
-    def get_wavefunction_bra(self, orb):
-        t1 = self.t1
-        t2 = self.t2
-        l1 = self.l1
-        l2 = self.l2
-
-        if orb < self.nocc:
-            v1 = np.eye(self.nocc)[orb]
-            v1 -= lib.einsum("ie,e->i", l1, t1[orb])
-            tmp = t2[orb] * 2.0
-            tmp -= t2[orb].swapaxes(1, 2)
-            v1 -= lib.einsum("imef,mef->i", l2, tmp)
-
-            tmp = -lib.einsum("ijea,e->ija", l2, t1[orb])
-            v2 = tmp * 2.0
-            v2 -= tmp.swapaxes(0, 1)
-            tmp = lib.einsum("ja,i->ija", l1, np.eye(self.nocc)[orb])
-            v2 += tmp * 2.0
-            v2 -= tmp.swapaxes(0, 1)
-
-        else:
-            v1 = l1[:, orb - self.nocc].copy()
-            v2 = l2[:, :, orb - self.nocc] * 2.0
-            v2 -= l2[:, :, :, orb - self.nocc]
-
-        return self.eom.amplitudes_to_vector(v1, v2)
-
-    def get_wavefunction_ket(self, orb):
-        t1 = self.t1
-        t2 = self.t2
-        l1 = self.l1
-        l2 = self.l2
-
-        if orb < self.nocc:
-            v1 = np.eye(self.nocc)[orb]
-            v2 = np.zeros((self.nocc, self.nocc, self.nvir))
-        else:
-            v1 = t1[:, orb - self.nocc]
-            v2 = t2[:, :, orb - self.nocc]
-
-        return self.eom.amplitudes_to_vector(v1, v2)
+einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
-class CCSD_1p(BaseExpression):
-    """
-    EA-EOM-CCSD expressions.
-    """
+class BaseCCSD(BaseExpression):
+    """Base class for CCSD expressions."""
 
     hermitian = False
 
-    def __init__(self, *args, ccsd=None, t1=None, t2=None, l1=None, l2=None, **kwargs):
-        BaseExpression.__init__(self, *args, **kwargs)
+    partition: str | None = None
 
-        if ccsd is None:
-            if isinstance(self.mf, scf.hf.RHF):
-                ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-            elif isinstance(self.mf, pbc.scf.hf.RHF):
-                ccsd = pbc.cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-            else:
-                raise NotImplementedError(
-                    "momCCSD not implemented for this type of mean-field object."
-                )
-            # ccsd = cc.CCSD(self.mf, mo_coeff=self.mo_coeff, mo_occ=self.mo_occ)
-            # Use provided amplitudes if available
-            ccsd.t1 = t1
-            ccsd.t2 = t2
-            ccsd.l1 = l1
-            ccsd.l2 = l2
+    def __init__(
+        self,
+        mol: Mole,
+        t1: Array,
+        t2: Array,
+        l1: Array,
+        l2: Array,
+        imds: Any,
+    ):
+        """Initialise the expression.
 
-        # Solve CCSD if amplitudes are not provided
-        if ccsd.t1 is None or ccsd.t2 is None:
-            ccsd.kernel()
-            self.t1 = ccsd.t1
-            self.t2 = ccsd.t2
+        Args:
+            mol: Molecule object.
+            t1: T1 amplitudes.
+            t2: T2 amplitudes.
+            l1: L1 amplitudes.
+            l2: L2 amplitudes.
+            imds: Intermediate integrals.
+        """
+        self._mol = mol
+        self._t1 = t1
+        self._t2 = t2
+        self._l1 = l1
+        self._l2 = l2
+        self._imds = imds
+        self._precompute_imds()
+
+    @abstractmethod
+    def _precompute_imds(self) -> None:
+        """Precompute intermediate integrals."""
+        pass
+
+    @classmethod
+    def from_ccsd(cls, ccsd: PySCFCCSD) -> BaseCCSD:
+        """Create an expression from a CCSD object.
+
+        Args:
+            ccsd: CCSD object.
+
+        Returns:
+            Expression object.
+        """
+        if not ccsd.converged:
+            warnings.warn("CCSD T amplitudes are not converged.", UserWarning, stacklevel=2)
+        if not ccsd.converged_lambda:
+            warnings.warn("CCSD L amplitudes are not converged.", UserWarning, stacklevel=2)
+        eris = ccsd.ao2mo()
+        imds = cc.eom_rccsd._IMDS(ccsd, eris=eris)  # pylint: disable=protected-access
+        return cls(
+            mol=ccsd._scf.mol,  # pylint: disable=protected-access
+            t1=ccsd.t1,
+            t2=ccsd.t2,
+            l1=ccsd.l1,
+            l2=ccsd.l2,
+            imds=imds,
+        )
+
+    @classmethod
+    def from_mf(cls, mf: RHF) -> BaseCCSD:
+        """Create an expression from a mean-field object.
+
+        Args:
+            mf: Mean-field object.
+
+        Returns:
+            Expression object.
+        """
+        ccsd = cc.CCSD(mf)
+        ccsd.kernel()
+        ccsd.solve_lambda()
+        return cls.from_ccsd(ccsd)
+
+    @abstractmethod
+    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+        """Convert a vector to amplitudes.
+
+        Args:
+            vector: Vector to convert.
+
+        Returns:
+            Amplitudes.
+        """
+        pass
+
+    @abstractmethod
+    def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
+        """Convert amplitudes to a vector.
+
+        Args:
+            t1: T1 amplitudes.
+            t2: T2 amplitudes.
+
+        Returns:
+            Vector.
+        """
+        pass
+
+    def build_se_moments(self, nmom: int) -> Array:
+        """Build the self-energy moments.
+
+        Args:
+            nmom: Number of moments to compute.
+
+        Returns:
+            Moments of the self-energy.
+        """
+        raise NotImplementedError("Self-energy moments not implemented for CCSD.")
+
+    @property
+    def mol(self) -> Mole:
+        """Molecule object."""
+        return self._mol
+
+    @property
+    def t1(self) -> Array:
+        """T1 amplitudes."""
+        return self._t1
+
+    @property
+    def t2(self) -> Array:
+        """T2 amplitudes."""
+        return self._t2
+
+    @property
+    def l1(self) -> Array:
+        """L1 amplitudes."""
+        return self._l1
+
+    @property
+    def l2(self) -> Array:
+        """L2 amplitudes."""
+        return self._l2
+
+
+class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
+    """IP-EOM-CCSD expressions."""
+
+    def _precompute_imds(self) -> None:
+        """Precompute intermediate integrals."""
+        self._imds.make_ip()
+
+    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+        """Convert a vector to amplitudes.
+
+        Args:
+            vector: Vector to convert.
+
+        Returns:
+            Amplitudes.
+        """
+        return cc.eom_rccsd.vector_to_amplitudes_ip(vector, self.nphys, self.nocc)
+
+    def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
+        """Convert amplitudes to a vector.
+
+        Args:
+            t1: T1 amplitudes.
+            t2: T2 amplitudes.
+
+        Returns:
+            Vector.
+        """
+        return cc.eom_rccsd.amplitudes_to_vector_ip(t1, t2)
+
+    def apply_hamiltonian_right(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the right.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        return -cc.eom_rccsd.ipccsd_matvec(self, vector, imds=self._imds)
+
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        return -cc.eom_rccsd.lipccsd_matvec(self, vector, imds=self._imds)
+
+    apply_hamiltonian = apply_hamiltonian_right
+    apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
+
+    def diagonal(self) -> Array:
+        """Get the diagonal of the Hamiltonian.
+
+        Returns:
+            Diagonal of the Hamiltonian.
+        """
+        return -cc.eom_rccsd.ipccsd_diag(self, imds=self._imds)
+
+    def get_state_bra(self, orbital: int) -> Array:
+        r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
+
+        The bra vector is the state vector corresponding to the bra state, which may or may not be
+        the same as the ket state vector.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            Bra vector.
+        """
+        if orbital < self.nocc:
+            r1 = np.eye(self.nocc)[orbital]
+            r1 -= einsum("ie,e->i", self.l1, self.t1[orbital])
+            tmp = self.t2[orbital] * 2.0
+            tmp -= self.t2[orbital].swapaxes(1, 2)
+            r1 -= einsum("imef,mef->i", self.l2, tmp)
+
+            tmp = -einsum("ijea,e->ija", self.l2, self.t1[orbital])
+            r2 = tmp * 2.0
+            r2 -= tmp.swapaxes(0, 1)
+            tmp = einsum("ja,i->ija", self.l1, np.eye(self.nocc)[orbital])
+            r2 += tmp * 2.0
+            r2 -= tmp.swapaxes(0, 1)
+
         else:
-            self.t1 = ccsd.t1
-            self.t2 = ccsd.t2
+            r1 = self.l1[:, orbital - self.nocc].copy()
+            r2 = self.l2[:, :, orbital - self.nocc] * 2.0
+            r2 -= self.l2[:, :, :, orbital - self.nocc]
 
-        if ccsd.l1 is None or ccsd.l2 is None:
-            self.l1, self.l2 = ccsd.solve_lambda()
-        else:
-            self.l1 = ccsd.l1
-            self.l2 = ccsd.l2
+        return self.amplitudes_to_vector(r1, r2)
 
-        self.eris = ccsd.ao2mo()
-        self.imds = cc.eom_rccsd._IMDS(ccsd, eris=self.eris)
-        self.imds.make_ea()
+    def get_state_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
 
-        self.eom = lambda: None
-        self.eom.nmo = self.nmo
-        self.eom.nocc = self.nocc
-        self.eom.vector_to_amplitudes = cc.eom_rccsd.vector_to_amplitudes_ea
-        self.eom.amplitudes_to_vector = cc.eom_rccsd.amplitudes_to_vector_ea
-        self.eom.partition = None
+        The ket vector is the state vector corresponding to the ket state, which may or may not be
+        the same as the bra state vector.
 
-    def diagonal(self):
-        diag = cc.eom_rccsd.eaccsd_diag(self.eom, imds=self.imds)
-        return diag
+        Args:
+            orbital: Orbital index.
 
-    def apply_hamiltonian(self, vector):
-        hvec = cc.eom_rccsd.eaccsd_matvec(self.eom, vector, imds=self.imds)
-        return hvec
-
-    def apply_hamiltonian_left(self, vector):
-        hvec = cc.eom_rccsd.leaccsd_matvec(self.eom, vector, imds=self.imds)
-        return hvec
-
-    def get_wavefunction_bra(self, orb):
-        t1 = self.t1
-        t2 = self.t2
-        l1 = self.l1
-        l2 = self.l2
-
-        if orb < self.nocc:
-            v1 = -l1[orb]
-            v2 = -l2[orb] * 2.0
-            v2 += l2[:, orb]
+        Returns:
+            Ket vector.
+        """
+        if orbital < self.nocc:
+            r1 = np.eye(self.nocc)[orbital]
+            r2 = np.zeros((self.nocc, self.nocc, self.nvir))
 
         else:
-            v1 = np.eye(self.nvir)[orb - self.nocc]
-            v1 -= lib.einsum("mb,m->b", l1, t1[:, orb - self.nocc])
-            tmp = t2[:, :, :, orb - self.nocc] * 2.0
-            tmp -= t2[:, :, orb - self.nocc]
-            v1 -= lib.einsum("kmeb,kme->b", l2, tmp)
+            r1 = self.t1[:, orbital - self.nocc]
+            r2 = self.t2[:, :, orbital - self.nocc]
 
-            tmp = -lib.einsum("ikba,k->iab", l2, t1[:, orb - self.nocc])
-            v2 = tmp * 2.0
-            v2 -= tmp.swapaxes(1, 2)
-            tmp = lib.einsum("ib,a->iab", l1, np.eye(self.nvir)[orb - self.nocc])
-            v2 += tmp * 2.0
-            v2 -= tmp.swapaxes(1, 2)
+        return self.amplitudes_to_vector(r1, r2)
 
-        return self.eom.amplitudes_to_vector(v1, v2)
+    get_state = get_state_ket
+    get_state.__doc__ = BaseCCSD.get_state.__doc__
 
-    def get_wavefunction_ket(self, orb):
-        t1 = self.t1
-        t2 = self.t2
-        l1 = self.l1
-        l2 = self.l2
 
-        if orb < self.nocc:
-            v1 = t1[orb]
-            v2 = t2[orb]
+class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
+    """EA-EOM-CCSD expressions."""
+
+    def _precompute_imds(self) -> None:
+        """Precompute intermediate integrals."""
+        self._imds.make_ea()
+
+    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+        """Convert a vector to amplitudes.
+
+        Args:
+            vector: Vector to convert.
+
+        Returns:
+            Amplitudes.
+        """
+        return cc.eom_rccsd.vector_to_amplitudes_ea(vector, self.nphys, self.nocc)
+
+    def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
+        """Convert amplitudes to a vector.
+
+        Args:
+            t1: T1 amplitudes.
+            t2: T2 amplitudes.
+
+        Returns:
+            Vector.
+        """
+        return cc.eom_rccsd.amplitudes_to_vector_ea(t1, t2)
+
+    def apply_hamiltonian_right(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the right.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        return cc.eom_rccsd.eaccsd_matvec(self, vector, imds=self._imds)
+
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        return cc.eom_rccsd.leaccsd_matvec(self, vector, imds=self._imds)
+
+    apply_hamiltonian = apply_hamiltonian_right
+    apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
+
+    def diagonal(self) -> Array:
+        """Get the diagonal of the Hamiltonian.
+
+        Returns:
+            Diagonal of the Hamiltonian.
+        """
+        return cc.eom_rccsd.eaccsd_diag(self, imds=self._imds)
+
+    def get_state_bra(self, orbital: int) -> Array:
+        r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
+
+        The bra vector is the state vector corresponding to the bra state, which may or may not be
+        the same as the ket state vector.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            Bra vector.
+        """
+        if orbital < self.nocc:
+            r1 = -self.l1[orbital]
+            r2 = -self.l2[orbital] * 2.0
+            r2 += self.l2[:, orbital]
+
         else:
-            v1 = -np.eye(self.nvir)[orb - self.nocc]
-            v2 = np.zeros((self.nocc, self.nvir, self.nvir))
+            r1 = np.eye(self.nvir)[orbital - self.nocc]
+            r1 -= einsum("mb,m->b", self.l1, self.t1[:, orbital - self.nocc])
+            tmp = self.t2[:, :, :, orbital - self.nocc] * 2.0
+            tmp -= self.t2[:, :, orbital - self.nocc]
+            r1 -= einsum("kmeb,kme->b", self.l2, tmp)
 
-        return -self.eom.amplitudes_to_vector(v1, v2)
+            tmp = -einsum("ikba,k->iab", self.l2, self.t1[:, orbital - self.nocc])
+            r2 = tmp * 2.0
+            r2 -= tmp.swapaxes(1, 2)
+            tmp = einsum("ib,a->iab", self.l1, np.eye(self.nvir)[orbital - self.nocc])
+            r2 += tmp * 2.0
+            r2 -= tmp.swapaxes(1, 2)
+
+        return self.amplitudes_to_vector(r1, r2)
+
+    def get_state_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
+
+        The ket vector is the state vector corresponding to the ket state, which may or may not be
+        the same as the bra state vector.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            Ket vector.
+        """
+        if orbital < self.nocc:
+            r1 = self.t1[orbital]
+            r2 = self.t2[orbital]
+
+        else:
+            r1 = -np.eye(self.nvir)[orbital - self.nocc]
+            r2 = np.zeros((self.nocc, self.nvir, self.nvir))
+
+        return -self.amplitudes_to_vector(r1, r2)
+
+    get_state = get_state_ket
+    get_state.__doc__ = BaseCCSD.get_state.__doc__
 
 
 CCSD = {
