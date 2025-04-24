@@ -1,94 +1,119 @@
-"""
-Solver base class.
-"""
+"""Base class for Dyson equation solvers."""
 
-import numpy as np
+from __future__ import annotations
 
-from dyson import Lehmann, default_log, init_logging
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+from dyson import numpy as np
+from dyson.lehmann import Lehmann
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, TypeAlias
+
+    from dyson.typing import Array
+
+    Couplings: TypeAlias = Array | tuple[Array, Array]
 
 
-class BaseSolver:
-    """
-    Base class for all solvers.
-    """
+class BaseSolver(ABC):
+    """Base class for Dyson equation solvers."""
 
-    def __init__(self, *args, **kwargs):
-        self.log = kwargs.pop("log", default_log)
-        if self.log is None:
-            self.log = default_log
-        init_logging(self.log)
-        self.log.info("")
-        self.log.info("%s", self.__class__.__name__)
-        self.log.info("%s", "*" * len(self.__class__.__name__))
+    @abstractmethod
+    def kernel(self) -> Any:
+        """Run the solver."""
+        pass
 
-        # Check all the arguments have now been consumed:
-        if len(kwargs):
-            for key, val in kwargs.items():
-                self.log.warn("Argument `%s` invalid" % key)
 
-    def kernel(self, *args, **kwargs):
+class StaticSolver(BaseSolver):
+    """Base class for static Dyson equation solvers."""
+
+    hermitian: bool
+
+    eigvals: Array
+    eigvecs: Couplings
+
+    @abstractmethod
+    def kernel(self) -> tuple[Lehmann, Lehmann]:
+        """Run the solver.
+
+        Returns:
+            Lehmann representations for the self-energy and Green's function, connected by the Dyson
+            equation.
         """
-        Driver function. Classes inheriting the `BaseSolver` should
-        implement `_kernel`, which is called by this function. If
-        the solver has a `_cache`, this function clears it.
+        pass
+
+    @abstractmethod
+    def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Couplings]:
+        """Get the auxiliary energies and couplings contributing to the self-energy.
+
+        Returns:
+            Auxiliary energies and couplings.
         """
+        pass
 
-        out = self._kernel(*args, **kwargs)
+    def get_eigenfunctions(self, **kwargs: Any) -> tuple[Array, Couplings]:
+        """Get the eigenfunctions of the self-energy.
 
-        # Clear the cache if it is used:
-        if hasattr(self, "_cache"):
-            self._cache.clear()
-
-        return out
-
-    def flag_convergence(self, converged):
-        """Preset logging for convergence message."""
-
-        if converged:
-            self.log.info("Successfully converged.")
-        else:
-            self.log.info("Failed to converge.")
-
-    def get_auxiliaries(self, *args, **kwargs):
+        Returns:
+            Eigenvalues and eigenvectors.
         """
-        Return the auxiliary energies and couplings.
+        return self.eigvals, self.eigvecs
+
+    def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Couplings]:
+        """Get the Dyson orbitals contributing to the Green's function.
+
+        Returns:
+            Dyson orbital energies and couplings.
         """
-
-        raise NotImplementedError
-
-    def get_dyson_orbitals(self, *args, **kwargs):
-        """
-        Return the Dyson orbitals and their energies.
-        """
-
-        eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
-
+        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
         if self.hermitian:
+            if isinstance(eigvecs, tuple):
+                raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
             eigvecs = eigvecs[: self.nphys]
         elif isinstance(eigvecs, tuple):
             eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
         else:
             eigvecs = (eigvecs[: self.nphys], np.linalg.inv(eigvecs).T.conj()[: self.nphys])
-
         return eigvals, eigvecs
 
-    def get_eigenfunctions(self, *args, **kwargs):
-        """
-        Return the eigenvalues and eigenfunctions.
-        """
+    def get_self_energy(self, chempot: float = 0.0, **kwargs: Any) -> Lehmann:
+        """Get the Lehmann representation of the self-energy.
 
-        return self.eigvals, self.eigvecs
+        Args:
+            chempot: Chemical potential.
 
-    def get_self_energy(self, *args, chempot=0.0, **kwargs):
+        Returns:
+            Lehmann representation of the self-energy.
         """
-        Get the self-energy in the format of `pyscf.agf2`.
-        """
+        return Lehmann(*self.get_auxiliaries(**kwargs), chempot=chempot)
 
-        return Lehmann(*self.get_auxiliaries(*args, **kwargs), chempot=chempot)
+    def get_green_function(self, chempot: float = 0.0, **kwargs: Any) -> Lehmann:
+        """Get the Lehmann representation of the Green's function.
 
-    def get_greens_function(self, *args, chempot=0.0, **kwargs):
-        """
-        Get the Green's function in the format of `pyscf.agf2`.
-        """
+        Args:
+            chempot: Chemical potential.
 
-        return Lehmann(*self.get_dyson_orbitals(*args, **kwargs), chempot=chempot)
+        Returns:
+            Lehmann representation of the Green's function.
+        """
+        return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
+
+    @abstractmethod
+    @property
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        pass
+
+
+class DynamicSolver(BaseSolver):
+    """Base class for dynamic Dyson equation solvers."""
+
+    @abstractmethod
+    def kernel(self) -> Array:
+        """Run the solver.
+
+        Returns:
+            Dynamic Green's function resulting from the Dyson equation.
+        """
+        pass

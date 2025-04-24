@@ -15,7 +15,6 @@ from dyson.expressions.expression import BaseExpression
 if TYPE_CHECKING:
     from typing import Any
 
-    from pyscf.cc.ccsd import CCSD as PySCFCCSD
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF
 
@@ -30,6 +29,8 @@ class BaseCCSD(BaseExpression):
     hermitian = False
 
     partition: str | None = None
+
+    PYSCF_EOM = cc.eom_rccsd
 
     def __init__(
         self,
@@ -64,7 +65,7 @@ class BaseCCSD(BaseExpression):
         pass
 
     @classmethod
-    def from_ccsd(cls, ccsd: PySCFCCSD) -> BaseCCSD:
+    def from_ccsd(cls, ccsd: cc.CCSD) -> BaseCCSD:
         """Create an expression from a CCSD object.
 
         Args:
@@ -78,7 +79,7 @@ class BaseCCSD(BaseExpression):
         if not ccsd.converged_lambda:
             warnings.warn("CCSD L amplitudes are not converged.", UserWarning, stacklevel=2)
         eris = ccsd.ao2mo()
-        imds = cc.eom_rccsd._IMDS(ccsd, eris=eris)  # pylint: disable=protected-access
+        imds = cls.PYSCF_EOM._IMDS(ccsd, eris=eris)  # pylint: disable=protected-access
         return cls(
             mol=ccsd._scf.mol,  # pylint: disable=protected-access
             t1=ccsd.t1,
@@ -181,7 +182,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Amplitudes.
         """
-        return cc.eom_rccsd.vector_to_amplitudes_ip(vector, self.nphys, self.nocc)
+        return self.PYSCF_EOM.vector_to_amplitudes_ip(vector, self.nphys, self.nocc)
 
     def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
         """Convert amplitudes to a vector.
@@ -193,7 +194,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Vector.
         """
-        return cc.eom_rccsd.amplitudes_to_vector_ip(t1, t2)
+        return self.PYSCF_EOM.amplitudes_to_vector_ip(t1, t2)
 
     def apply_hamiltonian_right(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the right.
@@ -204,7 +205,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Output vector.
         """
-        return -cc.eom_rccsd.ipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.ipccsd_matvec(self, vector, imds=self._imds)
 
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
@@ -215,7 +216,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Output vector.
         """
-        return -cc.eom_rccsd.lipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
 
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
@@ -226,7 +227,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Diagonal of the Hamiltonian.
         """
-        return -cc.eom_rccsd.ipccsd_diag(self, imds=self._imds)
+        return -self.PYSCF_EOM.ipccsd_diag(self, imds=self._imds)
 
     def get_state_bra(self, orbital: int) -> Array:
         r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
@@ -303,7 +304,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Amplitudes.
         """
-        return cc.eom_rccsd.vector_to_amplitudes_ea(vector, self.nphys, self.nocc)
+        return self.PYSCF_EOM.vector_to_amplitudes_ea(vector, self.nphys, self.nocc)
 
     def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
         """Convert amplitudes to a vector.
@@ -315,7 +316,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Vector.
         """
-        return cc.eom_rccsd.amplitudes_to_vector_ea(t1, t2)
+        return self.PYSCF_EOM.amplitudes_to_vector_ea(t1, t2)
 
     def apply_hamiltonian_right(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the right.
@@ -326,7 +327,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Output vector.
         """
-        return cc.eom_rccsd.eaccsd_matvec(self, vector, imds=self._imds)
+        return self.PYSCF_EOM.eaccsd_matvec(self, vector, imds=self._imds)
 
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
@@ -337,7 +338,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Output vector.
         """
-        return cc.eom_rccsd.leaccsd_matvec(self, vector, imds=self._imds)
+        return self.PYSCF_EOM.leaccsd_matvec(self, vector, imds=self._imds)
 
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
@@ -348,7 +349,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Diagonal of the Hamiltonian.
         """
-        return cc.eom_rccsd.eaccsd_diag(self, imds=self._imds)
+        return self.PYSCF_EOM.eaccsd_diag(self, imds=self._imds)
 
     def get_state_bra(self, orbital: int) -> Array:
         r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.

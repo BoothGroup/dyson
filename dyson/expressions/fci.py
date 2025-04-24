@@ -11,7 +11,6 @@ from dyson.expressions.expression import BaseExpression
 if TYPE_CHECKING:
     from typing import Callable
 
-    from pyscf.fci.direct_spin1 import FCIBase as PySCFBaseFCI
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF
 
@@ -55,7 +54,7 @@ class BaseFCI(BaseExpression):
         self._chempot = chempot
 
     @classmethod
-    def from_fci(cls, ci: PySCFBaseFCI, h1e: Array, h2e: Array) -> BaseFCI:
+    def from_fci(cls, ci: fci.FCI, h1e: Array, h2e: Array) -> BaseFCI:
         """Create an expression from an FCI object.
 
         Args:
