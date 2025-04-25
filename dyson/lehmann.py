@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import functools
 from typing import TYPE_CHECKING, cast
 
@@ -16,6 +17,25 @@ if TYPE_CHECKING:
     Couplings: TypeAlias = Array | tuple[Array, Array]
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
+
+
+@contextmanager
+def shift_energies(lehmann: Lehmann, shift: float) -> None:
+    """Shift the energies of a Lehmann representation using a context manager.
+
+    Args:
+        lehmann: The Lehmann representation to shift.
+        shift: The amount to shift the energies by.
+
+    Yields:
+        None
+    """
+    original_energies = lehmann.energies
+    lehmann._energies = original_energies + shift  # pylint: disable=protected-access
+    try:
+        yield
+    finally:
+        lehmann._energies = original_energies  # pylint: disable=protected-access
 
 
 class Lehmann:

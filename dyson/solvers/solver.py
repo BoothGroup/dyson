@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+import functools
+from typing import TYPE_CHECKING, cast
 
 from dyson import numpy as np
 from dyson.lehmann import Lehmann
+from dyson.typing import Array
 
 if TYPE_CHECKING:
     from typing import Any, Callable, TypeAlias
 
-    from dyson.typing import Array
-
     Couplings: TypeAlias = Array | tuple[Array, Array]
+
+einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
 class BaseSolver(ABC):
@@ -24,40 +26,116 @@ class BaseSolver(ABC):
         """Run the solver."""
         pass
 
+    @abstractmethod
+    @classmethod
+    def from_self_energy(self, static: Array, self_energy: Lehmann, **kwargs: Any) -> BaseSolver:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+
+        Notes:
+            This method will extract the appropriate quantities or functions from the self-energy
+            to instantiate the solver. In some cases, additional keyword arguments are required.
+        """
+        pass
+
 
 class StaticSolver(BaseSolver):
     """Base class for static Dyson equation solvers."""
 
     hermitian: bool
 
-    eigvals: Array
-    eigvecs: Couplings
+    eigvals: Array | None = None
+    eigvecs: Couplings | None = None
 
     @abstractmethod
-    def kernel(self) -> tuple[Lehmann, Lehmann]:
-        """Run the solver.
-
-        Returns:
-            Lehmann representations for the self-energy and Green's function, connected by the Dyson
-            equation.
-        """
+    def kernel(self) -> None:
+        """Run the solver."""
         pass
 
-    @abstractmethod
+    def get_static_self_energy(self, **kwargs: Any) -> Array:
+        """Get the static part of the self-energy.
+
+        Returns:
+            Static self-energy.
+        """
+        # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
+        # should implement this method.
+        nphys = self.nphys
+        eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
+
+        # Project back to the static part
+        static = einsum("pk,qk,k->pq", left[: nphys], right[: nphys].conj(), eigvals)
+
+        return static
+
     def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Couplings]:
-        """Get the auxiliary energies and couplings contributing to the self-energy.
+        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Returns:
             Auxiliary energies and couplings.
         """
-        pass
+        # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
+        # should implement this method.
+        nphys = self.nphys
+        eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
 
-    def get_eigenfunctions(self, **kwargs: Any) -> tuple[Array, Couplings]:
+        # Project back to the auxiliary subspace
+        energies = einsum("pk,qk,k->pq", left[nphys :], right[nphys :].conj(), eigvals)
+
+        # Diagonalise the subspace to get the energies and basis for the couplings
+        if self.hermitian:
+            energies, rotation = np.linalg.eigh(energies)
+        else:
+            energies, rotation = np.linalg.eig(energies)
+
+        # Project back to the couplings
+        couplings_left = einsum("pk,qk,k->pq", left[: nphys], right[nphys :].conj(), eigvals)
+        if self.hermitian:
+            couplings = couplings_left
+        else:
+            couplings_right = einsum("pk,qk,k->pq", left[nphys :], right[: nphys].conj(), eigvals)
+            couplings_right = couplings_right.T.conj()
+            couplings = (couplings_left, couplings_right)
+
+        # Rotate the couplings to the auxiliary basis
+        if self.hermitian:
+            couplings = rotation.T.conj() @ couplings
+        else:
+            couplings = (
+                rotation.T.conj() @ couplings_left,
+                rotation.T.conj() @ couplings_right,
+            )
+
+        return energies, couplings
+
+    def get_eigenfunctions(self, unpack: bool = False, **kwargs: Any) -> tuple[Array, Couplings]:
         """Get the eigenfunctions of the self-energy.
+
+        Args:
+            unpack: Whether to unpack the eigenvectors into left and right components, regardless
+                of the hermitian property.
 
         Returns:
             Eigenvalues and eigenvectors.
         """
+        if self.eigvals is None or self.eigvecs is None:
+            raise ValueError("Must call kernel() to compute eigenvalues and eigenvectors.")
+        if unpack:
+            if self.hermitian:
+                if isinstance(self.eigvecs, tuple):
+                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
+                return self.eigvals, (self.eigvecs, self.eigvecs)
+            elif isinstance(self.eigvecs, tuple):
+                return self.eigvals, self.eigvecs
+            else:
+                return self.eigvals, (self.eigvecs, np.linalg.inv(self.eigvecs).T.conj())
         return self.eigvals, self.eigvecs
 
     def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Couplings]:
@@ -66,7 +144,7 @@ class StaticSolver(BaseSolver):
         Returns:
             Dyson orbital energies and couplings.
         """
-        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
+        eigvals, eigvecs = self.get_eigenfunctions(unpack=False, **kwargs)
         if self.hermitian:
             if isinstance(eigvecs, tuple):
                 raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
