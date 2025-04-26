@@ -5,7 +5,8 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING
 
-from dyson.expressions.base import BaseExpression
+from dyson import numpy as np
+from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:
     from pyscf.gto.mole import Mole

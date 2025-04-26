@@ -1,4 +1,4 @@
-"""Downfolded frequency-space diagonalisation.""":w
+"""Downfolded frequency-space diagonalisation."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class Downfolded(StaticSolver):
     def __init__(
         self,
         static: Array,
-        function: Callable[[Array], Array],
+        function: Callable[[float], Array],
         guess: float = 0.0,
         max_cycle: int = 100,
         conv_tol: float = 1e-8,
@@ -63,7 +63,7 @@ class Downfolded(StaticSolver):
         self.hermitian = hermitian
 
     @classmethod
-    def from_self_energy(self, static: Array, self_energy: Lehmann, **kwargs: Any) -> Exact:
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Downfolded:
         """Create a solver from a self-energy.
 
         Args:
@@ -81,7 +81,7 @@ class Downfolded(StaticSolver):
             ordering="time-ordered",
             axis="real",
         )[0]
-        return Downfolded(
+        return cls(
             static,
             function,
             hermitian=self_energy.hermitian,
@@ -116,8 +116,8 @@ class Downfolded(StaticSolver):
 
         # Sort eigenvalues and eigenvectors
         idx = np.argsort(eigvals)
-        self.eigenvalues = eigvals[idx]
-        self.eigenvectors = eigvecs[:, idx]
+        self.eigvals = eigvals[idx]
+        self.eigvecs = eigvecs[:, idx]
         self.converged = converged
 
     @property
@@ -126,7 +126,7 @@ class Downfolded(StaticSolver):
         return self._static
 
     @property
-    def function(self) -> Callable[[Array], Array]:
+    def function(self) -> Callable[[float], Array]:
         """Get the function to return the downfolded self-energy at a given frequency."""
         return self._function
 

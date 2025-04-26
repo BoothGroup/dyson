@@ -1,34 +1,31 @@
-"""
-Energy functionals.
-"""
+"""Energy functionals."""
 
-import numpy as np
+from __future__ import annotations
+
+import functools
+from typing import TYPE_CHECKING
+
+from dyson import numpy as np
+
+if TYPE_CHECKING:
+    from dyson.typing import Array
+
+einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
-def greens_function_galitskii_migdal(gf_moments_hole, hcore, factor=1.0):
+def gf_moments_galitskii_migdal(gf_moments_hole: Array, hcore: Array, factor: float = 1.0) -> float:
+    """Compute the Galitskii--Migdal energy in terms of the moments of the hole Green's function.
+
+    Args:
+        gf_moments_hole: Moments of the hole Green's function. Only the first two (zeroth and first
+            moments) are required.
+        hcore: Core Hamiltonian.
+        factor: Factor to scale energy. For UHF and GHF calculations, this should likely be 0.5,
+            for RHF it is 1.0.
+
+    Returns:
+        Galitskii--Migdal energy.
     """
-    Compute the energy using the Galitskii-Migdal formula in terms of
-    the hole Green's function moments and the core Hamiltonian.
-
-    Parameters
-    ----------
-    gf_moments : numpy.ndarray (m, n, n)
-        Moments of the hole Green's function. Only the first two
-        (n=0 and n=1) are required.
-    hcore : numpy.ndarray (n, n)
-        Core Hamiltonian.
-    factor : float, optional
-        Factor to scale energy. For UHF and GHF calculations, this
-        should likely be 0.5, for RHF it is 1.0.  Default value is
-        `1.0`.
-
-    Returns
-    -------
-    e_gm : float
-        Galitskii-Migdal energy.
-    """
-
-    e_gm = np.einsum("pq,qp->", gf_moments_hole[0], hcore)
+    e_gm = einsum("pq,qp->", gf_moments_hole[0], hcore)
     e_gm += np.trace(gf_moments_hole[1])
-
-    return e_gm
+    return e_gm * factor

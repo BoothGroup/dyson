@@ -40,7 +40,7 @@ class Exact(StaticSolver):
         self.hermitian = hermitian
 
     @classmethod
-    def from_self_energy(self, static: Array, self_energy: Lehmann, **kwargs: Any) -> Exact:
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Exact:
         """Create a solver from a self-energy.
 
         Args:
@@ -51,7 +51,7 @@ class Exact(StaticSolver):
         Returns:
             Solver instance.
         """
-        return Exact(
+        return cls(
             self_energy.matrix(static), self_energy.nphys, hermitian=self_energy.hermitian, **kwargs
         )
 

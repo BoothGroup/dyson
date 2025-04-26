@@ -1,158 +1,116 @@
-"""
-Linear algebra utilities.
-"""
+"""Linear algebra."""
 
-import numpy as np
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
+from dyson import numpy as np
+
+if TYPE_CHECKING:
+    from dyson.typing import Array
 
 
-def matrix_power(m, power, hermitian=True, threshold=1e-10, return_error=False):
+def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
+    """Compute the eigenvalues and eigenvectors of a matrix.
+
+    Args:
+        matrix: The matrix to be diagonalised.
+        hermitian: Whether the matrix is hermitian.
+
+    Returns:
+        The eigenvalues and eigenvectors of the matrix.
     """
-    Compute the power of the matrix `m` via the eigenvalue
-    decomposition.
-
-    Parameters
-    ----------
-    m : numpy.ndarray (n, n)
-        The matrix to be raised to a power.
-    power : float
-        The power to which the matrix is to be raised.
-    hermitian : bool, optional
-        Whether the matrix is hermitian.  Default value is `True`.
-    threshold : float, optional
-        Threshold for removing singularities.  Default value is
-        `1e-10`.
-    return_error : bool, optional
-        Whether to return the error in the power.  Default value is
-        `False`.
-
-    Returns
-    -------
-    m_pow : numpy.ndarray (n, n)
-        The matrix raised to the power.
-    error : float, optional
-        The error in the power.  Only returned if `return_error` is
-        `True`.
-    """
-
     if hermitian:
         # assert np.allclose(m, m.T.conj())
-        eigvals, eigvecs = np.linalg.eigh(m)
+        eigvals, eigvecs = np.linalg.eigh(matrix)
     else:
-        eigvals, eigvecs = np.linalg.eig(m)
+        eigvals, eigvecs = np.linalg.eig(matrix)
 
+    # Sort the eigenvalues and eigenvectors
+    idx = np.argsort(eigvals)
+    eigvals = eigvals[idx]
+    eigvecs = eigvecs[:, idx]
+
+    return eigvals, eigvecs
+
+
+def matrix_power(
+    matrix: Array,
+    power: int | float,
+    hermitian: bool = True,
+    threshold: float = 1e-10,
+    return_error: bool = False,
+    ord: int | float = np.inf,
+) -> Array | tuple[Array, float]:
+    """Compute the power of a matrix via the eigenvalue decomposition.
+
+    Args:
+        matrix: The matrix to be exponentiated.
+        power: The power to which the matrix is to be raised.
+        hermitian: Whether the matrix is hermitian.
+        threshold: Threshold for removing singularities.
+        return_error: Whether to return the error in the power.
+        ord: The order of the norm to be used for the error.
+
+    Returns:
+        The matrix raised to the power, and the error if requested.
+    """
+    # Get the eigenvalues and eigenvectors
+    eigvals, eigvecs = eig(matrix, hermitian=hermitian)
+
+    # Get the mask for removing singularities
     if power < 0:
-        # Remove singularities
         mask = np.abs(eigvals) > threshold
     else:
         mask = np.ones_like(eigvals, dtype=bool)
 
-    if hermitian and not np.iscomplexobj(m):
+    # Get the mask for removing negative eigenvalues
+    if hermitian and not np.iscomplexobj(matrix):
         if np.abs(power) < 1:
-            mask = np.logical_and(mask, eigvals > 0)
-        eigvecs_right = eigvecs.T.conj()
-    elif hermitian and np.iscomplexobj(m):
-        power = power + 0.0j
-        eigvecs_right = eigvecs.T.conj()
+            mask &= eigvals > 0
     else:
-        power = power + 0.0j
-        eigvecs_right = np.linalg.inv(eigvecs)
+        power: complex = power + 0.0j  # type: ignore[no-redef]
 
-    left = eigvecs[:, mask] * eigvals[mask][None] ** power
-    right = eigvecs_right[mask]
-    m_pow = np.dot(left, right)
+    # Get the left and right eigenvalues
+    if hermitian:
+        left = right = eigvecs
+    else:
+        left = eigvecs
+        right = np.linalg.inv(eigvecs).T.conj()
 
+    # Contract the eigenvalues and eigenvectors
+    matrix_power: Array = (left[:, mask] * eigvals[mask][None] ** power) @ right[:, mask].T.conj()
+
+    # Get the error if requested
     if return_error:
-        left = eigvecs[:, ~mask] * eigvals[~mask][None]
-        right = eigvecs_right[~mask]
-        m_res = np.dot(left, right)
-        error = np.linalg.norm(np.linalg.norm(m_res))
-        return m_pow, error
-    else:
-        return m_pow
+        null = (left[:, ~mask] * eigvals[~mask][None] ** power) @ right[:, ~mask].T.conj()
+        error = cast(float, np.linalg.norm(null, ord=ord))
+
+    return (matrix_power, error) if return_error else matrix_power
 
 
-def hermi_sum(m):
-    """
-    Return m + m^†
+def hermi_sum(matrix: Array) -> Array:
+    """Return the sum of a matrix with its Hermitian conjugate.
 
-    Parameters
-    ----------
-    m : numpy.ndarray (n, n)
-        The matrix to be summed with its hermitian conjugate.
+    Args:
+        matrix: The matrix to be summed with its hermitian conjugate.
 
-    Returns
-    -------
-    m_sum : numpy.ndarray (n, n)
+    Returns:
         The sum of the matrix with its hermitian conjugate.
     """
+    return matrix + matrix.T.conj()
 
-    return m + m.T.conj()
 
+def scaled_error(matrix1: Array, matrix2: Array, ord: int | float = np.inf) -> float:
+    """Return the scaled error between two matrices.
 
-def scaled_error(a, b):
-    """
-    Return the scaled error between two matrices.
+    Args:
+        matrix1: The first matrix.
+        matrix2: The second matrix.
 
-    Parameters
-    ----------
-    a : numpy.ndarray (n, n)
-        The first matrix.
-    b : numpy.ndarray (n, n)
-        The second matrix.
-
-    Returns
-    -------
-    error : float
+    Returns:
         The scaled error between the two matrices.
     """
-
-    a = a / max(np.max(np.abs(a)), 1)
-    b = b / max(np.max(np.abs(b)), 1)
-
-    return np.linalg.norm(a - b)
-
-
-def remove_unphysical(eigvecs, nphys, eigvals=None, tol=1e-8):
-    """
-    Remove eigenvectors with a small physical component.
-
-    Parameters
-    ----------
-    eigvecs : numpy.ndarray or tuple of numpy.ndarray
-        Eigenvectors.  If a tuple, the first element is the left
-        eigenvectors and the second element is the right
-        eigenvectors.
-    nphys : int
-        Number of physical orbitals.
-    eigvals : numpy.ndarray, optional
-        Eigenvalues.  Default value is `None`.
-    tol : float, optional
-        Threshold for removing eigenvectors.  Default value is
-        `1e-8`.
-
-    Returns
-    -------
-    eigvals : numpy.ndarray, optional
-        Eigenvalues.  Only returned if `eigvals` is not `None`.
-    eigvecs : numpy.ndarray or tuple of numpy.ndarray
-        Eigenvectors.  If a tuple, the first element is the left
-        eigenvectors and the second element is the right
-        eigenvectors.
-    """
-
-    if isinstance(eigvecs, tuple):
-        eigvecs_l, eigvecs_r = eigvecs
-    else:
-        eigvecs_l = eigvecs_r = eigvecs
-
-    mask = np.abs(np.sum(eigvecs_l[:nphys] * eigvecs_r.conj()[:nphys], axis=0)) > tol
-
-    if isinstance(eigvecs, tuple):
-        eigvecs_out = (eigvecs_l[:, mask], eigvecs_r[:, mask])
-    else:
-        eigvecs_out = eigvecs[:, mask]
-
-    if eigvals is not None:
-        return eigvals[mask], eigvecs_out
-    else:
-        return eigvecs_out
+    matrix1 = matrix1 / max(np.max(np.abs(matrix1)), 1)
+    matrix2 = matrix2 / max(np.max(np.abs(matrix2)), 1)
+    return cast(float, np.linalg.norm(matrix1 - matrix2, ord=ord))

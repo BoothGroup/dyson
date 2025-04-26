@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import scipy.optimize
+
 from dyson import numpy as np
 from dyson.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
@@ -125,6 +127,36 @@ class ChemicalPotentialSolver(StaticSolver):
     chempot: float | None = None
     converged: bool | None = None
 
+    def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
+        """Get the Lehmann representation of the self-energy.
+
+        Args:
+            chempot: Chemical potential.
+
+        Returns:
+            Lehmann representation of the self-energy.
+        """
+        if chempot is None:
+            chempot = self.chempot
+        if chempot is None:
+            chempot = 0.0
+        return Lehmann(*self.get_auxiliaries(**kwargs), chempot=chempot)
+
+    def get_green_function(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
+        """Get the Lehmann representation of the Green's function.
+
+        Args:
+            chempot: Chemical potential.
+
+        Returns:
+            Lehmann representation of the Green's function.
+        """
+        if chempot is None:
+            chempot = self.chempot
+        if chempot is None:
+            chempot = 0.0
+        return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
+
     @property
     def static(self) -> Array:
         """Get the static part of the self-energy."""
@@ -161,7 +193,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         self_energy: Lehmann,
         nelec: int,
         occupancy: float = 2.0,
-        solver: type[StaticSolver] = Exact,
+        solver: type[Exact] = Exact,
         method: Literal["direct", "bisect"] = "direct",
     ):
         """Initialise the solver.
@@ -184,7 +216,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
 
     @classmethod
     def from_self_energy(
-        self, static: Array, self_energy: Lehmann, **kwargs: Any
+        cls, static: Array, self_energy: Lehmann, **kwargs: Any
     ) -> AufbauPrinciple:
         """Create a solver from a self-energy.
 
@@ -203,7 +235,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         if "nelec" not in kwargs:
             raise ValueError("Missing required argument nelec.")
         nelec = kwargs.pop("nelec")
-        return AufbauPrinciple(static, self_energy, nelec, **kwargs)
+        return cls(static, self_energy, nelec, **kwargs)
 
     def kernel(self) -> None:
         """Run the solver."""
@@ -220,6 +252,8 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             chempot, error = search_aufbau_bisect(greens_function, self.nelec, self.occupancy)
         else:
             raise ValueError(f"Unknown method: {self.method}")
+        self.eigvals = eigvals
+        self.eigvecs = eigvecs
         self.chempot = chempot
         self.error = error
         self.converged = True
@@ -242,7 +276,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         self_energy: Lehmann,
         nelec: int,
         occupancy: float = 2.0,
-        solver: type[ChemicalPotentialSolver] = AufbauPrinciple,
+        solver: type[AufbauPrinciple] = AufbauPrinciple,
         max_cycle: int = 200,
         conv_tol: float = 1e-8,
         guess: float = 0.0,
@@ -269,6 +303,27 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         self.conv_tol = conv_tol
         self.guess = guess
 
+    @classmethod
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> AuxiliaryShift:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+
+        Notes:
+            To initialise this solver from a self-energy, the `nelec` keyword argument must be
+            provided.
+        """
+        if "nelec" not in kwargs:
+            raise ValueError("Missing required argument nelec.")
+        nelec = kwargs.pop("nelec")
+        return cls(static, self_energy, nelec, **kwargs)
+
     def objective(self, shift: float) -> float:
         """Objective function for the chemical potential search.
 
@@ -281,7 +336,8 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         with shift_energies(self.self_energy, np.ravel(shift)[0]):
             solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
             solver.kernel()
-        return solver.error ** 2
+        assert solver.error is not None
+        return solver.error**2
 
     def gradient(self, shift: float) -> tuple[float, Array]:
         """Gradient of the objective function.
@@ -295,9 +351,10 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         with shift_energies(self.self_energy, np.ravel(shift)[0]):
             solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
             solver.kernel()
+        assert solver.error is not None
         eigvals, (left, right) = solver.get_eigenfunctions(unpack=True)
         nphys = self.nphys
-        nocc = np.sum(eigvals < solver.chempot)
+        nocc = np.count_nonzero(eigvals < solver.chempot)
 
         h1 = -left[nphys:, nocc:].T.conj() @ right[nphys:, :nocc]
         z = h1 / (eigvals[nocc:, None] - eigvals[None, :nocc])
@@ -306,5 +363,55 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         pert_rdm1 = pert_coeff_occ_left @ pert_coeff_occ_right.T.conj() * 4.0  # occupancy?
         grad = np.trace(pert_rdm1).real * solver.error * self.occupancy
 
-        return solver.error ** 2, grad
+        return solver.error**2, grad
 
+    def _callback(self, shift: float) -> None:
+        """Callback function for the minimizer.
+
+        Args:
+            shift: Shift to apply to the self-energy.
+        """
+        pass
+
+    def _minimize(self) -> scipy.optimize.OptimizeResult:
+        """Minimise the objective function.
+
+        Returns:
+            The :class:`OptimizeResult` object from the minimizer.
+        """
+        return scipy.optimize.minimize(
+            self.objective,
+            x0=self.guess,
+            method="TNC",
+            jac=True,
+            options=dict(
+                maxfun=self.max_cycle,
+                ftol=self.conv_tol**2,
+                xtol=0.0,
+                gtol=0.0,
+            ),
+            callback=self._callback,
+        )
+
+    def kernel(self) -> None:
+        """Run the solver."""
+        # Minimize the objective function
+        opt = self._minimize()
+
+        # Get the shifted self-energy
+        self_energy = Lehmann(
+            self.self_energy.energies + opt.x,
+            self.self_energy.couplings,
+            chempot=self.self_energy.chempot,
+            sort=False,
+        )
+
+        # Solve the self-energy
+        solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec)
+        solver.kernel()
+
+        self.eigvals, self.eigvecs = solver.get_eigenfunctions()
+        self.chempot = solver.chempot
+        self.error = solver.error
+        self.converged = opt.success
+        self.shift = opt.x

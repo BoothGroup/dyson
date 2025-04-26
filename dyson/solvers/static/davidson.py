@@ -102,7 +102,7 @@ class Davidson(StaticSolver):
         self.conv_tol_residual = conv_tol_residual
 
     @classmethod
-    def from_self_energy(self, static: Array, self_energy: Lehmann, **kwargs: Any) -> Davidson:
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Davidson:
         """Create a solver from a self-energy.
 
         Args:
@@ -113,7 +113,7 @@ class Davidson(StaticSolver):
         Returns:
             Solver instance.
         """
-        return Davidson(
+        return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),
             self_energy.nphys,

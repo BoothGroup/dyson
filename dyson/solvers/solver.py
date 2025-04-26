@@ -28,7 +28,7 @@ class BaseSolver(ABC):
 
     @abstractmethod
     @classmethod
-    def from_self_energy(self, static: Array, self_energy: Lehmann, **kwargs: Any) -> BaseSolver:
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> BaseSolver:
         """Create a solver from a self-energy.
 
         Args:
@@ -71,7 +71,7 @@ class StaticSolver(BaseSolver):
         eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
 
         # Project back to the static part
-        static = einsum("pk,qk,k->pq", left[: nphys], right[: nphys].conj(), eigvals)
+        static = einsum("pk,qk,k->pq", left[:nphys], right[:nphys].conj(), eigvals)
 
         return static
 
@@ -87,20 +87,20 @@ class StaticSolver(BaseSolver):
         eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
 
         # Project back to the auxiliary subspace
-        energies = einsum("pk,qk,k->pq", left[nphys :], right[nphys :].conj(), eigvals)
+        subspace = einsum("pk,qk,k->pq", left[nphys:], right[nphys:].conj(), eigvals)
 
         # Diagonalise the subspace to get the energies and basis for the couplings
         if self.hermitian:
-            energies, rotation = np.linalg.eigh(energies)
+            energies, rotation = np.linalg.eigh(subspace)
         else:
-            energies, rotation = np.linalg.eig(energies)
+            energies, rotation = np.linalg.eig(subspace)
 
         # Project back to the couplings
-        couplings_left = einsum("pk,qk,k->pq", left[: nphys], right[nphys :].conj(), eigvals)
+        couplings_left = einsum("pk,qk,k->pq", left[:nphys], right[nphys:].conj(), eigvals)
         if self.hermitian:
             couplings = couplings_left
         else:
-            couplings_right = einsum("pk,qk,k->pq", left[nphys :], right[: nphys].conj(), eigvals)
+            couplings_right = einsum("pk,qk,k->pq", left[nphys:], right[:nphys].conj(), eigvals)
             couplings_right = couplings_right.T.conj()
             couplings = (couplings_left, couplings_right)
 
@@ -155,7 +155,7 @@ class StaticSolver(BaseSolver):
             eigvecs = (eigvecs[: self.nphys], np.linalg.inv(eigvecs).T.conj()[: self.nphys])
         return eigvals, eigvecs
 
-    def get_self_energy(self, chempot: float = 0.0, **kwargs: Any) -> Lehmann:
+    def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
         """Get the Lehmann representation of the self-energy.
 
         Args:
@@ -164,9 +164,11 @@ class StaticSolver(BaseSolver):
         Returns:
             Lehmann representation of the self-energy.
         """
+        if chempot is None:
+            chempot = 0.0
         return Lehmann(*self.get_auxiliaries(**kwargs), chempot=chempot)
 
-    def get_green_function(self, chempot: float = 0.0, **kwargs: Any) -> Lehmann:
+    def get_greens_function(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
         """Get the Lehmann representation of the Green's function.
 
         Args:
@@ -175,6 +177,8 @@ class StaticSolver(BaseSolver):
         Returns:
             Lehmann representation of the Green's function.
         """
+        if chempot is None:
+            chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
 
     @abstractmethod

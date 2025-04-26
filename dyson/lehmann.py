@@ -10,7 +10,7 @@ from dyson import numpy as np
 from dyson.typing import Array
 
 if TYPE_CHECKING:
-    from typing import Iterable, Literal, TypeAlias
+    from typing import Iterable, Iterator, Literal, TypeAlias
 
     import pyscf.agf2.aux
 
@@ -20,7 +20,7 @@ einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
 @contextmanager
-def shift_energies(lehmann: Lehmann, shift: float) -> None:
+def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
     """Shift the energies of a Lehmann representation using a context manager.
 
     Args:
