@@ -7,6 +7,7 @@ import functools
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np, util
+from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static._mbl import BaseRecursionCoefficients, BaseMBL
 
 if TYPE_CHECKING:
@@ -409,3 +410,176 @@ class MBLSE(BaseMBL):
     def off_diagonal(self) -> dict[int, Array]:
         """Get the off-diagonal blocks of the self-energy."""
         return self._off_diagonal
+
+
+class BlockMBLSE(StaticSolver):
+    """Moment block Lanczos for block-wise moments of the self-energy.
+
+    Args:
+        static: Static part of the self-energy.
+        moments: Blocks of moments of the self-energy.
+    """
+
+    Solver = MBLSE
+
+    def __init__(
+        self,
+        static: Array,
+        *moments: Array,
+        max_cycle: int | None = None,
+        hermitian: bool = True,
+        force_orthogonality: bool = True,
+        calculate_errors: bool = True,
+    ) -> None:
+        """Initialise the solver.
+
+        Args:
+            static: Static part of the self-energy.
+            moments: Blocks of moments of the self-energy.
+            max_cycle: Maximum number of cycles.
+            hermitian: Whether the self-energy is hermitian.
+            force_orthogonality: Whether to force orthogonality of the recursion coefficients.
+            calculate_errors: Whether to calculate errors.
+        """
+        self._solvers = [
+            self.Solver(
+                static,
+                block,
+                max_cycle=max_cycle,
+                hermitian=hermitian,
+                force_orthogonality=force_orthogonality,
+                calculate_errors=calculate_errors,
+            )
+            for block in moments
+        ]
+        self.hermitian = hermitian
+
+    @classmethod
+    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> BlockMBLSE:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+
+        Notes:
+            For the block-wise solver, this function separates the self-energy into occupied and
+            virtual moments.
+        """
+        max_cycle = kwargs.get("max_cycle", 0)
+        self_energy_parts = (self_energy.occupied(), self_energy.virtual())
+        moments = [
+            self_energy_part.moments(range(2 * max_cycle + 2))
+            for self_energy_part in self_energy_parts
+        ]
+        hermitian = all(self_energy_part.hermitian for self_energy_part in self_energy_parts)
+        return cls(static, *moments, hermitian=hermitian, **kwargs)
+
+    def kernel(self) -> None:
+        """Run the solver."""
+        # Run the solvers
+        for solver in self.solvers:
+            solver.kernel()
+        self.eigvals, self.eigvecs = self.get_eigenfunctions()
+
+    def get_auxiliaries(
+        self, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Couplings]:
+        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
+
+        Args:
+            iteration: The iteration to get the auxiliary energies and couplings for.
+
+        Returns:
+            Auxiliary energies and couplings.
+        """
+        if iteration is None:
+            iteration = min(solver.max_cycle for solver in self.solvers)
+        if kwargs:
+            raise TypeError(
+                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
+            )
+
+        # Combine the energies and couplings
+        energies_list: list[Array] = []
+        couplings_list: list[Couplings] = []
+        for solver in self.solvers:
+            energies_i, couplings_i = solver.get_auxiliaries(iteration=iteration)
+            energies_list.append(energies_i)
+            couplings_list.append(couplings_i)
+        energies = np.concatenate(energies_list)
+        couplings: Couplings
+        if any(isinstance(coupling, tuple) for coupling in couplings_list):
+            couplings_list = [
+                coupling_i if isinstance(coupling_i, tuple) else (coupling_i, coupling_i)
+                for coupling_i in couplings_list
+            ]
+            couplings = (
+                np.concatenate([coupling_i[0] for coupling_i in couplings_list], axis=1),
+                np.concatenate([coupling_i[1] for coupling_i in couplings_list], axis=1),
+            )
+        else:
+            couplings = np.concatenate(couplings_list, axis=1)
+
+        return energies, couplings
+
+    def get_eigenfunctions(
+        self, unpack: bool = False, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Couplings]:
+        """Get the eigenfunction at a given iteration.
+
+        Args:
+            unpack: Whether to unpack the eigenvectors into left and right components, regardless
+                of the hermitian property.
+            iteration: The iteration to get the eigenfunction for.
+
+        Returns:
+            The eigenfunction.
+        """
+        max_cycle = min(solver.max_cycle for solver in self.solvers)
+        if iteration is None:
+            iteration = max_cycle
+        if kwargs:
+            raise TypeError(
+                f"get_eigenfunctions() got unexpected keyword argument {next(iter(kwargs))}"
+            )
+
+        # Get the eigenvalues and eigenvectors
+        if iteration == max_cycle and self.eigvals is not None and self.eigvecs is not None:
+            eigvals = self.eigvals
+            eigvecs = self.eigvecs
+        else:
+            self_energy = self.get_self_energy(iteration=iteration)
+            eigvals, eigvecs = self_energy.diagonalise_matrix(self.static)
+
+        if unpack:
+            # Unpack the eigenvectors
+            if self.hermitian:
+                if isinstance(eigvecs, tuple):
+                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
+                return eigvals, (eigvecs, eigvecs)
+            elif isinstance(eigvecs, tuple):
+                return eigvals, eigvecs
+            else:
+                return eigvals, (eigvecs, np.linalg.inv(eigvecs).T.conj())
+
+        return eigvals, eigvecs
+
+    @property
+    def solvers(self) -> list[MBLSE]:
+        """Get the solvers."""
+        return self._solvers
+
+    @property
+    def static(self) -> Array:
+        """Get the static part of the self-energy."""
+        return self.get_static_self_energy()  # FIXME
+
+    @property
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        return self.solvers[0].nphys

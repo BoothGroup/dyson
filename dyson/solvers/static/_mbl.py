@@ -211,4 +211,4 @@ class BaseMBL(StaticSolver):
     @property
     def nphys(self) -> int:
         """Get the number of physical degrees of freedom."""
-        return self.static.shape[0]
+        return self.moments.shape[-1]

@@ -114,3 +114,23 @@ def scaled_error(matrix1: Array, matrix2: Array, ord: int | float = np.inf) -> f
     matrix1 = matrix1 / max(np.max(np.abs(matrix1)), 1)
     matrix2 = matrix2 / max(np.max(np.abs(matrix2)), 1)
     return cast(float, np.linalg.norm(matrix1 - matrix2, ord=ord))
+
+
+def as_trace(matrix: Array, ndim: int, axis1: int = -2, axis2: int = -1) -> Array:
+    """Return the trace of a matrix, unless it has been passed as a trace.
+
+    Args:
+        matrix: The matrix to be traced.
+        ndim: The number of dimensions of the matrix before the trace.
+        axis1: The first axis of the trace.
+        axis2: The second axis of the trace.
+
+    Returns:
+        The trace of the matrix.
+    """
+    if matrix.ndim == ndim:
+        return matrix
+    elif (matrix.ndim + 2) == ndim:
+        return np.trace(matrix, axis1=axis1, axis2=axis2)
+    else:
+        raise ValueError(f"Matrix has invalid shape {matrix.shape} for trace.")

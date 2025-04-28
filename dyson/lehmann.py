@@ -38,6 +38,38 @@ def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
         lehmann._energies = original_energies  # pylint: disable=protected-access
 
 
+def _time_ordering_signs(
+    energies: Array,
+    time_ordering: Literal["time-ordered", "advanced", "retarded"],
+) -> Array:
+    """Get the signs for the imaginary broadening factor for a given time ordering."""
+    if time_ordering == "time-ordered":
+        return np.sign(energies)
+    elif time_ordering == "advanced":
+        return -np.ones_like(energies)
+    elif time_ordering == "retarded":
+        return np.ones_like(energies)
+    raise ValueError(f"Unknown ordering: {time_ordering}")
+
+
+def _frequency_denominator(
+    grid: Array,
+    energies: Array,
+    chempot: float,
+    time_ordering: Literal["time-ordered", "advanced", "retarded"],
+    axis: Literal["real", "imag"],
+    eta: float = 1e-1,
+) -> Array:
+    """Get the denominator for a given frequency grid."""
+    signs = _time_ordering_signs(energies - chempot, time_ordering)
+    grid = np.expand_dims(grid, axis=tuple(range(1, energies.ndim + 1)))
+    if axis == "real":
+        return grid + (signs * 1.0j * eta - energies[None])
+    elif axis == "imag":
+        return 1.0j * grid - energies[None]
+    raise ValueError(f"Unknown axis: {axis}")
+
+
 class Lehmann:
     r"""Lehman representation.
 
@@ -673,29 +705,8 @@ class Lehmann:
             The Lehmann representation on the grid.
         """
         left, right = self.unpack_couplings()
-
-        # Get the signs for the time ordering
-        if ordering == "time-ordered":
-            signs = np.sign(self.energies - self.chempot)
-        elif ordering == "advanced":
-            signs = -np.ones_like(self.energies)
-        elif ordering == "retarded":
-            signs = np.ones_like(self.energies)
-        else:
-            raise ValueError(f"Unknown ordering: {ordering}")
-
-        # Get the axis
-        if axis == "real":
-            denom = grid[:, None] + (signs * 1.0j * eta - self.energies)[None]
-        elif axis == "imag":
-            denom = 1.0j * grid[:, None] - self.energies[None]
-        else:
-            raise ValueError(f"Unknown axis: {axis}")
-
-        # Realise the Lehmann representation
-        func = einsum(f"pk,pk,wk->{'w' if trace else 'wpq'}", left, right.conj(), 1.0 / denom)
-
-        return func
+        denom = _frequency_denominator(grid, self.energies, self.chempot, ordering, axis, eta=eta)
+        return einsum(f"pk,pk,wk->{'w' if trace else 'wpq'}", left, right.conj(), 1.0 / denom)
 
     # Methods for combining Lehmann representations:
 
