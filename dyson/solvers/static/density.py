@@ -99,6 +99,7 @@ class DensityRelaxation(StaticSolver):
             raise ValueError("Missing required argument nelec.")
         if "get_static" not in kwargs:
             raise ValueError("Missing required argument get_static.")
+        kwargs = kwargs.copy()
         nelec = kwargs.pop("nelec")
         get_static = kwargs.pop("get_static")
         return cls(get_static, self_energy, nelec, **kwargs)

@@ -234,6 +234,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         """
         if "nelec" not in kwargs:
             raise ValueError("Missing required argument nelec.")
+        kwargs = kwargs.copy()
         nelec = kwargs.pop("nelec")
         return cls(static, self_energy, nelec, **kwargs)
 

@@ -74,6 +74,7 @@ class Downfolded(StaticSolver):
         Returns:
             Solver instance.
         """
+        kwargs = kwargs.copy()
         eta = kwargs.pop("eta", 1e-3)
         function = lambda freq: self_energy.on_grid(
             np.asarray([freq]),
