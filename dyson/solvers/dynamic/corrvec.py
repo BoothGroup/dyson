@@ -38,6 +38,7 @@ class CorrectionVector(DynamicSolver):
         eta: float = 1e-2,
         trace: bool = False,
         include_real: bool = True,
+        conv_tol: float = 1e-8,
     ):
         r"""Initialise the solver.
 
@@ -54,6 +55,7 @@ class CorrectionVector(DynamicSolver):
             eta: The broadening parameter.
             trace: Whether to return only the trace.
             include_real: Whether to include the real part of the Green's function.
+            conv_tol: Convergence tolerance for the solver.
         """
         self._matvec = matvec
         self._diagonal = diagonal
@@ -64,6 +66,7 @@ class CorrectionVector(DynamicSolver):
         self.eta = eta
         self.trace = trace
         self.include_real = include_real
+        self.conv_tol = conv_tol
 
     def matvec_dynamic(self, vector: Array, grid: Array) -> Array:
         r"""Perform the matrix-vector operation for the dynamic self-energy supermatrix.
@@ -140,8 +143,10 @@ class CorrectionVector(DynamicSolver):
         bras = list(map(self.get_state_bra, range(self.nphys)))
 
         # Loop over ket vectors
-        shape = (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys)
-        greens_function = np.zeros(shape, dtype=complex)
+        greens_function = np.zeros(
+            (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys),
+            dtype=complex,
+        )
         for i in range(self.nphys):
             ket = self.get_state_ket(i)
 
@@ -190,4 +195,4 @@ class CorrectionVector(DynamicSolver):
     @property
     def nphys(self) -> int:
         """Get the number of physical degrees of freedom."""
-        return self.moments.shape[-1]
+        return self._nphys
