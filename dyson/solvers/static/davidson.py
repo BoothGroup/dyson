@@ -7,7 +7,7 @@ import warnings
 
 from pyscf import lib
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 
@@ -128,7 +128,7 @@ class Davidson(StaticSolver):
             Initial guesses for the eigenvectors.
         """
         args = np.argsort(np.abs(self.diagonal))
-        return [np.eye(self.diagonal.size, 1, k=i).ravel() for i in args[: self.nroots]]
+        return [util.unit_vector(self.diagonal.size, i) for i in args[: self.nroots]]
 
     def kernel(self) -> None:
         """Run the solver."""

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
     from dyson.typing import Array
+    from dyson.grids.frequency import RealFrequencyGrid
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
@@ -37,7 +38,7 @@ class KPMGF(DynamicSolver):
     def __init__(
         self,
         moments: Array,
-        grid: Array,
+        grid: RealFrequencyGrid,
         scaling: tuple[float, float],
         kernel_type: Literal["dirichlet", "lorentz", "fejer", "lanczos", "jackson"] | None = None,
         trace: bool = False,
@@ -122,7 +123,6 @@ class KPMGF(DynamicSolver):
 
         # Initialise the polynomial
         coefficients = getattr(self, f"_coefficients_{self.kernel_type}")(iteration + 1)
-        #moments = einsum("n,n...->n...", coefficients, moments[: iteration + 1])
         polynomial = np.array([moments[0] * coefficients[0]] * self.grid.size)
 
         # Iteratively compute the Green's function
@@ -143,7 +143,7 @@ class KPMGF(DynamicSolver):
         return self._moments
 
     @property
-    def grid(self) -> Array:
+    def grid(self) -> RealFrequencyGrid:
         """Get the real frequency grid."""
         return self._grid
 

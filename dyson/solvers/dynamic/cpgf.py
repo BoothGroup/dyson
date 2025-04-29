@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from dyson.typing import Array
+    from dyson.grids.frequency import RealFrequencyGrid
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
@@ -37,7 +38,7 @@ class CPGF(DynamicSolver):
     def __init__(
         self,
         moments: Array,
-        grid: Array,
+        grid: RealFrequencyGrid,
         scaling: tuple[float, float],
         eta: float = 1e-2,
         trace: bool = False,
@@ -51,7 +52,6 @@ class CPGF(DynamicSolver):
             grid: Real frequency grid upon which to evaluate the Green's function.
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
                 `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
-            eta: The broadening parameter.
             trace: Whether to return only the trace.
             include_real: Whether to include the real part of the Green's function.
             max_cycle: Maximum number of iterations.
@@ -59,7 +59,6 @@ class CPGF(DynamicSolver):
         self._moments = moments
         self._grid = grid
         self._scaling = scaling
-        self.eta = eta
         self.trace = trace
         self.include_real = include_real
         self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
@@ -81,7 +80,7 @@ class CPGF(DynamicSolver):
 
         # Scale the grid
         scaled_grid = (self.grid - self.scaling[1]) / self.scaling[0]
-        scaled_eta = self.eta / self.scaling[0]
+        scaled_eta = self.grid.eta / self.scaling[0]
         shifted_grid = scaled_grid + 1j * scaled_eta
 
         # Initialise factors
@@ -108,7 +107,7 @@ class CPGF(DynamicSolver):
         return self._moments
 
     @property
-    def grid(self) -> Array:
+    def grid(self) -> RealFrequencyGrid:
         """Get the real frequency grid."""
         return self._grid
 

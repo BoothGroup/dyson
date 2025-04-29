@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable
 
     from dyson.typing import Array
+    from dyson.grids.frequency import RealFrequencyGrid
 
 # TODO: (m,k) for GCROTMK, more solvers, DIIS
 
@@ -32,10 +33,9 @@ class CorrectionVector(DynamicSolver):
         matvec: Callable[[Array], Array],
         diagonal: Array,
         nphys: int,
-        grid: Array,
+        grid: RealFrequencyGrid,
         get_state_bra: Callable[[int], Array] | None = None,
         get_state_ket: Callable[[int], Array] | None = None,
-        eta: float = 1e-2,
         trace: bool = False,
         include_real: bool = True,
         conv_tol: float = 1e-8,
@@ -52,7 +52,6 @@ class CorrectionVector(DynamicSolver):
                 orbital :math:`j`.
             get_state_ket: Function to get the ket vector corresponding to a fermion operator acting
                 on the ground state. If `None`, the :arg:`get_state_bra` function is used.
-            eta: The broadening parameter.
             trace: Whether to return only the trace.
             include_real: Whether to include the real part of the Green's function.
             conv_tol: Convergence tolerance for the solver.
@@ -63,12 +62,11 @@ class CorrectionVector(DynamicSolver):
         self._grid = grid
         self._get_state_bra = get_state_bra
         self._get_state_ket = get_state_ket
-        self.eta = eta
         self.trace = trace
         self.include_real = include_real
         self.conv_tol = conv_tol
 
-    def matvec_dynamic(self, vector: Array, grid: Array) -> Array:
+    def matvec_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
         r"""Perform the matrix-vector operation for the dynamic self-energy supermatrix.
 
         .. math::
@@ -81,13 +79,19 @@ class CorrectionVector(DynamicSolver):
         Returns:
             The result of the matrix-vector operation.
         """
-        result = (grid[:, None] - 1.0j * self.eta) * vector[None]
+        # Cast the grid to the correct type
+        freq = RealFrequencyGrid(grid)
+        freq.eta = self.grid.eta
+
+        # Perform the matrix-vector operation
+        result: Array = vector[None] / freq.resolvent(np.array(0.0), 0.0)
         result -= self.matvec(vector.real)[None]
         if np.any(np.abs(vector.imag) > 1e-14):
             result -= self.matvec(vector.imag)[None] * 1.0j
+
         return result
 
-    def matdiv_dynamic(self, vector: Array, grid: Array) -> Array:
+    def matdiv_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
         r"""Approximately perform a matrix-vector division for the dynamic self-energy supermatrix.
 
         .. math::
@@ -103,8 +107,14 @@ class CorrectionVector(DynamicSolver):
         Notes:
             The inversion is approximated using the diagonal of the matrix.
         """
-        result = vector[None] / (grid[:, None] - self.diagonal[None] - 1.0j * self.eta)
+        # Cast the grid to the correct type
+        freq = RealFrequencyGrid(grid)
+        freq.eta = self.grid.eta
+
+        # Perform the matrix-vector division
+        result = vector[None] * freq.resolvent(self.diagonal, 0.0)[:, None]
         result[np.isinf(result)] = np.nan  # or 0?
+
         return result
 
     def get_state_bra(self, orbital: int) -> Array:
@@ -188,7 +198,7 @@ class CorrectionVector(DynamicSolver):
         return self._diagonal
 
     @property
-    def grid(self) -> Array:
+    def grid(self) -> RealFrequencyGrid:
         """Get the real frequency grid."""
         return self._grid
 

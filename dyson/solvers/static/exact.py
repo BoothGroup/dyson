@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 
@@ -58,9 +58,9 @@ class Exact(StaticSolver):
     def kernel(self) -> None:
         """Run the solver."""
         if self.hermitian:
-            self.eigvals, self.eigvecs = np.linalg.eigh(self._matrix)
+            self.eigvals, self.eigvecs = util.eig(self.matrix, hermitian=self.hermitian)
         else:
-            self.eigvals, self.eigvecs = np.linalg.eig(self._matrix)
+            self.eigvals, self.eigvecs = util.eig_biorth(self.matrix, hermitian=self.hermitian)
 
     @property
     def matrix(self) -> Array:

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     Couplings: TypeAlias = Array | tuple[Array, Array]
 
 # TODO: Use solvers for diagonalisation?
+# FIXME: left- and right-hand eigenvectors defo mixed up
 
 
 class RecursionCoefficients(BaseRecursionCoefficients):

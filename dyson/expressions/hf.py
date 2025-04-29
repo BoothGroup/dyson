@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:
@@ -83,7 +83,8 @@ class BaseHF(BaseExpression):
         Returns:
             State vector.
         """
-        return np.eye(self.nphys)[orbital]
+        size = self.diagonal().size
+        return util.unit_vector(size, orbital)
 
     def build_se_moments(self, nmom: int) -> Array:
         """Build the self-energy moments.
@@ -106,6 +107,11 @@ class BaseHF(BaseExpression):
         """Molecular orbital energies."""
         return self._mo_energy
 
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        return 0
+
 
 class HF_1h(BaseHF):  # pylint: disable=invalid-name
     """HF expressions for the hole Green's function."""
@@ -118,6 +124,11 @@ class HF_1h(BaseHF):  # pylint: disable=invalid-name
         """
         return self.mo_energy[: self.nocc]
 
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc
+
 
 class HF_1p(BaseHF):  # pylint: disable=invalid-name
     """HF expressions for the particle Green's function."""
@@ -129,6 +140,11 @@ class HF_1p(BaseHF):  # pylint: disable=invalid-name
             Diagonal of the Hamiltonian.
         """
         return self.mo_energy[self.nocc :]
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nvir
 
 
 HF = {

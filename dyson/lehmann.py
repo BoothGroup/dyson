@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import functools
 from typing import TYPE_CHECKING, cast
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.typing import Array
 
 if TYPE_CHECKING:
@@ -38,38 +38,6 @@ def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
         lehmann._energies = original_energies  # pylint: disable=protected-access
 
 
-def _time_ordering_signs(
-    energies: Array,
-    time_ordering: Literal["time-ordered", "advanced", "retarded"],
-) -> Array:
-    """Get the signs for the imaginary broadening factor for a given time ordering."""
-    if time_ordering == "time-ordered":
-        return np.sign(energies)
-    elif time_ordering == "advanced":
-        return -np.ones_like(energies)
-    elif time_ordering == "retarded":
-        return np.ones_like(energies)
-    raise ValueError(f"Unknown ordering: {time_ordering}")
-
-
-def _frequency_denominator(
-    grid: Array,
-    energies: Array,
-    chempot: float,
-    time_ordering: Literal["time-ordered", "advanced", "retarded"],
-    axis: Literal["real", "imag"],
-    eta: float = 1e-1,
-) -> Array:
-    """Get the denominator for a given frequency grid."""
-    signs = _time_ordering_signs(energies - chempot, time_ordering)
-    grid = np.expand_dims(grid, axis=tuple(range(1, energies.ndim + 1)))
-    if axis == "real":
-        return grid + (signs * 1.0j * eta - energies[None])
-    elif axis == "imag":
-        return 1.0j * grid - energies[None]
-    raise ValueError(f"Unknown axis: {axis}")
-
-
 class Lehmann:
     r"""Lehman representation.
 
@@ -77,10 +45,11 @@ class Lehmann:
     that can be downfolded into a frequency-dependent function as
 
     .. math::
-        \sum_{k} \frac{v_{pk} v_{qk}^*}{\omega - \epsilon_k},
+        \sum_{k} \frac{v_{pk} u_{qk}^*}{\omega - \epsilon_k},
 
     where the couplings are between the poles :math:`k` and the physical space :math:`p` and
-    :math:`q`, and may be non-Hermitian.
+    :math:`q`, and may be non-Hermitian. The couplings :math:`v` are right-handed vectors, and
+    :math:`u` are left-handed vectors.
     """
 
     def __init__(
@@ -132,10 +101,10 @@ class Lehmann:
         idx = np.argsort(self.energies)
         self._energies = self.energies[idx]
         if self.hermitian:
-            self._couplings = self.couplings[idx]
+            self._couplings = self.couplings[:, idx]
         else:
             left, right = self.couplings
-            self._couplings = (left[idx], right[idx])
+            self._couplings = (left[:, idx], right[:, idx])
 
     @property
     def energies(self) -> Array:
@@ -282,7 +251,7 @@ class Lehmann:
         The moments are defined as
 
         .. math::
-            T_{pq}^{n} = \sum_{k} v_{pk} v_{qk}^* \epsilon_k^n,
+            T_{pq}^{n} = \sum_{k} v_{pk} u_{qk}^* \epsilon_k^n,
 
         where :math:`T_{pq}^{n}` is the moment of order :math:`n` in the physical space.
 
@@ -302,8 +271,8 @@ class Lehmann:
         left, right = self.unpack_couplings()
         moments = einsum(
             "pk,qk,nk->npq",
-            left,
-            right.conj(),
+            right,
+            left.conj(),
             self.energies[None] ** orders[:, None],
         )
         if squeeze:
@@ -324,7 +293,7 @@ class Lehmann:
         The Chebyshev moments are defined as
 
         .. math::
-            T_{pq}^{n} = \sum_{k} v_{pk} v_{qk}^* P_n(\epsilon_k),
+            T_{pq}^{n} = \sum_{k} v_{pk} u_{qk}^* P_n(\epsilon_k),
 
         where :math:`P_n(x)` is the Chebyshev polynomial of order :math:`n`.
 
@@ -364,18 +333,18 @@ class Lehmann:
 
         # Calculate the Chebyshev moments
         moments = np.zeros((len(orders), self.nphys, self.nphys), dtype=self.dtype)
-        vecs = (left, left * energies[None])
+        vecs = (right, right * energies[None])
         idx = 0
         if 0 in orders:
-            moments[idx] = vecs[0] @ right.T.conj()
+            moments[idx] = vecs[0] @ left.T.conj()
             idx += 1
         if 1 in orders:
-            moments[idx] = vecs[1] @ right.T.conj()
+            moments[idx] = vecs[1] @ left.T.conj()
             idx += 1
         for i in range(2, max_order + 1):
             vecs = (vecs[1], 2 * energies * vecs[1] - vecs[0])
             if i in orders:
-                moments[idx] = vecs[1] @ right.T.conj()
+                moments[idx] = vecs[1] @ left.T.conj()
                 idx += 1
         if squeeze:
             moments = moments[0]
@@ -394,7 +363,7 @@ class Lehmann:
         .. math::
             \begin{pmatrix}
                 \mathbf{f} & \mathbf{v} \\
-                \mathbf{v}^\dagger & \mathbf{\epsilon} \mathbf{1}
+                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
             \end{pmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, provided as an
@@ -416,8 +385,12 @@ class Lehmann:
                 chempot = self.chempot
             energies -= chempot
 
+        # If there are no auxiliary states, return the physical matrix
+        if self.naux == 0:
+            return physical
+
         # Build the supermatrix
-        matrix = np.block([[physical, left], [right.T.conj(), np.diag(energies)]])
+        matrix = np.block([[physical, right], [left.T.conj(), np.diag(energies)]])
 
         return matrix
 
@@ -460,7 +433,7 @@ class Lehmann:
             =
             \begin{pmatrix}
                 \mathbf{f} & \mathbf{v} \\
-                \mathbf{v}^\dagger & \mathbf{\epsilon} \mathbf{1}
+                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
             \end{pmatrix}
             \begin{pmatrix}
                 \mathbf{r}_\mathrm{phys} \\
@@ -495,8 +468,8 @@ class Lehmann:
         # Contract the supermatrix
         vector_phys, vector_aux = np.split(vector, [self.nphys])
         result_phys = einsum("pq,q...->p...", physical, vector_phys)
-        result_phys += einsum("pk,k...->p...", left, vector_aux)
-        result_aux = einsum("pk,p...->k...", right.conj(), vector_phys)
+        result_phys += einsum("pk,k...->p...", right, vector_aux)
+        result_aux = einsum("pk,p...->k...", left.conj(), vector_phys)
         result_aux += einsum("k,k...->k...", energies, vector_aux)
         result = np.concatenate((result_phys, result_aux), axis=0)
 
@@ -512,7 +485,7 @@ class Lehmann:
         .. math::
             \begin{pmatrix}
                 \mathbf{f} & \mathbf{v} \\
-                \mathbf{v}^\dagger & \mathbf{\epsilon} \mathbf{1}
+                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
             \end{pmatrix}
             \begin{pmatrix}
                 \mathbf{x}_\mathrm{phys} \\
@@ -539,10 +512,9 @@ class Lehmann:
         """
         matrix = self.matrix(physical, chempot=chempot)
         if self.hermitian:
-            eigvals, eigvecs = np.linalg.eigh(matrix)
+            return util.eig(matrix, hermitian=self.hermitian)
         else:
-            eigvals, eigvecs = np.linalg.eig(matrix)
-        return eigvals, eigvecs
+            return util.eig_biorth(matrix, hermitian=self.hermitian)
 
     def diagonalise_matrix_with_projection(
         self, physical: Array, chempot: bool | float = False
@@ -564,9 +536,7 @@ class Lehmann:
         if self.hermitian:
             eigvecs_projected = eigvecs[: self.nphys]
         else:
-            left = eigvecs[: self.nphys]
-            right = np.linalg.inv(eigvecs).T.conj()[: self.nphys]
-            eigvecs_projected = (left, right)
+            eigvecs_projected = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
         return eigvals, eigvecs_projected
 
     # Methods associated with a quasiparticle representation:
@@ -577,7 +547,7 @@ class Lehmann:
         The weights are defined as
 
         .. math::
-            w_k = \sum_{p} v_{pk} v_{pk}^*,
+            w_k = \sum_{p} v_{pk} u_{pk}^*,
 
         where :math:`w_k` is the weight of residue :math:`k`.
 
@@ -588,7 +558,7 @@ class Lehmann:
             The weights of each state.
         """
         left, right = self.unpack_couplings()
-        weights = einsum("pk,pk->k", left, right.conj()) * occupancy
+        weights = einsum("pk,pk->k", right, left.conj()) * occupancy
         return weights
 
     def as_orbitals(self, occupancy: float = 1.0, mo_coeff: Array | None = None) -> tuple[
@@ -632,7 +602,7 @@ class Lehmann:
             Lehmann representation, according to the best overlap with the MO of the same index.
         """
         left, right = self.unpack_couplings()
-        weights = left * right.conj()
+        weights = right * left.conj()
         energies = [self.energies[np.argmax(np.abs(weights[i]))] for i in range(self.nphys)]
         return np.asarray(energies)
 
@@ -663,50 +633,10 @@ class Lehmann:
         denom = mo_energy[:, None] - energies[None]
 
         # Calculate the static potential
-        static = einsum("pk,qk,pk->pq", left, right.conj(), 1.0 / denom).real
+        static = einsum("pk,qk,pk->pq", right, left.conj(), 1.0 / denom).real
         static = 0.5 * (static + static.T)
 
         return static
-
-    # Methods associated with a dynamic realisation of the Lehmann representation:
-
-    def on_grid(
-        self,
-        grid: Array,
-        eta: float = 1e-1,
-        ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered",
-        axis: Literal["real", "imag"] = "real",
-        trace: bool = False,
-    ) -> Array:
-        r"""Calculate the Lehmann representation on a grid.
-
-        The imaginary frequency representation is defined as
-
-        .. math::
-            \sum_{k} \frac{v_{pk} v_{qk}^*}{i \omega - \epsilon_k},
-
-        and the real frequency representation is defined as
-
-        .. math::
-            \sum_{k} \frac{v_{pk} v_{qk}^*}{\omega - \epsilon_k \pm i \eta},
-
-        where the sign of the broadening factor is determined by the time ordering.
-
-        where :math:`\omega` is the frequency grid, :math:`\epsilon_k` are the poles, and
-
-        Args:
-            grid: The grid to realise the Lehmann representation on.
-            eta: The broadening parameter.
-            ordering: The time ordering representation.
-            axis: The frequency axis to calculate use.
-            trace: Whether to return only the trace.
-
-        Returns:
-            The Lehmann representation on the grid.
-        """
-        left, right = self.unpack_couplings()
-        denom = _frequency_denominator(grid, self.energies, self.chempot, ordering, axis, eta=eta)
-        return einsum(f"pk,pk,wk->{'w' if trace else 'wpq'}", left, right.conj(), 1.0 / denom)
 
     # Methods for combining Lehmann representations:
 

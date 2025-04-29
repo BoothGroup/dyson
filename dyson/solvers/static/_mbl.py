@@ -197,8 +197,8 @@ class BaseMBL(StaticSolver):
             return self._recurrence_iteration_hermitian(iteration)
         return self._recurrence_iteration_non_hermitian(iteration)
 
-    @abstractmethod
     @property
+    @abstractmethod
     def static(self) -> Array:
         """Get the static part of the self-energy."""
         pass

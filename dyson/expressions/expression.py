@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
+import warnings
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -21,8 +22,8 @@ class BaseExpression(ABC):
 
     hermitian: bool = True
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def from_mf(cls, mf: RHF) -> BaseExpression:
         """Create an expression from a mean-field object.
 
@@ -76,6 +77,25 @@ class BaseExpression(ABC):
             Diagonal of the Hamiltonian.
         """
         pass
+
+    def build_matrix(self) -> Array:
+        """Build the Hamiltonian matrix.
+
+        Returns:
+            Hamiltonian matrix.
+
+        Notes:
+            This method uses :func:`apply_hamiltonian` to build the matrix by applying unit vectors,
+            it is not designed to be efficient.
+        """
+        size = self.diagonal().size
+        if size > 2048:
+            warnings.warn(
+                "The Hamiltonian matrix is large. This may take a while to compute.",
+                UserWarning,
+                2,
+            )
+        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)])
 
     @abstractmethod
     def get_state(self, orbital: int) -> Array:
@@ -151,7 +171,7 @@ class BaseExpression(ABC):
                     bra = bras[j] if store_vectors else get_bra(j)
 
                     # Contract the bra and ket vectors
-                    moments[n, i, j] = bra @ ket
+                    moments[n, i, j] = bra.conj() @ ket
                     if self.hermitian:
                         moments[n, j, i] = moments[n, i, j].conj()
 
@@ -187,6 +207,11 @@ class BaseExpression(ABC):
 
         Returns:
             Moments of the Green's function.
+
+        Notes:
+            Unlike :func:`dyson.lehmann.Lehmann.moments`, this function takes the number of moments
+            to compute as an argument, rather than a single order or list of orders. This is because
+            in this case, the moments are computed recursively.
         """
         # Get the appropriate functions
         if left:
@@ -229,6 +254,11 @@ class BaseExpression(ABC):
 
         Returns:
             Chebyshev polynomial moments of the Green's function.
+
+        Notes:
+            Unlike :func:`dyson.lehmann.Lehmann.chebyshev_moments`, this function takes the number
+            of moments to compute as an argument, rather than a single order or list of orders. This
+            is because in this case, the moments are computed recursively.
         """
         if scaling is None:
             # Approximate the energy scale of the spectrum using the diagonal -- can also use an
@@ -291,6 +321,22 @@ class BaseExpression(ABC):
     def nphys(self) -> int:
         """Number of physical orbitals."""
         return self.mol.nao
+
+    @property
+    @abstractmethod
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        pass
+
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations in the non-singles sectors."""
+        return self.diagonal().size - self.nsingle
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        """Shape of the Hamiltonian matrix."""
+        return (self.nconfig + self.nsingle, self.nconfig + self.nsingle)
 
     @property
     def nocc(self) -> int:

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from dyson import numpy as np
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
+from dyson.grids.frequency import RealFrequencyGrid
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -76,15 +77,19 @@ class Downfolded(StaticSolver):
         """
         kwargs = kwargs.copy()
         eta = kwargs.pop("eta", 1e-3)
-        function = lambda freq: self_energy.on_grid(
-            np.asarray([freq]),
-            eta=eta,
-            ordering="time-ordered",
-            axis="real",
-        )[0]
+
+        def _function(freq: float) -> Array:
+            """Evaluate the self-energy at the frequency."""
+            grid = RealFrequencyGrid(freq)
+            grid.eta = eta
+            return grid.evaluate_lehmann(
+                self_energy,
+                ordering="time-ordered",
+            )
+
         return cls(
             static,
-            function,
+            _function,
             hermitian=self_energy.hermitian,
             **kwargs,
         )

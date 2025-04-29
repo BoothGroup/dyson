@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import functools
 from typing import TYPE_CHECKING, cast
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.typing import Array
 
@@ -26,8 +26,8 @@ class BaseSolver(ABC):
         """Run the solver."""
         pass
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> BaseSolver:
         """Create a solver from a self-energy.
 
@@ -71,7 +71,7 @@ class StaticSolver(BaseSolver):
         eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
 
         # Project back to the static part
-        static = einsum("pk,qk,k->pq", left[:nphys], right[:nphys].conj(), eigvals)
+        static = einsum("pk,qk,k->pq", right[:nphys], left[:nphys].conj(), eigvals)
 
         return static
 
@@ -87,31 +87,25 @@ class StaticSolver(BaseSolver):
         eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
 
         # Project back to the auxiliary subspace
-        subspace = einsum("pk,qk,k->pq", left[nphys:], right[nphys:].conj(), eigvals)
+        subspace = einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
 
         # Diagonalise the subspace to get the energies and basis for the couplings
-        if self.hermitian:
-            energies, rotation = np.linalg.eigh(subspace)
-        else:
-            energies, rotation = np.linalg.eig(subspace)
+        energies, rotation = util.eig_biorth(subspace, hermitian=self.hermitian)
 
         # Project back to the couplings
-        couplings_left = einsum("pk,qk,k->pq", left[:nphys], right[nphys:].conj(), eigvals)
+        couplings_right = einsum("pk,qk,k->pq", right[:nphys], left[nphys:].conj(), eigvals)
         if self.hermitian:
-            couplings = couplings_left
+            couplings = couplings_right
         else:
-            couplings_right = einsum("pk,qk,k->pq", left[nphys:], right[:nphys].conj(), eigvals)
-            couplings_right = couplings_right.T.conj()
+            couplings_left = einsum("pk,qk,k->pq", right[nphys:], left[:nphys].conj(), eigvals)
+            couplings_left = couplings_left.T.conj()
             couplings = (couplings_left, couplings_right)
 
         # Rotate the couplings to the auxiliary basis
         if self.hermitian:
-            couplings = rotation.T.conj() @ couplings
+            couplings = couplings @ rotation[0]
         else:
-            couplings = (
-                rotation.T.conj() @ couplings_left,
-                rotation.T.conj() @ couplings_right,
-            )
+            couplings = (couplings_left @ rotation[0], couplings_right @ rotation[1])
 
         return energies, couplings
 
@@ -135,7 +129,7 @@ class StaticSolver(BaseSolver):
             elif isinstance(self.eigvecs, tuple):
                 return self.eigvals, self.eigvecs
             else:
-                return self.eigvals, (self.eigvecs, np.linalg.inv(self.eigvecs).T.conj())
+                return self.eigvals, (np.linalg.inv(self.eigvecs).T.conj(), self.eigvecs)
         return self.eigvals, self.eigvecs
 
     def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Couplings]:
@@ -152,7 +146,7 @@ class StaticSolver(BaseSolver):
         elif isinstance(eigvecs, tuple):
             eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
         else:
-            eigvecs = (eigvecs[: self.nphys], np.linalg.inv(eigvecs).T.conj()[: self.nphys])
+            eigvecs = (np.linalg.inv(eigvecs).T.conj()[: self.nphys], eigvecs[: self.nphys])
         return eigvals, eigvecs
 
     def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
@@ -181,8 +175,8 @@ class StaticSolver(BaseSolver):
             chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
 
-    @abstractmethod
     @property
+    @abstractmethod
     def nphys(self) -> int:
         """Get the number of physical degrees of freedom."""
         pass

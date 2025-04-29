@@ -105,11 +105,12 @@ class BaseCCSD(BaseExpression):
         return cls.from_ccsd(ccsd)
 
     @abstractmethod
-    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+    def vector_to_amplitudes(self, vector: Array, *args: Any) -> tuple[Array, Array]:
         """Convert a vector to amplitudes.
 
         Args:
             vector: Vector to convert.
+            args: Additional arguments, redunantly passed during interoperation with PySCF.
 
         Returns:
             Amplitudes.
@@ -165,6 +166,13 @@ class BaseCCSD(BaseExpression):
         """L2 amplitudes."""
         return self._l2
 
+    # The following properties are for interoperability with PySCF:
+
+    @property
+    def nmo(self):
+        """Get the number of molecular orbitals."""
+        return self.nphys
+
 
 class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
     """IP-EOM-CCSD expressions."""
@@ -173,11 +181,12 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """Precompute intermediate integrals."""
         self._imds.make_ip()
 
-    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+    def vector_to_amplitudes(self, vector: Array, *args: Any) -> tuple[Array, Array]:
         """Convert a vector to amplitudes.
 
         Args:
             vector: Vector to convert.
+            args: Additional arguments, redunantly passed during interoperation with PySCF.
 
         Returns:
             Amplitudes.
@@ -287,6 +296,16 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
     get_state = get_state_ket
     get_state.__doc__ = BaseCCSD.get_state.__doc__
 
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc
+
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        return self.nocc * self.nocc * self.nvir
+
 
 class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
     """EA-EOM-CCSD expressions."""
@@ -295,11 +314,12 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """Precompute intermediate integrals."""
         self._imds.make_ea()
 
-    def vector_to_amplitudes(self, vector: Array) -> tuple[Array, Array]:
+    def vector_to_amplitudes(self, vector: Array, *args: Any) -> tuple[Array, Array]:
         """Convert a vector to amplitudes.
 
         Args:
             vector: Vector to convert.
+            args: Additional arguments, redunantly passed during interoperation with PySCF.
 
         Returns:
             Amplitudes.
@@ -408,6 +428,16 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
 
     get_state = get_state_ket
     get_state.__doc__ = BaseCCSD.get_state.__doc__
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nvir
+
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        return self.nvir * self.nvir * self.nocc
 
 
 CCSD = {

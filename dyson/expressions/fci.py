@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from pyscf import ao2mo, fci
@@ -88,7 +89,7 @@ class BaseFCI(BaseExpression):
         """
         h1e = mf.mo_coeff.T @ mf.get_hcore() @ mf.mo_coeff
         h2e = ao2mo.kernel(mf._eri, mf.mo_coeff)  # pylint: disable=protected-access
-        ci = fci.direct_spin1.FCI()
+        ci = fci.direct_spin1.FCI(mf.mol)
         ci.verbose = 0
         ci.kernel(h1e, h2e, mf.mol.nao, mf.mol.nelec)
         return cls.from_fci(ci, h1e, h2e)
@@ -181,7 +182,7 @@ class BaseFCI(BaseExpression):
         """Chemical potential."""
         return self._chempot
 
-    @property
+    @functools.cached_property
     def link_index(self) -> tuple[Array, Array]:
         """Index helpers."""
         nelec = (self.nocc + self.DELTA_ALPHA, self.nocc + self.DELTA_BETA)
@@ -190,6 +191,12 @@ class BaseFCI(BaseExpression):
             fci.cistring.gen_linkstr_index_trilidx(range(self.nphys), nelec[1]),
         )
 
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        link_index = self.link_index
+        return len(link_index[0]) * len(link_index[1]) - self.nsingle
+
 
 class FCI_1h(BaseFCI):  # pylint: disable=invalid-name
     """FCI expressions for the hole Green's function."""
@@ -197,7 +204,12 @@ class FCI_1h(BaseFCI):  # pylint: disable=invalid-name
     SIGN = -1
     DELTA_ALPHA = -1
     DELTA_BETA = 0
-    STATE_FUNC = fci.addons.des_a
+    STATE_FUNC = staticmethod(fci.addons.des_a)
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc
 
 
 class FCI_1p(BaseFCI):  # pylint: disable=invalid-name
@@ -206,7 +218,12 @@ class FCI_1p(BaseFCI):  # pylint: disable=invalid-name
     SIGN = 1
     DELTA_ALPHA = 1
     DELTA_BETA = 0
-    STATE_FUNC = fci.addons.cre_a
+    STATE_FUNC = staticmethod(fci.addons.cre_a)
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nvir
 
 
 FCI = {

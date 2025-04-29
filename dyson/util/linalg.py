@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+import scipy.linalg
+
 from dyson import numpy as np
 
 if TYPE_CHECKING:
@@ -20,6 +22,7 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     Returns:
         The eigenvalues and eigenvectors of the matrix.
     """
+    # Find the eigenvalues and eigenvectors
     if hermitian:
         # assert np.allclose(m, m.T.conj())
         eigvals, eigvecs = np.linalg.eigh(matrix)
@@ -32,6 +35,34 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     eigvecs = eigvecs[:, idx]
 
     return eigvals, eigvecs
+
+
+def eig_biorth(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Array, Array]]:
+    """Compute the eigenvalues and biorthogonal eigenvectors of a matrix.
+
+    Args:
+        matrix: The matrix to be diagonalised.
+        hermitian: Whether the matrix is hermitian.
+
+    Returns:
+        The eigenvalues and biorthogonal eigenvectors of the matrix.
+    """
+    # Find the eigenvalues and eigenvectors
+    if hermitian:
+        eigvals, eigvecs_left = np.linalg.eigh(matrix)
+        eigvecs_right = eigvecs_left
+    else:
+        eigvals, eigvecs_left, eigvecs_right = scipy.linalg.eig(matrix, left=True, right=True)
+        norm = eigvecs_right.T.conj() @ eigvecs_left
+        eigvecs_left = eigvecs_left @ np.linalg.inv(norm)
+
+    # Sort the eigenvalues and eigenvectors
+    idx = np.argsort(eigvals)
+    eigvals = eigvals[idx]
+    eigvecs_left = eigvecs_left[:, idx]
+    eigvecs_right = eigvecs_right[:, idx]
+
+    return eigvals, (eigvecs_left, eigvecs_right)
 
 
 def matrix_power(
@@ -56,7 +87,7 @@ def matrix_power(
         The matrix raised to the power, and the error if requested.
     """
     # Get the eigenvalues and eigenvectors
-    eigvals, eigvecs = eig(matrix, hermitian=hermitian)
+    eigvals, (left, right) = eig_biorth(matrix, hermitian=hermitian)
 
     # Get the mask for removing singularities
     if power < 0:
@@ -71,19 +102,12 @@ def matrix_power(
     else:
         power: complex = power + 0.0j  # type: ignore[no-redef]
 
-    # Get the left and right eigenvalues
-    if hermitian:
-        left = right = eigvecs
-    else:
-        left = eigvecs
-        right = np.linalg.inv(eigvecs).T.conj()
-
     # Contract the eigenvalues and eigenvectors
-    matrix_power: Array = (left[:, mask] * eigvals[mask][None] ** power) @ right[:, mask].T.conj()
+    matrix_power: Array = (right[:, mask] * eigvals[mask][None] ** power) @ left[:, mask].T.conj()
 
     # Get the error if requested
     if return_error:
-        null = (left[:, ~mask] * eigvals[~mask][None] ** power) @ right[:, ~mask].T.conj()
+        null = (right[:, ~mask] * eigvals[~mask][None] ** power) @ left[:, ~mask].T.conj()
         error = cast(float, np.linalg.norm(null, ord=ord))
 
     return (matrix_power, error) if return_error else matrix_power
@@ -134,3 +158,17 @@ def as_trace(matrix: Array, ndim: int, axis1: int = -2, axis2: int = -1) -> Arra
         return np.trace(matrix, axis1=axis1, axis2=axis2)
     else:
         raise ValueError(f"Matrix has invalid shape {matrix.shape} for trace.")
+
+
+def unit_vector(size: int, index: int, dtype: str = "float64") -> Array:
+    """Return a unit vector of size `size` with a 1 at index `index`.
+
+    Args:
+        size: The size of the vector.
+        index: The index of the vector.
+        dtype: The data type of the vector.
+
+    Returns:
+        The unit vector.
+    """
+    return np.eye(1, size, k=index, dtype=dtype).ravel()
