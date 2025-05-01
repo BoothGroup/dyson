@@ -20,9 +20,6 @@ if TYPE_CHECKING:
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
-# TODO: Use solvers for diagonalisation?
-# FIXME: left- and right-hand eigenvectors defo mixed up
-
 
 class RecursionCoefficients(BaseRecursionCoefficients):
     """Recursion coefficients for the moment block Lanczos algorithm for the self-energy.
@@ -189,7 +186,7 @@ class MBLSE(BaseMBL):
         self, iteration: int
     ) -> tuple[float | None, float | None, float | None]:
         """Perform an iteration of the recurrence for a Hermitian self-energy."""
-        i = iteration + 1
+        i = iteration
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
@@ -214,7 +211,7 @@ class MBLSE(BaseMBL):
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
             residual = coefficients[i, i, n + 1].copy()
-            residual -= off_diagonal[i - 1].T.conj(), coefficients[i - 1, i, n]
+            residual -= off_diagonal[i - 1].T.conj() @ coefficients[i - 1, i, n]
             residual -= on_diagonal[i] @ coefficients[i, i, n]
             coefficients[i + 1, i, n] = off_diagonal_inv @ residual
 
@@ -245,7 +242,7 @@ class MBLSE(BaseMBL):
         self, iteration: int
     ) -> tuple[float | None, float | None, float | None]:
         """Perform an iteration of the recurrence for a non-Hermitian self-energy."""
-        i = iteration + 1
+        i = iteration
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
@@ -271,7 +268,7 @@ class MBLSE(BaseMBL):
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
             residual = coefficients[i, i, n + 1].copy()
-            residual -= off_diagonal[i - 1], coefficients[i - 1, i, n]
+            residual -= off_diagonal[i - 1] @ coefficients[i - 1, i, n]
             residual -= on_diagonal[i] @ coefficients[i, i, n]
             coefficients[i + 1, i, n] = off_diagonal_inv @ residual
 
@@ -284,6 +281,7 @@ class MBLSE(BaseMBL):
             # Diagonal recursion
             residual = coefficients[i, i, n + 2].copy()
             residual -= coefficients[i, i - 1, n + 1] @ off_diagonal[i - 1]
+            residual -= coefficients[i, i, n + 1] @ on_diagonal[i]
             residual -= off_diagonal[i - 1] @ coefficients[i - 1, i, n + 1]
             residual += off_diagonal[i - 1] @ coefficients[i - 1, i - 1, n] @ off_diagonal[i - 1]
             residual += off_diagonal[i - 1] @ coefficients[i - 1, i, n] @ on_diagonal[i]
@@ -337,7 +335,7 @@ class MBLSE(BaseMBL):
         subspace = hamiltonian[self.nphys :, self.nphys :]
         if self.hermitian:
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-            couplings = self.off_diagonal[0].conj() @ rotated[: self.nphys]
+            couplings = self.off_diagonal[0] @ rotated[: self.nphys]
         else:
             energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
             couplings = np.array([
