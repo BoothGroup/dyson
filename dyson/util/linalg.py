@@ -161,6 +161,8 @@ def matrix_power(
     Returns:
         The matrix raised to the power, and the error if requested.
     """
+    # TODO: Check if scipy.linalg.fractional_matrix_power is better
+
     # Get the eigenvalues and eigenvectors -- don't need to be biorthogonal, avoid recursive calls
     eigvals, right = eig(matrix, hermitian=hermitian)
     if hermitian:

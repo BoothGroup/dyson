@@ -337,14 +337,13 @@ class MBLSE(BaseMBL):
         subspace = hamiltonian[self.nphys :, self.nphys :]
         if self.hermitian:
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
+            couplings = self.off_diagonal[0].conj() @ rotated[: self.nphys]
         else:
             energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
-            rotated = np.array(rotated_tuple)
-
-        # Project back to the couplings  # TODO: check
-        couplings = einsum(
-            "pq,...pk->...qk", self.off_diagonal[0].conj(), rotated[..., : self.nphys, :]
-        )
+            couplings = np.array([
+                self.off_diagonal[0].T.conj() @ rotated_tuple[0][: self.nphys],
+                self.off_diagonal[0] @ rotated_tuple[1][: self.nphys],
+            ])
 
         return energies, couplings
 
