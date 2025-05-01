@@ -73,7 +73,7 @@ class Exact(StaticSolver):
         if self.hermitian:
             eigvals, eigvecs = util.eig(self.matrix, hermitian=self.hermitian)
         else:
-            eigvals, (left, right) = util.eig_biorth(self.matrix, hermitian=self.hermitian)
+            eigvals, (left, right) = util.eig_lr(self.matrix, hermitian=self.hermitian)
             eigvecs = np.array([left, right])
 
         # Get the full map onto physical + auxiliary and rotate the eigenvectors

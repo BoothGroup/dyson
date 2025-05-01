@@ -4,7 +4,7 @@ from dyson.util.linalg import (
     orthonormalise,
     biorthonormalise,
     eig,
-    eig_biorth,
+    eig_lr,
     matrix_power,
     hermi_sum,
     scaled_error,

@@ -92,7 +92,7 @@ class StaticSolver(BaseSolver):
         subspace = einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
 
         # Diagonalise the subspace to get the energies and basis for the couplings
-        energies, rotation = util.eig_biorth(subspace, hermitian=self.hermitian)
+        energies, rotation = util.eig_lr(subspace, hermitian=self.hermitian)
 
         # Project back to the couplings
         couplings_right = einsum("pk,qk,k->pq", right[:nphys], left[nphys:].conj(), eigvals)

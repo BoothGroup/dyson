@@ -80,15 +80,15 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     return eigvals, eigvecs
 
 
-def eig_biorth(matrix: Array, hermitian: bool = True, ) -> tuple[Array, tuple[Array, Array]]:
-    """Compute the eigenvalues and biorthogonal eigenvectors of a matrix.
+def eig_lr(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Array, Array]]:
+    """Compute the eigenvalues and biorthogonal left- and right-hand eigenvectors of a matrix.
 
     Args:
         matrix: The matrix to be diagonalised.
         hermitian: Whether the matrix is hermitian.
 
     Returns:
-        The eigenvalues and biorthogonal eigenvectors of the matrix.
+        The eigenvalues and biorthogonal left- and right-hand eigenvectors of the matrix.
     """
     # Find the eigenvalues and eigenvectors
     if hermitian:
@@ -132,7 +132,7 @@ def null_space_basis(
     null = np.eye(bra.shape[1]) - proj
 
     # Diagonalise the null space to find the basis
-    weights, (left, right) = eig_biorth(null, hermitian=hermitian)
+    weights, (left, right) = eig_lr(null, hermitian=hermitian)
     mask = (1 - np.abs(weights)) < 1e-10
     left = left[:, mask].T.conj()
     right = right[:, mask].T.conj()

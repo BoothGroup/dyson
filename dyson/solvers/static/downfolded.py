@@ -118,7 +118,7 @@ class Downfolded(StaticSolver):
         if self.hermitian:
             eigvals, eigvecs = util.eig(matrix, hermitian=self.hermitian)
         else:
-            eigvals, eigvecs_tuple = util.eig_biorth(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian)
             eigvecs = np.array(eigvecs_tuple)
         self.eigvals, self.eigvecs = eigvals, eigvecs
         self.converged = converged

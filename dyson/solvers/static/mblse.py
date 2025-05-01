@@ -339,7 +339,7 @@ class MBLSE(BaseMBL):
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
             couplings = self.off_diagonal[0].conj() @ rotated[: self.nphys]
         else:
-            energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
+            energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
             couplings = np.array([
                 self.off_diagonal[0].T.conj() @ rotated_tuple[0][: self.nphys],
                 self.off_diagonal[0] @ rotated_tuple[1][: self.nphys],

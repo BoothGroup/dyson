@@ -565,7 +565,7 @@ class Lehmann:
         if self.hermitian:
             return util.eig(matrix, hermitian=self.hermitian)
         else:
-            eigvals, eigvecs_tuple = util.eig_biorth(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian)
             eigvecs = np.array(eigvecs_tuple)
             return eigvals, eigvecs
 

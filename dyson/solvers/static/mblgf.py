@@ -377,7 +377,7 @@ class MBLGF(BaseMBL):
         if self.hermitian:
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
         else:
-            energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
+            energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
             rotated = np.array(rotated_tuple)
 
         # Project back to the couplings  # TODO: check
@@ -421,7 +421,7 @@ class MBLGF(BaseMBL):
             if self.hermitian:
                 eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
             else:
-                eigvals, eigvecs_tuple = util.eig_biorth(hamiltonian, hermitian=self.hermitian)
+                eigvals, eigvecs_tuple = util.eig_lr(hamiltonian, hermitian=self.hermitian)
                 eigvecs = np.array(eigvecs_tuple)
 
             # Unorthogonalise the eigenvectors
