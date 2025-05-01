@@ -166,6 +166,11 @@ class BaseCCSD(BaseExpression):
         """L2 amplitudes."""
         return self._l2
 
+    @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return False
+
     # The following properties are for interoperability with PySCF:
 
     @property
@@ -249,6 +254,9 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Bra vector.
+
+        See Also:
+            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
         if orbital < self.nocc:
             r1 = np.eye(self.nocc)[orbital]
@@ -282,6 +290,9 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Ket vector.
+
+        See Also:
+            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
         if orbital < self.nocc:
             r1 = np.eye(self.nocc)[orbital]

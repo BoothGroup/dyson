@@ -1,6 +1,6 @@
 """Solvers for solving the Dyson equation."""
 
-from dyson.solvers.static.exact import Exact
+from dyson.solvers.static.exact import Exact, BlockExact
 from dyson.solvers.static.davidson import Davidson
 from dyson.solvers.static.downfolded import Downfolded
 from dyson.solvers.static.mblse import MBLSE

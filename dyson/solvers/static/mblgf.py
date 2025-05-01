@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from dyson.typing import Array
     from dyson.lehmann import Lehmann
 
-    Couplings: TypeAlias = Array | tuple[Array, Array]
+einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 # TODO: Use solvers for diagonalisation?
 # FIXME: left- and right-hand eigenvectors defo mixed up
@@ -153,11 +153,11 @@ class MBLGF(BaseMBL):
         left, right = greens_function.unpack_couplings()
 
         # Construct the recovered moments
-        left_factored = left.copy()
+        right_factored = right.copy()
         moments: list[Array] = []
         for order in range(2 * iteration + 2):
-            moments.append(left_factored @ right.T.conj())
-            left_factored = left_factored * energies[None]
+            moments.append(right_factored @ left.T.conj())
+            right_factored = right_factored * energies[None]
 
         return np.array(moments)
 
@@ -193,7 +193,7 @@ class MBLGF(BaseMBL):
         self, iteration: int
     ) -> tuple[float | None, float | None, float | None]:
         """Perform an iteration of the recurrence for a Hermitian Green's function."""
-        i = iteration + 1
+        i = iteration - 1
         coefficients = self.coefficients[0]
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal_upper
@@ -225,7 +225,7 @@ class MBLGF(BaseMBL):
         for j in range(i + 2):
             # Horizontal recursion
             residual = coefficients[i + 1, j].copy()
-            residual -= coefficients[i + 1, j + 1], on_diagonal[i]
+            residual -= coefficients[i + 1, j + 1] @ on_diagonal[i]
             residual -= coefficients[i, j + 1] @ off_diagonal[i - 1]
             coefficients[i + 2, j + 1] = residual @ off_diagonal_inv
 
@@ -250,7 +250,7 @@ class MBLGF(BaseMBL):
         self, iteration: int
     ) -> tuple[float | None, float | None, float | None]:
         """Perform an iteration of the recurrence for a non-Hermitian Green's function."""
-        i = iteration + 1
+        i = iteration - 1
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal_upper = self.off_diagonal_upper
@@ -343,9 +343,7 @@ class MBLGF(BaseMBL):
 
         return error_sqrt, error_inv_sqrt, error_moments
 
-    def get_auxiliaries(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Args:
@@ -363,13 +361,12 @@ class MBLGF(BaseMBL):
 
         # Get the block tridiagonal Hamiltonian
         hamiltonian = util.build_block_tridiagonal(
-            [self.on_diagonal[i] for i in range(iteration + 2)],
-            [self.off_diagonal_upper[i] for i in range(iteration + 1)],
-            [self.off_diagonal_lower[i] for i in range(iteration + 1)],
+            [self.on_diagonal[i] for i in range(iteration + 1)],
+            [self.off_diagonal_upper[i] for i in range(iteration)],
+            [self.off_diagonal_lower[i] for i in range(iteration)],
         )
 
         # Return early if there are no auxiliaries
-        couplings: Couplings
         if hamiltonian.shape == (self.nphys, self.nphys):
             energies = np.zeros((0,), dtype=hamiltonian.dtype)
             couplings = np.zeros((self.nphys, 0), dtype=hamiltonian.dtype)
@@ -377,27 +374,27 @@ class MBLGF(BaseMBL):
 
         # Diagonalise the subspace to get the energies and basis for the couplings
         subspace = hamiltonian[self.nphys :, self.nphys :]
-        energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-
-        # Project back to the couplings
         if self.hermitian:
-            couplings = self.off_diagonal_upper[0].T.conj() @ rotated[: self.nphys]
+            energies, rotated = util.eig(subspace, hermitian=self.hermitian)
         else:
-            couplings = (
-                self.off_diagonal_upper[0].T.conj() @ rotated[: self.nphys],
-                self.off_diagonal_lower[0].T.conj() @ np.linalg.inv(rotated).T.conj()[: self.nphys],
-            )
+            energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
+            rotated = np.array(rotated_tuple)
+
+        # Project back to the couplings  # TODO: check
+        if self.hermitian:
+            orth = self.off_diagonal_lower[0]
+        else:
+            orth = np.array([self.off_diagonal_lower[0], self.off_diagonal_upper[0]])
+        couplings = einsum("...pq,...pk->...qk", orth.conj(), rotated[..., : self.nphys, :])
 
         return energies, couplings
 
     def get_eigenfunctions(
-        self, unpack: bool = False, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+        self, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Array]:
         """Get the eigenfunction at a given iteration.
 
         Args:
-            unpack: Whether to unpack the eigenvectors into left and right components, regardless
-                of the hermitian property.
             iteration: The iteration to get the eigenfunction for.
 
         Returns:
@@ -411,40 +408,27 @@ class MBLGF(BaseMBL):
             )
 
         # Get the eigenvalues and eigenvectors
-        eigvecs: Couplings
         if iteration == self.max_cycle and self.eigvals is not None and self.eigvecs is not None:
             eigvals = self.eigvals
             eigvecs = self.eigvecs
         else:
             # Diagonalise the block tridiagonal Hamiltonian
             hamiltonian = util.build_block_tridiagonal(
-                [self.on_diagonal[i] for i in range(iteration + 2)],
-                [self.off_diagonal_upper[i] for i in range(iteration + 1)],
-                [self.off_diagonal_lower[i] for i in range(iteration + 1)],
+                [self.on_diagonal[i] for i in range(iteration + 1)],
+                [self.off_diagonal_upper[i] for i in range(iteration)],
+                [self.off_diagonal_lower[i] for i in range(iteration)],
             )
-            eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
+            if self.hermitian:
+                eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
+            else:
+                eigvals, eigvecs_tuple = util.eig_biorth(hamiltonian, hermitian=self.hermitian)
+                eigvecs = np.array(eigvecs_tuple)
 
             # Unorthogonalise the eigenvectors
             metric_inv = self.orthogonalisation_metric_inv
-            if self.hermitian:
-                eigvecs[: self.nphys] = metric_inv @ eigvecs[: self.nphys]  # type: ignore[index]
-            else:
-                left = eigvecs
-                right = np.linalg.inv(eigvecs).T.conj()
-                left[: self.nphys] = metric_inv @ left[: self.nphys]  # type: ignore[index]
-                right[: self.nphys] = metric_inv.T.conj() @ right[: self.nphys]
-                eigvecs = (left, right)  # type: ignore[assignment]
-
-        if unpack:
-            # Unpack the eigenvectors
-            if self.hermitian:
-                if isinstance(eigvecs, tuple):
-                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-                return eigvals, (eigvecs, eigvecs)
-            elif isinstance(eigvecs, tuple):
-                return eigvals, eigvecs
-            else:
-                return eigvals, (eigvecs, np.linalg.inv(eigvecs).T.conj())
+            eigvecs[..., : self.nphys, :] = einsum(
+                "pq,...qk->...pk", metric_inv, eigvecs[..., : self.nphys, :]
+            )
 
         return eigvals, eigvecs
 
@@ -526,7 +510,7 @@ class BlockMBLGF(StaticSolver):
 
         Notes:
             For the block-wise solver, this function separates the self-energy into occupied and
-            virtual moments.
+            virtual parts.
         """
         max_cycle = kwargs.get("max_cycle", 0)
         self_energy_parts = (self_energy.occupied(), self_energy.virtual())
@@ -547,9 +531,7 @@ class BlockMBLGF(StaticSolver):
             solver.kernel()
         self.eigvals, self.eigvecs = self.get_eigenfunctions()
 
-    def get_auxiliaries(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Args:
@@ -566,31 +548,30 @@ class BlockMBLGF(StaticSolver):
             )
 
         # Get the dyson orbitals (transpose for convenience)
-        energies, (left, right) = self.get_dyson_orbitals(iteration=iteration, unpack=True)
+        energies, couplings = self.get_dyson_orbitals(iteration=iteration)
+        left, right = util.unpack_vectors(couplings)
         left = left.T.conj()
         right = right.T.conj()
 
         # Ensure biorthogonality
         if not self.hermitian:
-            projector = left.T.conj() @ right
+            projector = right.T.conj() @ left
             lower, upper = scipy.linalg.lu(projector, permute_l=True)
-            left = left @ np.linalg.inv(lower)
-            right = right @ np.linalg.inv(upper).T.conj()
+            left = left @ np.linalg.inv(lower).T.conj()
+            right = right @ np.linalg.inv(upper)
 
         # Find a basis for the null space
-        null_space = np.eye(left.shape[0]) - left @ right.T.conj()
-        weights, vectors = util.eig(null_space, hermitian=self.hermitian)
-        left = np.block([left, vectors[:, np.abs(weights) > 0.5]])
-        if self.hermitian:
-            right = left
-        else:
-            right = np.block([right, np.linalg.inv(vectors).T.conj()[:, np.abs(weights) > 0.5]])
+        null_space = np.eye(right.shape[0]) - right @ left.T.conj()
+        weights, (vectors_left, vectors_right) = util.eig_biorth(
+            null_space, hermitian=self.hermitian
+        )
+        left = np.block([left, vectors_left[:, np.abs(weights) > 0.5]])
+        right = np.block([right, vectors_right[:, np.abs(weights) > 0.5]])
 
         # Re-construct the Hamiltonian
-        hamiltonian = (left.T.conj() * energies[None]) @ right
+        hamiltonian = (right.T.conj() * energies[None]) @ left
 
         # Return early if there are no auxiliaries
-        couplings: Couplings
         if hamiltonian.shape == (self.nphys, self.nphys):
             energies = np.zeros((0,), dtype=hamiltonian.dtype)
             couplings = np.zeros((self.nphys, 0), dtype=hamiltonian.dtype)
@@ -598,26 +579,29 @@ class BlockMBLGF(StaticSolver):
 
         # Diagonalise the subspace to get the energies and basis for the couplings
         subspace = hamiltonian[self.nphys :, self.nphys :]
-        energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-
         if self.hermitian:
-            couplings = hamiltonian[: self.nphys, self.nphys :] @ rotated
+            energies, rotated = util.eig(subspace, hermitian=self.hermitian)
         else:
-            couplings = (
-                hamiltonian[: self.nphys, self.nphys :] @ rotated,
-                hamiltonian[self.nphys :, : self.nphys] @ np.linalg.inv(rotated).T.conj(),
-            )
+            energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
+            rotated = np.array(rotated_tuple)
+
+        # Project back to the couplings
+        couplings_right = hamiltonian[: self.nphys, self.nphys :]
+        if self.hermitian:
+            couplings = couplings_right
+        else:
+            couplings_left = hamiltonian[self.nphys :, : self.nphys].T.conj()
+            couplings = np.array([couplings_left, couplings_right])
+        couplings = einsum("kl,...pk->...pl", couplings, rotated)
 
         return energies, couplings
 
     def get_eigenfunctions(
-        self, unpack: bool = False, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+        self, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Array]:
         """Get the eigenfunction at a given iteration.
 
         Args:
-            unpack: Whether to unpack the eigenvectors into left and right components, regardless
-                of the hermitian property.
             iteration: The iteration to get the eigenfunction for.
 
         Returns:
@@ -632,40 +616,24 @@ class BlockMBLGF(StaticSolver):
             )
 
         # Get the eigenvalues and eigenvectors
-        eigvals: Array
-        eigvecs: Couplings
         if iteration == max_cycle and self.eigvals is not None and self.eigvecs is not None:
             eigvals = self.eigvals
             eigvecs = self.eigvecs
         else:
             # Combine the eigenvalues and eigenvectors
             eigvals_list: list[Array] = []
-            eigvecs_list: list[Couplings] = []
+            eigvecs_list: list[Array] = []
             for solver in self.solvers:
-                eigvals_i, eigvecs_i = solver.get_eigenfunctions(
-                    unpack=unpack or not self.hermitian, iteration=iteration
-                )
+                eigvals_i, eigvecs_i = solver.get_eigenfunctions(iteration=iteration)
                 eigvals_list.append(eigvals_i)
                 eigvecs_list.append(eigvecs_i)
             eigvals = np.concatenate(eigvals_list)
-            if not any(isinstance(eigvecs, tuple) for eigvecs in eigvecs_list):
-                eigvecs = np.concatenate(eigvecs_list, axis=1)
-            else:
-                eigvecs = (
-                    np.concatenate([eigvecs[0] for eigvecs in eigvecs_list], axis=1),
-                    np.concatenate([eigvecs[1] for eigvecs in eigvecs_list], axis=1),
-                )
-
-        if unpack:
-            # Unpack the eigenvectors
-            if self.hermitian:
-                if isinstance(eigvecs, tuple):
-                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-                return eigvals, (eigvecs, eigvecs)
-            elif isinstance(eigvecs, tuple):
-                return eigvals, eigvecs
-            else:
-                return eigvals, (eigvecs, np.linalg.inv(eigvecs).T.conj())
+            if any(eigvec.ndim == 3 for eigvec in eigvecs_list):
+                eigvecs_list = [
+                    np.array([eigvec_i, eigvec_i]) if eigvec_i.ndim == 2 else eigvec_i
+                    for eigvec_i in eigvecs_list
+                ]
+            eigvecs = np.concatenate(eigvecs_list, axis=-1)
 
         return eigvals, eigvecs
 

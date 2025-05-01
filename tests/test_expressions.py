@@ -14,49 +14,47 @@ if TYPE_CHECKING:
     from dyson.expressions.expression import BaseExpression
 
 
-def test_init(mf: scf.hf.RHF, expressions: dict[str, type[BaseExpression]], sector: str) -> None:
+def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the instantiation of the expression from a mean-field object."""
-    expression = expressions[sector].from_mf(mf)
+    expression = expression_cls.from_mf(mf)
     assert expression.mol is mf.mol
     assert expression.nphys == mf.mol.nao
     assert expression.nocc == mf.mol.nelectron // 2
     assert expression.nvir == mf.mol.nao - mf.mol.nelectron // 2
 
 
-def test_hamiltonian(
-    mf: scf.hf.RHF, expressions: dict[str, type[BaseExpression]], sector: str
-) -> None:
+def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Hamiltonian of the expression."""
-    expression = expressions[sector].from_mf(mf)
-    diagonal = expression.diagonal()
-    if diagonal.size > 1024:
+    expression = expression_cls.from_mf(mf)
+    if expression.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
+    diagonal = expression.diagonal()
     hamiltonian = expression.build_matrix()
 
     assert np.allclose(np.diag(hamiltonian), diagonal)
     assert hamiltonian.shape == expression.shape
+    assert (expression.nconfig + expression.nsingle) == diagonal.size
 
 
-def test_gf_moments(mf: scf.hf.RHF, expressions: dict[str, type[BaseExpression]]) -> None:
+def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpression]]) -> None:
     """Test the Green's function moments of the expression."""
-    expression = (expressions["1h"].from_mf(mf), expressions["1p"].from_mf(mf))
-    diagonal = (expression[0].diagonal(), expression[1].diagonal())
-    if any(d.size > 1024 for d in diagonal):
+    # Get the quantities required from the expression
+    expression = expression_cls.from_mf(mf)
+    if expression.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
-    hamiltonian = (expression[0].build_matrix(), expression[1].build_matrix())
+    diagonal = expression.diagonal()
+    hamiltonian = expression.build_matrix()
 
-    moments = np.zeros((2, expression[0].nphys, expression[0].nphys))
-    for i, j in itertools.product(range(expression[0].nphys), repeat=2):
-        bra = expression[0].get_state_bra(j)
-        ket = expression[0].get_state_ket(i)
+    # Construct the moments
+    moments = np.zeros((2, expression.nphys, expression.nphys))
+    for i, j in itertools.product(range(expression.nphys), repeat=2):
+        bra = expression.get_state_bra(j)
+        ket = expression.get_state_ket(i)
         moments[0, i, j] += bra.conj() @ ket
-        moments[1, i, j] += np.einsum("j,i,ij->", bra.conj(), ket, hamiltonian[0])
-        bra = expression[1].get_state_bra(j)
-        ket = expression[1].get_state_ket(i)
-        moments[0, i, j] += bra.conj() @ ket
-        moments[1, i, j] += np.einsum("j,i,ij->", bra.conj(), ket, hamiltonian[1])
+        moments[1, i, j] += np.einsum("j,i,ij->", bra.conj(), ket, hamiltonian)
 
-    ref = expression[0].build_gf_moments(2) + expression[1].build_gf_moments(2)
+    # Compare the moments to the reference
+    ref = expression.build_gf_moments(2)
 
     assert np.allclose(ref[0], moments[0])
     assert np.allclose(ref[1], moments[1])

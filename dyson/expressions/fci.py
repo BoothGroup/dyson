@@ -133,6 +133,10 @@ class BaseFCI(BaseExpression):
         where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
         particular expression.
 
+        The state vector can be used to find the action of the singles and higher-order
+        configurations in the Hamiltonian on the physical space, required to compute Green's
+        functions.
+
         Args:
             orbital: Orbital index.
 
@@ -190,6 +194,11 @@ class BaseFCI(BaseExpression):
             fci.cistring.gen_linkstr_index_trilidx(range(self.nphys), nelec[0]),
             fci.cistring.gen_linkstr_index_trilidx(range(self.nphys), nelec[1]),
         )
+
+    @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return False
 
     @property
     def nconfig(self) -> int:

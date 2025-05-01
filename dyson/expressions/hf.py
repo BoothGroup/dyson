@@ -66,26 +66,6 @@ class BaseHF(BaseExpression):
         """
         pass
 
-    def get_state(self, orbital: int) -> Array:
-        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
-
-        This state vector is a generalisation of
-
-        .. math::
-            a_i^{\pm} \left| \Psi_0 \right>
-
-        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
-        particular expression.
-
-        Args:
-            orbital: Orbital index.
-
-        Returns:
-            State vector.
-        """
-        size = self.diagonal().size
-        return util.unit_vector(size, orbital)
-
     def build_se_moments(self, nmom: int) -> Array:
         """Build the self-energy moments.
 
@@ -108,6 +88,11 @@ class BaseHF(BaseExpression):
         return self._mo_energy
 
     @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return True
+
+    @property
     def nconfig(self) -> int:
         """Number of configurations."""
         return 0
@@ -123,6 +108,29 @@ class HF_1h(BaseHF):  # pylint: disable=invalid-name
             Diagonal of the Hamiltonian.
         """
         return self.mo_energy[: self.nocc]
+
+    def get_state(self, orbital: int) -> Array:
+        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
+
+        This state vector is a generalisation of
+
+        .. math::
+            a_i^{\pm} \left| \Psi_0 \right>
+
+        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
+        particular expression.
+
+        The state vector can be used to find the action of the singles and higher-order
+        configurations in the Hamiltonian on the physical space, required to compute Green's
+        functions.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            State vector.
+        """
+        return util.unit_vector(self.shape[0], orbital)
 
     @property
     def nsingle(self) -> int:
@@ -140,6 +148,25 @@ class HF_1p(BaseHF):  # pylint: disable=invalid-name
             Diagonal of the Hamiltonian.
         """
         return self.mo_energy[self.nocc :]
+
+    def get_state(self, orbital: int) -> Array:
+        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
+
+        This state vector is a generalisation of
+
+        .. math::
+            a_i^{\pm} \left| \Psi_0 \right>
+
+        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
+        particular expression.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            State vector.
+        """
+        return util.unit_vector(self.shape[0], orbital - self.nocc)
 
     @property
     def nsingle(self) -> int:

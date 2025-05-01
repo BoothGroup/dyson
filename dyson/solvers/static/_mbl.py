@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
-    Couplings: TypeAlias = Array | tuple[Array, Array]
-
 # TODO: reimplement caching
 
 
@@ -100,12 +98,12 @@ class BaseMBL(StaticSolver):
     @functools.cached_property
     def orthogonalisation_metric(self) -> Array:
         """Get the orthogonalisation metric."""
-        return util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)[0]
+        return util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)
 
     @functools.cached_property
     def orthogonalisation_metric_inv(self) -> Array:
         """Get the inverse of the orthogonalisation metric."""
-        return util.matrix_power(self.moments[0], 0.5, hermitian=self.hermitian)[0]
+        return util.matrix_power(self.moments[0], 0.5, hermitian=self.hermitian)
 
     @functools.lru_cache(maxsize=64)
     def orthogonalised_moment(self, order: int) -> Array:

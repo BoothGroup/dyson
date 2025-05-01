@@ -17,8 +17,6 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
-    Couplings: TypeAlias = Array | tuple[Array, Array]
-
 
 class DensityRelaxation(StaticSolver):
     """Solve a self-energy and relax the density matrix in the presence of the auxiliaries.
@@ -113,7 +111,7 @@ class DensityRelaxation(StaticSolver):
 
         converged = False
         eigvals: Array | None = None
-        eigvecs: Couplings | None = None
+        eigvecs: Array | None = None
         for cycle_outer in range(1, self.max_cycle_outer + 1):
             # Solve the self-energy
             solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec)

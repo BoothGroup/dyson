@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, overload
 
 import scipy.linalg
 
@@ -10,6 +10,49 @@ from dyson import numpy as np
 
 if TYPE_CHECKING:
     from dyson.typing import Array
+
+
+def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
+    """Orthonormalise a set of vectors.
+
+    Args:
+        vectors: The set of vectors to be orthonormalised.
+        transpose: Whether to transpose the vectors before and after orthonormalisation.
+
+    Returns:
+        The orthonormalised set of vectors.
+    """
+    if transpose:
+        vectors = vectors.T.conj()
+    overlap = vectors.T.conj() @ vectors
+    orth = matrix_power(overlap, -0.5, hermitian=False)
+    vectors = vectors @ orth.T.conj()
+    if transpose:
+        vectors = vectors.T.conj()
+    return vectors
+
+
+def biorthonormalise(left: Array, right: Array, transpose: bool = False) -> tuple[Array, Array]:
+    """Biorthonormalise two sets of vectors.
+
+    Args:
+        left: The left set of vectors.
+        right: The right set of vectors.
+        transpose: Whether to transpose the vectors before and after biorthonormalisation.
+
+    Returns:
+        The biorthonormalised left and right sets of vectors.
+    """
+    if transpose:
+        left = left.T.conj()
+        right = right.T.conj()
+    overlap = left.T.conj() @ right
+    orth = matrix_power(overlap, -1, hermitian=False)
+    right = right @ orth
+    if transpose:
+        left = left.T.conj()
+        right = right.T.conj()
+    return left, right
 
 
 def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
@@ -37,7 +80,7 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     return eigvals, eigvecs
 
 
-def eig_biorth(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Array, Array]]:
+def eig_biorth(matrix: Array, hermitian: bool = True, ) -> tuple[Array, tuple[Array, Array]]:
     """Compute the eigenvalues and biorthogonal eigenvectors of a matrix.
 
     Args:
@@ -53,8 +96,7 @@ def eig_biorth(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Arra
         eigvecs_right = eigvecs_left
     else:
         eigvals, eigvecs_left, eigvecs_right = scipy.linalg.eig(matrix, left=True, right=True)
-        norm = eigvecs_right.T.conj() @ eigvecs_left
-        eigvecs_left = eigvecs_left @ np.linalg.inv(norm)
+        eigvecs_left, eigvecs_right = biorthonormalise(eigvecs_left, eigvecs_right)
 
     # Sort the eigenvalues and eigenvectors
     idx = np.argsort(eigvals)
@@ -63,6 +105,39 @@ def eig_biorth(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Arra
     eigvecs_right = eigvecs_right[:, idx]
 
     return eigvals, (eigvecs_left, eigvecs_right)
+
+
+def null_space_basis(
+    bra: Array, ket: Array | None = None, threshold: float = 1e-11
+) -> tuple[Array, Array]:
+    r"""Find a basis for the null space of :math:`\langle \text{bra} | \text{ket} \rangle`.
+
+    Args:
+        bra: The bra vectors.
+        ket: The ket vectors. If `None`, use the same vectors as `bra`.
+        threshold: Threshold for removing vectors to obtain the null space.
+
+    Returns:
+        The basis for the null space for the `bra` and `ket` vectors.
+
+    Note:
+        The full vector space may not be biorthonormal.
+    """
+    hermitian = ket is None or bra is ket
+    if ket is None:
+        ket = bra
+
+    # Find the null space
+    proj = bra.T.conj() @ ket
+    null = np.eye(bra.shape[1]) - proj
+
+    # Diagonalise the null space to find the basis
+    weights, (left, right) = eig_biorth(null, hermitian=hermitian)
+    mask = (1 - np.abs(weights)) < 1e-10
+    left = left[:, mask].T.conj()
+    right = right[:, mask].T.conj()
+
+    return (left, right) if hermitian else (left, left)
 
 
 def matrix_power(
@@ -86,8 +161,12 @@ def matrix_power(
     Returns:
         The matrix raised to the power, and the error if requested.
     """
-    # Get the eigenvalues and eigenvectors
-    eigvals, (left, right) = eig_biorth(matrix, hermitian=hermitian)
+    # Get the eigenvalues and eigenvectors -- don't need to be biorthogonal, avoid recursive calls
+    eigvals, right = eig(matrix, hermitian=hermitian)
+    if hermitian:
+        left = right
+    else:
+        left = np.linalg.inv(right).T.conj()
 
     # Get the mask for removing singularities
     if power < 0:
@@ -107,7 +186,7 @@ def matrix_power(
 
     # Get the error if requested
     if return_error:
-        null = (right[:, ~mask] * eigvals[~mask][None] ** power) @ left[:, ~mask].T.conj()
+        null = (right[:, ~mask] * eigvals[~mask][None]) @ left[:, ~mask].T.conj()
         error = cast(float, np.linalg.norm(null, ord=ord))
 
     return (matrix_power, error) if return_error else matrix_power
@@ -172,3 +251,62 @@ def unit_vector(size: int, index: int, dtype: str = "float64") -> Array:
         The unit vector.
     """
     return np.eye(1, size, k=index, dtype=dtype).ravel()
+
+
+def concatenate_paired_vectors(vectors: list[Array], size: int) -> Array:
+    r"""Concatenate vectors that are partitioned into two spaces, the first of which is common.
+
+    Args:
+        vectors: The vectors to be concatenated.
+        size: The size of the first space.
+
+    Returns:
+        The concatenated vectors.
+
+    Note:
+        The concatenation is
+
+        .. math::
+            \begin{pmatrix}
+                p_1 & p_2 & \cdots & p_n \\
+                a_1 &     &        &     \\
+                    & a_2 &        &     \\
+                    &     & \ddots &     \\
+                    &     &        & a_n \\
+            \end{pmatrix}
+            =
+            \begin{pmatrix} p_1 \\ a_1 \end{pmatrix}
+            + \begin{pmatrix} p_2 \\ a_2 \end{pmatrix}
+            + \cdots
+            + \begin{pmatrix} p_n \\ a_n \end{pmatrix}
+
+        where :math:`p_i` are the vectors in the first space and :math:`a_i` are the vectors in the
+        second space.
+
+        This is useful for combining couplings between a common physical space and a set of
+        auxiliary degrees of freedom.
+    """
+    space1 = slice(0, size)
+    space2 = slice(size, None)
+    vectors1 = np.concatenate([vector[space1] for vector in vectors], axis=1)
+    vectors2 = scipy.linalg.block_diag(*[vector[space2] for vector in vectors])
+    return np.concatenate([vectors1, vectors2], axis=0)
+
+
+def unpack_vectors(vector: Array) -> tuple[Array, Array]:
+    """Unpack a block vector in the :mod:`dyson` convention.
+
+    Args:
+        vector: The vector to be unpacked. The vector should either be a 2D array `(n, m)` or a 3D
+            array `(2, n, m)`. The latter case is non-Hermitian.
+
+    Returns:
+        Left- and right-hand vectors.
+    """
+    if vector.ndim == 2:
+        return vector, vector
+    elif vector.ndim == 3:
+        return vector[0], vector[1]
+    raise ValueError(
+        f"Vector has invalid shape {vector.shape} for unpacking. Must be 2D or 3D array."
+    )

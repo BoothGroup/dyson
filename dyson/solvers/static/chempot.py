@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import scipy.optimize
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.exact import Exact
@@ -353,7 +353,8 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
             solver.kernel()
         assert solver.error is not None
-        eigvals, (left, right) = solver.get_eigenfunctions(unpack=True)
+        eigvals, eigvecs = solver.get_eigenfunctions()
+        left, right = util.unpack_vectors(eigvecs)
         nphys = self.nphys
         nocc = np.count_nonzero(eigvals < solver.chempot)
 

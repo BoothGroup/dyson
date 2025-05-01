@@ -109,6 +109,10 @@ class BaseExpression(ABC):
         where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
         particular expression.
 
+        The state vector can be used to find the action of the singles and higher-order
+        configurations in the Hamiltonian on the physical space, required to compute Green's
+        functions.
+
         Args:
             orbital: Orbital index.
 
@@ -128,6 +132,9 @@ class BaseExpression(ABC):
 
         Returns:
             Bra vector.
+
+        See Also:
+            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
         return self.get_state(orbital)
 
@@ -142,6 +149,9 @@ class BaseExpression(ABC):
 
         Returns:
             Ket vector.
+
+        See Also:
+            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
         return self.get_state(orbital)
 
@@ -315,6 +325,12 @@ class BaseExpression(ABC):
     @abstractmethod
     def mol(self) -> Mole:
         """Molecule object."""
+        pass
+
+    @property
+    @abstractmethod
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
         pass
 
     @property

@@ -45,11 +45,15 @@ def se_moments_to_gf_moments(static: Array, se_moments: Array) -> Array:
     return gf_moments
 
 
-def gf_moments_to_se_moments(gf_moments: Array) -> tuple[Array, Array]:
+def gf_moments_to_se_moments(
+    gf_moments: Array, allow_non_identity: bool = False
+) -> tuple[Array, Array]:
     """Convert moments of the Green's function to those of the self-energy.
 
     Args:
         gf_moments: Moments of the Green's function.
+        allow_non_identity: If `True`, allow the zeroth moment of the Green's function to be
+            non-identity.
 
     Returns:
         static: Static part of the self-energy.
@@ -67,7 +71,7 @@ def gf_moments_to_se_moments(gf_moments: Array) -> tuple[Array, Array]:
         raise ValueError(
             "Need at least 2 moments of the Green's function to compute those of the self-energy."
         )
-    if not np.allclose(gf_moments[0], np.eye(nphys)):
+    if not allow_non_identity and not np.allclose(gf_moments[0], np.eye(nphys)):
         raise ValueError("The first moment of the Green's function must be the identity.")
     se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
     se_static = gf_moments[1]
@@ -140,7 +144,7 @@ def build_block_tridiagonal(
     return matrix
 
 
-def matvec_to_greens_function(
+def matvec_to_gf_moments(
     matvec: Callable[[Array], Array], nmom: int, bra: Array, ket: Array | None = None
 ) -> Array:
     """Build moments of a Green's function using the matrix-vector operation.
@@ -166,14 +170,17 @@ def matvec_to_greens_function(
 
     # Build the moments
     for n in range(nmom):
-        moments[n] = bra @ ket.T.conj()
+        part = bra.conj() @ ket.T
+        if np.iscomplexobj(part) and not np.iscomplexobj(moments):
+            moments = moments.astype(np.complex128)
+        moments[n] = part
         if n != (nmom - 1):
             ket = np.array([matvec(vector) for vector in ket])
 
     return moments
 
 
-def matvec_to_greens_function_chebyshev(
+def matvec_to_gf_moments_chebyshev(
     matvec: Callable[[Array], Array],
     nmom: int,
     scaling: tuple[float, float],

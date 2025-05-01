@@ -13,7 +13,7 @@ from dyson.typing import Array
 if TYPE_CHECKING:
     from typing import Any, Callable, TypeAlias
 
-    Couplings: TypeAlias = Array | tuple[Array, Array]
+    #Couplings: TypeAlias = Array | tuple[Array, Array]
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
@@ -52,7 +52,7 @@ class StaticSolver(BaseSolver):
     hermitian: bool
 
     eigvals: Array | None = None
-    eigvecs: Couplings | None = None
+    eigvecs: Array | None = None
 
     @abstractmethod
     def kernel(self) -> None:
@@ -68,14 +68,15 @@ class StaticSolver(BaseSolver):
         # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
         # should implement this method.
         nphys = self.nphys
-        eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
+        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
+        left, right = util.unpack_vectors(eigvecs)
 
         # Project back to the static part
         static = einsum("pk,qk,k->pq", right[:nphys], left[:nphys].conj(), eigvals)
 
         return static
 
-    def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Couplings]:
+    def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Returns:
@@ -84,7 +85,8 @@ class StaticSolver(BaseSolver):
         # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
         # should implement this method.
         nphys = self.nphys
-        eigvals, (left, right) = self.get_eigenfunctions(unpack=True, **kwargs)
+        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
+        left, right = util.unpack_vectors(eigvecs)
 
         # Project back to the auxiliary subspace
         subspace = einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
@@ -99,55 +101,39 @@ class StaticSolver(BaseSolver):
         else:
             couplings_left = einsum("pk,qk,k->pq", right[nphys:], left[:nphys].conj(), eigvals)
             couplings_left = couplings_left.T.conj()
-            couplings = (couplings_left, couplings_right)
+            couplings = np.array([couplings_left, couplings_right])
 
         # Rotate the couplings to the auxiliary basis
         if self.hermitian:
             couplings = couplings @ rotation[0]
         else:
-            couplings = (couplings_left @ rotation[0], couplings_right @ rotation[1])
+            couplings = np.array([couplings_left @ rotation[0], couplings_right @ rotation[1]])
 
         return energies, couplings
 
-    def get_eigenfunctions(self, unpack: bool = False, **kwargs: Any) -> tuple[Array, Couplings]:
+    def get_eigenfunctions(self, **kwargs: Any) -> tuple[Array, Array]:
         """Get the eigenfunctions of the self-energy.
-
-        Args:
-            unpack: Whether to unpack the eigenvectors into left and right components, regardless
-                of the hermitian property.
 
         Returns:
             Eigenvalues and eigenvectors.
         """
+        if kwargs:
+            raise TypeError(
+                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
+            )
         if self.eigvals is None or self.eigvecs is None:
             raise ValueError("Must call kernel() to compute eigenvalues and eigenvectors.")
-        if unpack:
-            if self.hermitian:
-                if isinstance(self.eigvecs, tuple):
-                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-                return self.eigvals, (self.eigvecs, self.eigvecs)
-            elif isinstance(self.eigvecs, tuple):
-                return self.eigvals, self.eigvecs
-            else:
-                return self.eigvals, (np.linalg.inv(self.eigvecs).T.conj(), self.eigvecs)
         return self.eigvals, self.eigvecs
 
-    def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Couplings]:
+    def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Array]:
         """Get the Dyson orbitals contributing to the Green's function.
 
         Returns:
             Dyson orbital energies and couplings.
         """
-        eigvals, eigvecs = self.get_eigenfunctions(unpack=False, **kwargs)
-        if self.hermitian:
-            if isinstance(eigvecs, tuple):
-                raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-            eigvecs = eigvecs[: self.nphys]
-        elif isinstance(eigvecs, tuple):
-            eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
-        else:
-            eigvecs = (np.linalg.inv(eigvecs).T.conj()[: self.nphys], eigvecs[: self.nphys])
-        return eigvals, eigvecs
+        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
+        orbitals = eigvecs[..., : self.nphys, :]
+        return eigvals, orbitals
 
     def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
         """Get the Lehmann representation of the self-energy.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.grids.frequency import RealFrequencyGrid
@@ -116,14 +116,11 @@ class Downfolded(StaticSolver):
         # Get final eigenvalues and eigenvectors
         matrix = self.static + self.function(root)
         if self.hermitian:
-            eigvals, eigvecs = np.linalg.eigh(matrix)
+            eigvals, eigvecs = util.eig(matrix, hermitian=self.hermitian)
         else:
-            eigvals, eigvecs = np.linalg.eig(matrix)
-
-        # Sort eigenvalues and eigenvectors
-        idx = np.argsort(eigvals)
-        self.eigvals = eigvals[idx]
-        self.eigvecs = eigvecs[:, idx]
+            eigvals, eigvecs_tuple = util.eig_biorth(matrix, hermitian=self.hermitian)
+            eigvecs = np.array(eigvecs_tuple)
+        self.eigvals, self.eigvecs = eigvals, eigvecs
         self.converged = converged
 
     @property

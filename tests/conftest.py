@@ -36,11 +36,18 @@ MF_CACHE = {
 def pytest_generate_tests(metafunc):  # type: ignore
     if "mf" in metafunc.fixturenames:
         metafunc.parametrize("mf", MF_CACHE.values(), ids=MF_CACHE.keys())
-    if "expressions" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "expressions",
-            [HF, CCSD, FCI],
-            ids=["HF", "CCSD", "FCI"],
-        )
-    if "sector" in metafunc.fixturenames:
-        metafunc.parametrize("sector", ["1h", "1p"], ids=["1h", "1p"])
+    if "expression_cls" in metafunc.fixturenames:
+        expressions = []
+        ids = []
+        for method, name in zip([HF, CCSD, FCI], ["HF", "CCSD", "FCI"]):
+            for sector, expression in method.items():
+                expressions.append(expression)
+                ids.append(f"{name}-{sector}")
+        metafunc.parametrize("expression_cls", expressions, ids=ids)
+    if "expression_method" in metafunc.fixturenames:
+        expressions = []
+        ids = []
+        for method, name in zip([HF, CCSD, FCI], ["HF", "CCSD", "FCI"]):
+            expressions.append(method)
+            ids.append(name)
+        metafunc.parametrize("expression_method", expressions, ids=ids)

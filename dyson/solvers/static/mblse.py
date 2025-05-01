@@ -16,9 +16,9 @@ if TYPE_CHECKING:
     from dyson.typing import Array
     from dyson.lehmann import Lehmann
 
-    Couplings: TypeAlias = Array | tuple[Array, Array]
-
     T = TypeVar("T", bound="BaseMBL")
+
+einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 # TODO: Use solvers for diagonalisation?
 # FIXME: left- and right-hand eigenvectors defo mixed up
@@ -144,11 +144,11 @@ class MBLSE(BaseMBL):
         left, right = self_energy.unpack_couplings()
 
         # Construct the recovered moments
-        left_factored = left.copy()
+        right_factored = right.copy()
         moments: list[Array] = []
         for order in range(2 * iteration + 2):
-            moments.append(left_factored @ right.T.conj())
-            left_factored = left_factored * energies[None]
+            moments.append(right_factored @ left.T.conj())
+            right_factored = right_factored * energies[None]
 
         return np.array(moments)
 
@@ -302,9 +302,7 @@ class MBLSE(BaseMBL):
 
         return error_sqrt, error_inv_sqrt, error_moments
 
-    def get_auxiliaries(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Args:
@@ -330,7 +328,6 @@ class MBLSE(BaseMBL):
         )
 
         # Return early if there are no auxiliaries
-        couplings: Couplings
         if hamiltonian.shape == (self.nphys, self.nphys):
             energies = np.zeros((0,), dtype=hamiltonian.dtype)
             couplings = np.zeros((self.nphys, 0), dtype=hamiltonian.dtype)
@@ -338,27 +335,25 @@ class MBLSE(BaseMBL):
 
         # Diagonalise the subspace to get the energies and basis for the couplings
         subspace = hamiltonian[self.nphys :, self.nphys :]
-        energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-
-        # Project back to the couplings
         if self.hermitian:
-            couplings = self.off_diagonal[0].T.conj() @ rotated[: self.nphys]
+            energies, rotated = util.eig(subspace, hermitian=self.hermitian)
         else:
-            couplings = (
-                self.off_diagonal[0] @ rotated[: self.nphys],
-                self.off_diagonal[0].T.conj() @ np.linalg.inv(rotated).T.conj()[: self.nphys],
-            )
+            energies, rotated_tuple = util.eig_biorth(subspace, hermitian=self.hermitian)
+            rotated = np.array(rotated_tuple)
+
+        # Project back to the couplings  # TODO: check
+        couplings = einsum(
+            "pq,...pk->...qk", self.off_diagonal[0].conj(), rotated[..., : self.nphys, :]
+        )
 
         return energies, couplings
 
     def get_eigenfunctions(
-        self, unpack: bool = False, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+        self, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Array]:
         """Get the eigenfunction at a given iteration.
 
         Args:
-            unpack: Whether to unpack the eigenvectors into left and right components, regardless
-                of the hermitian property.
             iteration: The iteration to get the eigenfunction for.
 
         Returns:
@@ -378,17 +373,6 @@ class MBLSE(BaseMBL):
         else:
             self_energy = self.get_self_energy(iteration=iteration)
             eigvals, eigvecs = self_energy.diagonalise_matrix(self.static)
-
-        if unpack:
-            # Unpack the eigenvectors
-            if self.hermitian:
-                if isinstance(eigvecs, tuple):
-                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-                return eigvals, (eigvecs, eigvecs)
-            elif isinstance(eigvecs, tuple):
-                return eigvals, eigvecs
-            else:
-                return eigvals, (eigvecs, np.linalg.inv(eigvecs).T.conj())
 
         return eigvals, eigvecs
 
@@ -487,9 +471,7 @@ class BlockMBLSE(StaticSolver):
             solver.kernel()
         self.eigvals, self.eigvecs = self.get_eigenfunctions()
 
-    def get_auxiliaries(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
         Args:
@@ -507,35 +489,27 @@ class BlockMBLSE(StaticSolver):
 
         # Combine the energies and couplings
         energies_list: list[Array] = []
-        couplings_list: list[Couplings] = []
+        couplings_list: list[Array] = []
         for solver in self.solvers:
             energies_i, couplings_i = solver.get_auxiliaries(iteration=iteration)
             energies_list.append(energies_i)
             couplings_list.append(couplings_i)
         energies = np.concatenate(energies_list)
-        couplings: Couplings
-        if any(isinstance(coupling, tuple) for coupling in couplings_list):
+        if any(coupling.ndim == 3 for coupling in couplings_list):
             couplings_list = [
-                coupling_i if isinstance(coupling_i, tuple) else (coupling_i, coupling_i)
+                np.array([coupling_i, coupling_i]) if coupling_i.ndim == 2 else coupling_i
                 for coupling_i in couplings_list
             ]
-            couplings = (
-                np.concatenate([coupling_i[0] for coupling_i in couplings_list], axis=1),
-                np.concatenate([coupling_i[1] for coupling_i in couplings_list], axis=1),
-            )
-        else:
-            couplings = np.concatenate(couplings_list, axis=1)
+        couplings = np.concatenate(couplings_list, axis=-1)
 
         return energies, couplings
 
     def get_eigenfunctions(
-        self, unpack: bool = False, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Couplings]:
+        self, iteration: int | None = None, **kwargs: Any
+    ) -> tuple[Array, Array]:
         """Get the eigenfunction at a given iteration.
 
         Args:
-            unpack: Whether to unpack the eigenvectors into left and right components, regardless
-                of the hermitian property.
             iteration: The iteration to get the eigenfunction for.
 
         Returns:
@@ -556,17 +530,6 @@ class BlockMBLSE(StaticSolver):
         else:
             self_energy = self.get_self_energy(iteration=iteration)
             eigvals, eigvecs = self_energy.diagonalise_matrix(self.static)
-
-        if unpack:
-            # Unpack the eigenvectors
-            if self.hermitian:
-                if isinstance(eigvecs, tuple):
-                    raise ValueError("Hermitian solver should not get a tuple of eigenvectors.")
-                return eigvals, (eigvecs, eigvecs)
-            elif isinstance(eigvecs, tuple):
-                return eigvals, eigvecs
-            else:
-                return eigvals, (eigvecs, np.linalg.inv(eigvecs).T.conj())
 
         return eigvals, eigvecs
 

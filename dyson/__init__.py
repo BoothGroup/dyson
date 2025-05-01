@@ -57,6 +57,7 @@ import numpy
 from dyson.lehmann import Lehmann
 from dyson.solvers import (
     Exact,
+    BlockExact,
     Davidson,
     Downfolded,
     MBLSE,

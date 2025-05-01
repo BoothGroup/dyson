@@ -6,6 +6,8 @@ from contextlib import contextmanager
 import functools
 from typing import TYPE_CHECKING, cast
 
+import scipy.linalg
+
 from dyson import numpy as np, util
 from dyson.typing import Array
 
@@ -13,8 +15,6 @@ if TYPE_CHECKING:
     from typing import Iterable, Iterator, Literal, TypeAlias
 
     import pyscf.agf2.aux
-
-    Couplings: TypeAlias = Array | tuple[Array, Array]
 
 einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
@@ -50,12 +50,17 @@ class Lehmann:
     where the couplings are between the poles :math:`k` and the physical space :math:`p` and
     :math:`q`, and may be non-Hermitian. The couplings :math:`v` are right-handed vectors, and
     :math:`u` are left-handed vectors.
+
+    Note that the order of the couplings is `(left, right)`, whilst they act in the order
+    `(right, left)` in the numerator. The naming convention is chosen to be consistent with the
+    eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a
+    matrix, and :math:`u` is an eigenvector acting on the left of a matrix.
     """
 
     def __init__(
         self,
         energies: Array,
-        couplings: Couplings,
+        couplings: Array,
         chempot: float = 0.0,
         sort: bool = True,
     ):
@@ -63,8 +68,8 @@ class Lehmann:
 
         Args:
             energies: Energies of the poles.
-            couplings: Couplings of the poles to a physical space. For a non-Hermitian system, a
-                tuple of left and right couplings is required.
+            couplings: Couplings of the poles to a physical space. For a non-Hermitian system, they
+                should be have three dimensions, with the first dimension indexing `(left, right)`.
             chempot: Chemical potential.
             sort: Sort the poles by energy.
         """
@@ -73,6 +78,16 @@ class Lehmann:
         self._chempot = chempot
         if sort:
             self.sort_()
+        if not self.hermitian:
+            if couplings.ndim != 3:
+                raise ValueError(
+                    f"Couplings must be 3D for a non-Hermitian system, but got {couplings.ndim}D."
+                )
+            if couplings.shape[0] != 2:
+                raise ValueError(
+                    f"Couplings must have shape (2, nphys, naux) for a non-Hermitian system, "
+                    f"but got {couplings.shape}."
+                )
 
     @classmethod
     def from_pyscf(cls, auxspace: pyscf.agf2.aux.AuxSpace | Lehmann) -> Lehmann:
@@ -92,6 +107,23 @@ class Lehmann:
             chempot=auxspace.chempot,
         )
 
+    @classmethod
+    def from_empty(cls, nphys: int) -> Lehmann:
+        """Construct an empty Lehmann representation.
+
+        Args:
+            nphys: The number of physical degrees of freedom.
+
+        Returns:
+            An empty Lehmann representation.
+        """
+        return cls(
+            energies=np.zeros((0,)),
+            couplings=np.zeros((nphys, 0)),
+            chempot=0.0,
+            sort=False,
+        )
+
     def sort_(self) -> None:
         """Sort the poles by energy.
 
@@ -100,11 +132,7 @@ class Lehmann:
         """
         idx = np.argsort(self.energies)
         self._energies = self.energies[idx]
-        if self.hermitian:
-            self._couplings = self.couplings[:, idx]
-        else:
-            left, right = self.couplings
-            self._couplings = (left[:, idx], right[:, idx])
+        self._couplings = self.couplings[..., idx]
 
     @property
     def energies(self) -> Array:
@@ -112,7 +140,7 @@ class Lehmann:
         return self._energies
 
     @property
-    def couplings(self) -> Couplings:
+    def couplings(self) -> Array:
         """Get the couplings."""
         return self._couplings
 
@@ -124,7 +152,7 @@ class Lehmann:
     @property
     def hermitian(self) -> bool:
         """Get a boolean indicating if the system is Hermitian."""
-        return not isinstance(self.couplings, tuple)
+        return self.couplings.ndim == 2
 
     def unpack_couplings(self) -> tuple[Array, Array]:
         """Unpack the couplings.
@@ -134,7 +162,7 @@ class Lehmann:
         """
         if self.hermitian:
             return cast(tuple[Array, Array], (self.couplings, self.couplings))
-        return cast(tuple[Array, Array], self.couplings)
+        return cast(tuple[Array, Array], (self.couplings[0], self.couplings[1]))
 
     @property
     def nphys(self) -> int:
@@ -149,7 +177,7 @@ class Lehmann:
     @property
     def dtype(self) -> np.dtype:
         """Get the data type of the couplings."""
-        return np.result_type(self.energies, *self.unpack_couplings())
+        return np.result_type(self.energies, self.couplings)
 
     def __repr__(self) -> str:
         """Return a string representation of the Lehmann representation."""
@@ -167,19 +195,12 @@ class Lehmann:
         """
         # Mask the energies and couplings
         energies = self.energies[mask]
-        couplings = self.couplings
-        if self.hermitian:
-            couplings = couplings[:, mask]  # type: ignore[call-overload]
-        else:
-            couplings = (couplings[0][:, mask], couplings[1][:, mask])
+        couplings = self.couplings[..., mask]
 
         # Copy the couplings if requested
         if deep:
-            if self.hermitian:
-                couplings = couplings.copy()  # type: ignore[union-attr]
-            else:
-                couplings = (couplings[0].copy(), couplings[1].copy())
             energies = energies.copy()
+            couplings = couplings.copy()
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
 
@@ -235,13 +256,43 @@ class Lehmann:
 
         # Copy the couplings if requested
         if deep:
-            if self.hermitian:
-                couplings = couplings.copy()  # type: ignore[union-attr]
-            else:
-                couplings = (couplings[0].copy(), couplings[1].copy())
             energies = energies.copy()
+            couplings = couplings.copy()
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
+
+    def rotate_couplings(self, rotation: Array) -> Lehmann:
+        """Rotate the couplings and return a new Lehmann representation.
+
+        Args:
+            rotation: The rotation matrix to apply to the couplings. If the matrix has three
+                dimensions, the first dimension is used to rotate the left couplings, and the
+                second dimension is used to rotate the right couplings.
+
+        Returns:
+            A new Lehmann representation with the couplings rotated into the new basis.
+        """
+        if rotation.shape[-2] != self.nphys:
+            raise ValueError(
+                f"Rotation matrix has shape {rotation.shape}, but expected {self.nphys} "
+                f"physical degrees of freedom."
+            )
+        if rotation.ndim == 2:
+            couplings = einsum("...pk,pq->...qk", rotation.conj(), self.couplings)
+        else:
+            left, right = self.unpack_couplings()
+            couplings = np.array(
+                [
+                    rotation[0].T.conj() @ left,
+                    rotation[1].T.conj() @ right,
+                ],
+            )
+        return self.__class__(
+            self.energies,
+            couplings,
+            chempot=self.chempot,
+            sort=False,
+        )
 
     # Methods to calculate moments:
 
@@ -514,11 +565,13 @@ class Lehmann:
         if self.hermitian:
             return util.eig(matrix, hermitian=self.hermitian)
         else:
-            return util.eig_biorth(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs_tuple = util.eig_biorth(matrix, hermitian=self.hermitian)
+            eigvecs = np.array(eigvecs_tuple)
+            return eigvals, eigvecs
 
     def diagonalise_matrix_with_projection(
         self, physical: Array, chempot: bool | float = False
-    ) -> tuple[Array, Couplings]:
+    ) -> tuple[Array, Array]:
         """Diagonalise the supermatrix and project the eigenvectors into the physical space.
 
         Args:
@@ -532,11 +585,7 @@ class Lehmann:
             into the physical space.
         """
         eigvals, eigvecs = self.diagonalise_matrix(physical, chempot=chempot)
-        eigvecs_projected: Couplings
-        if self.hermitian:
-            eigvecs_projected = eigvecs[: self.nphys]
-        else:
-            eigvecs_projected = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
+        eigvecs_projected = eigvecs[..., : self.nphys, :]
         return eigvals, eigvecs_projected
 
     # Methods associated with a quasiparticle representation:
@@ -614,7 +663,7 @@ class Lehmann:
         The static potential is defined as
 
         .. math::
-            V_{pq} = \mathrm{Re}\left[ \sum_{k} \frac{v_{pk} v_{qk}^*}{\epsilon_p - \epsilon_k
+            V_{pq} = \mathrm{Re}\left[ \sum_{k} \frac{v_{pk} u_{qk}^*}{\epsilon_p - \epsilon_k
             \pm i \eta} \right].
 
         Args:
@@ -640,6 +689,61 @@ class Lehmann:
 
     # Methods for combining Lehmann representations:
 
+    def split_physical(self, nocc: int) -> tuple[Lehmann, Lehmann]:
+        """Split the physical domain of Lehmann representation into occupied and virtual parts.
+
+        Args:
+            nocc: The number of occupied states.
+
+        Returns:
+            The Lehmann representation coupled with the occupied and virtual parts, as separate
+            Lehmann representations.
+        """
+        occ = self.__class__(
+            self.energies,
+            self.couplings[..., : nocc, :],
+            chempot=self.chempot,
+            sort=False,
+        )
+        vir = self.__class__(
+            self.energies,
+            self.couplings[..., nocc :, :],
+            chempot=self.chempot,
+            sort=False,
+        )
+        return occ, vir
+
+    def combine_physical(self, other: Lehmann) -> Lehmann:
+        """Combine the physical domain of two Lehmann representations.
+
+        Args:
+            other: The other Lehmann representation to combine with.
+
+        Returns:
+            A new Lehmann representation that is the combination of the two.
+        """
+        if not np.isclose(self.chempot, other.chempot):
+            raise ValueError(
+                f"Cannot combine Lehmann representations with different chemical potentials: "
+                f"{self.chempot} and {other.chempot}"
+            )
+
+        # Combine the energies and couplings
+        energies = np.concatenate((self.energies, other.energies), axis=0)
+        if self.hermitian and other.hermitian:
+            couplings = scipy.linalg.block_diag(self.couplings, other.couplings)
+        else:
+            left_self, right_self = self.unpack_couplings()
+            left_other, right_other = other.unpack_couplings()
+            couplings = np.array(
+                [
+                    np.concatenate((left_self, left_other), axis=-1),
+                    np.concatenate((right_self, right_other), axis=-1),
+                ]
+            )
+
+        return self.__class__(energies, couplings, chempot=self.chempot, sort=True)
+
     def concatenate(self, other: Lehmann) -> Lehmann:
         """Concatenate two Lehmann representations.
 
@@ -662,52 +766,14 @@ class Lehmann:
 
         # Combine the energies and couplings
         energies = np.concatenate((self.energies, other.energies))
-        couplings: Couplings
-        if self.hermitian:
-            couplings = np.concatenate((self.couplings, other.couplings), axis=1)
+        if self.hermitian and other.hermitian:
+            couplings = np.concatenate((self.couplings, other.couplings), axis=-1)
         else:
             left_self, right_self = self.unpack_couplings()
             left_other, right_other = other.unpack_couplings()
-            couplings = (
-                np.concatenate((left_self, left_other), axis=1),
-                np.concatenate((right_self, right_other), axis=1),
-            )
+            couplings = np.array([
+                np.concatenate((left_self, left_other), axis=-1),
+                np.concatenate((right_self, right_other), axis=-1),
+            ])
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
-
-    def __add__(self, other: Lehmann) -> Lehmann:
-        """Add two Lehmann representations.
-
-        Args:
-            other: The other Lehmann representation to add.
-
-        Returns:
-            A new Lehmann representation that is the sum of the two.
-        """
-        return self.concatenate(other)
-
-    def __sub__(self, other: Lehmann) -> Lehmann:
-        """Subtract two Lehmann representations.
-
-        Args:
-            other: The other Lehmann representation to subtract.
-
-        Returns:
-            A new Lehmann representation that is the difference of the two.
-
-        Note:
-            Subtracting Lehmann representations requires either non-Hermiticity or complex-valued
-            couplings. The latter should maintain Hermiticity.
-        """
-        other_couplings = other.couplings
-        if self.hermitian:
-            other_couplings = 1.0j * other_couplings  # type: ignore[operator]
-        else:
-            other_couplings = (-other_couplings[0], other_couplings[1])
-        other_factored = self.__class__(
-            other.energies,
-            other_couplings,
-            chempot=other.chempot,
-            sort=False,
-        )
-        return self.concatenate(other_factored)

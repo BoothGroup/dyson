@@ -22,15 +22,15 @@ def _pick_real_eigenvalues(
     eigvecs: Array,
     nroots: int,
     env: dict[str, Any],
-    threshold=1e-3,
+    threshold: float = 1e-3,
 ) -> tuple[Array, Array, int]:
     """Pick real eigenvalues."""
     iabs = np.abs(eigvals.imag)
     tol = max(threshold, np.sort(iabs)[min(eigvals.size, nroots) - 1])
-    idx = np.where(iabs <= tol)[0]
+    real_idx = np.where(iabs <= tol)[0]
 
     # Check we have enough real eigenvalues
-    num = np.count_nonzero(iabs[idx] < threshold)
+    num = np.count_nonzero(iabs[real_idx] < threshold)
     if num < nroots and eigvals.size >= nroots:
         warnings.warn(
             f"Only {num} of requested {nroots} real eigenvalues found with threshold {tol:.2e}.",
@@ -38,21 +38,20 @@ def _pick_real_eigenvalues(
             stacklevel=2,
         )
 
-    # Make the eigenvalues real
-    real_system = issubclass(env.get("dtype", np.float64), (complex, np.complexfloating))
-    eigvals, eigvecs, _ = lib.linalg_helper._eigs_cmplx2real(
-        eigvals,
-        eigvecs,
-        idx,
-        real_eigenvectors=real_system,
-    )
-
     # Sort the eigenvalues
-    idx = np.argsort(np.abs(eigvals))
+    idx = real_idx[np.argsort(np.abs(eigvals[real_idx]))]
     eigvals = eigvals[idx]
     eigvecs = eigvecs[:, idx]
 
-    return eigvals, eigvecs, 0
+    # Make the eigenvalues real
+    real_system = issubclass(env.get("dtype", np.float64).type, (complex, np.complexfloating))
+    if real_system:
+        degen_idx = np.where(eigvals.imag != 0)[0]
+        if degen_idx.size > 0:
+            eigvecs[:, degen_idx[1::2]] = eigvecs[:, degen_idx[1::2]].imag
+        eigvecs = eigvecs.real
+
+    return eigvals, eigvecs, idx
 
 
 class Davidson(StaticSolver):
@@ -128,36 +127,50 @@ class Davidson(StaticSolver):
             Initial guesses for the eigenvectors.
         """
         args = np.argsort(np.abs(self.diagonal))
-        return [util.unit_vector(self.diagonal.size, i) for i in args[: self.nroots]]
+        dtype = np.float64 if self.hermitian else np.complex128
+        return [util.unit_vector(self.diagonal.size, i, dtype=dtype) for i in args[: self.nroots]]
 
     def kernel(self) -> None:
         """Run the solver."""
-        # Get the Davidson function
-        function = (
-            lib.linalg_helper.davidson1 if self.hermitian else lib.linalg_helper.davidson_nosym1
-        )
-
         # Call the Davidson function
-        converged, eigvals, eigvecs = function(
-            lambda vectors: [self.matvec(vector) for vector in vectors],
-            self.get_guesses(),
-            self.diagonal,
-            pick=_pick_real_eigenvalues,
-            tol=self.conv_tol,
-            tol_residual=self.conv_tol_residual,
-            max_cycle=self.max_cycle,
-            max_space=self.max_space,
-            nroots=self.nroots,
-            verbose=0,
-        )
+        if self.hermitian:
+            converged, eigvals, eigvecs = lib.linalg_helper.davidson1(
+                lambda vectors: [self.matvec(vector) for vector in vectors],
+                self.get_guesses(),
+                self.diagonal,
+                pick=_pick_real_eigenvalues,
+                tol=self.conv_tol,
+                tol_residual=self.conv_tol_residual,
+                max_cycle=self.max_cycle,
+                max_space=self.max_space,
+                nroots=self.nroots,
+                verbose=0,
+            )
+            eigvecs = np.array(eigvecs).T
+        else:
+            converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
+                lambda vectors: [self.matvec(vector) for vector in vectors],
+                self.get_guesses(),
+                self.diagonal,
+                pick=_pick_real_eigenvalues,
+                tol=self.conv_tol,
+                tol_residual=self.conv_tol_residual,
+                max_cycle=self.max_cycle,
+                max_space=self.max_space,
+                nroots=self.nroots,
+                left=True,
+                verbose=0,
+            )
+            left = np.array(left).T
+            right = np.array(right).T
+            eigvecs = np.array([left, right])
         eigvals = np.array(eigvals)
-        eigvecs = np.array(eigvecs).T
         converged = np.array(converged)
 
         # Sort the eigenvalues
         mask = np.argsort(eigvals)
         eigvals = eigvals[mask]
-        eigvecs = eigvecs[:, mask]
+        eigvecs = eigvecs[..., mask]
         converged = converged[mask]
 
         # Store the results
