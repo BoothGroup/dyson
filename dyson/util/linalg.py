@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING, cast, overload
 
 import scipy.linalg
@@ -10,6 +11,8 @@ from dyson import numpy as np
 
 if TYPE_CHECKING:
     from dyson.typing import Array
+
+einsum = functools.partial(np.einsum, optimize=True)
 
 
 def orthonormalise(vectors: Array, transpose: bool = False) -> Array:

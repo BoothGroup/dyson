@@ -13,10 +13,6 @@ from dyson.typing import Array
 if TYPE_CHECKING:
     from typing import Any, Callable, TypeAlias
 
-    #Couplings: TypeAlias = Array | tuple[Array, Array]
-
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 class BaseSolver(ABC):
     """Base class for Dyson equation solvers."""
@@ -72,7 +68,7 @@ class StaticSolver(BaseSolver):
         left, right = util.unpack_vectors(eigvecs)
 
         # Project back to the static part
-        static = einsum("pk,qk,k->pq", right[:nphys], left[:nphys].conj(), eigvals)
+        static = util.einsum("pk,qk,k->pq", right[:nphys], left[:nphys].conj(), eigvals)
 
         return static
 
@@ -89,17 +85,17 @@ class StaticSolver(BaseSolver):
         left, right = util.unpack_vectors(eigvecs)
 
         # Project back to the auxiliary subspace
-        subspace = einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
+        subspace = util.einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
 
         # Diagonalise the subspace to get the energies and basis for the couplings
         energies, rotation = util.eig_lr(subspace, hermitian=self.hermitian)
 
         # Project back to the couplings
-        couplings_right = einsum("pk,qk,k->pq", right[:nphys], left[nphys:].conj(), eigvals)
+        couplings_right = util.einsum("pk,qk,k->pq", right[:nphys], left[nphys:].conj(), eigvals)
         if self.hermitian:
             couplings = couplings_right
         else:
-            couplings_left = einsum("pk,qk,k->pq", right[nphys:], left[:nphys].conj(), eigvals)
+            couplings_left = util.einsum("pk,qk,k->pq", right[nphys:], left[:nphys].conj(), eigvals)
             couplings_left = couplings_left.T.conj()
             couplings = np.array([couplings_left, couplings_right])
 

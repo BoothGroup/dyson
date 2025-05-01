@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from dyson.typing import Array
     from dyson.grids.frequency import RealFrequencyGrid
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 def _infer_max_cycle(moments: Array) -> int:
     """Infer the maximum number of cycles from the moments."""
@@ -127,7 +125,7 @@ class KPMGF(DynamicSolver):
 
         # Iteratively compute the Green's function
         for cycle in range(1, iteration + 1):
-            polynomial += einsum("z,...->z...", grids[-1], moments[cycle]) * coefficients[cycle]
+            polynomial += util.einsum("z,...->z...", grids[-1], moments[cycle]) * coefficients[cycle]
             grids = (grids[-1], 2 * scaled_grid * grids[-1] - grids[-2])
 
         # Get the Green's function

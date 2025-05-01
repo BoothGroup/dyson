@@ -1,6 +1,7 @@
 """Utility functions."""
 
 from dyson.util.linalg import (
+    einsum,
     orthonormalise,
     biorthonormalise,
     eig,

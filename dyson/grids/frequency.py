@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import scipy.special
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.grids.grid import BaseGrid
 
 if TYPE_CHECKING:
@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 
     from dyson.lehmann import Lehmann
     from dyson.typing import Array
-
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
 class BaseFrequencyGrid(BaseGrid):
@@ -50,7 +48,7 @@ class BaseFrequencyGrid(BaseGrid):
         left, right = lehmann.unpack_couplings()
         resolvent = self.resolvent(lehmann.energies, lehmann.chempot, **kwargs)
         inp, out = ("qk", "wpq") if not trace else ("pk", "w")
-        return einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
+        return util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
 
     @property
     def domain(self) -> str:

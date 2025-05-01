@@ -16,8 +16,6 @@ if TYPE_CHECKING:
 
     import pyscf.agf2.aux
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 @contextmanager
 def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
@@ -278,7 +276,7 @@ class Lehmann:
                 f"physical degrees of freedom."
             )
         if rotation.ndim == 2:
-            couplings = einsum("...pk,pq->...qk", rotation.conj(), self.couplings)
+            couplings = util.einsum("...pk,pq->...qk", rotation.conj(), self.couplings)
         else:
             left, right = self.unpack_couplings()
             couplings = np.array(
@@ -320,7 +318,7 @@ class Lehmann:
 
         # Contract the moments
         left, right = self.unpack_couplings()
-        moments = einsum(
+        moments = util.einsum(
             "pk,qk,nk->npq",
             right,
             left.conj(),
@@ -518,10 +516,10 @@ class Lehmann:
 
         # Contract the supermatrix
         vector_phys, vector_aux = np.split(vector, [self.nphys])
-        result_phys = einsum("pq,q...->p...", physical, vector_phys)
-        result_phys += einsum("pk,k...->p...", right, vector_aux)
-        result_aux = einsum("pk,p...->k...", left.conj(), vector_phys)
-        result_aux += einsum("k,k...->k...", energies, vector_aux)
+        result_phys = util.einsum("pq,q...->p...", physical, vector_phys)
+        result_phys += util.einsum("pk,k...->p...", right, vector_aux)
+        result_aux = util.einsum("pk,p...->k...", left.conj(), vector_phys)
+        result_aux += util.einsum("k,k...->k...", energies, vector_aux)
         result = np.concatenate((result_phys, result_aux), axis=0)
 
         return result
@@ -607,7 +605,7 @@ class Lehmann:
             The weights of each state.
         """
         left, right = self.unpack_couplings()
-        weights = einsum("pk,pk->k", right, left.conj()) * occupancy
+        weights = util.einsum("pk,pk->k", right, left.conj()) * occupancy
         return weights
 
     def as_orbitals(self, occupancy: float = 1.0, mo_coeff: Array | None = None) -> tuple[
@@ -682,7 +680,7 @@ class Lehmann:
         denom = mo_energy[:, None] - energies[None]
 
         # Calculate the static potential
-        static = einsum("pk,qk,pk->pq", right, left.conj(), 1.0 / denom).real
+        static = util.einsum("pk,qk,pk->pq", right, left.conj(), 1.0 / denom).real
         static = 0.5 * (static + static.T)
 
         return static

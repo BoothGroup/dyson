@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from dyson.typing import Array
     from dyson.grids.frequency import RealFrequencyGrid
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 def _infer_max_cycle(moments: Array) -> int:
     """Infer the maximum number of cycles from the moments."""
@@ -93,7 +91,7 @@ class CPGF(DynamicSolver):
         kernel = 1.0 / denominator
         for cycle in range(iteration + 1):
             factor = -1.0j * (2.0 - int(cycle == 0)) / (self.scaling[0] * np.pi)
-            greens_function -= einsum("z,...->z...", kernel, moments[cycle]) * factor
+            greens_function -= util.einsum("z,...->z...", kernel, moments[cycle]) * factor
             kernel *= numerator
 
         # FIXME: Where have I lost this?

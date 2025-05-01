@@ -9,7 +9,7 @@ import warnings
 
 from pyscf import cc
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
 class BaseCCSD(BaseExpression):
@@ -260,15 +258,15 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """
         if orbital < self.nocc:
             r1 = np.eye(self.nocc)[orbital]
-            r1 -= einsum("ie,e->i", self.l1, self.t1[orbital])
+            r1 -= util.einsum("ie,e->i", self.l1, self.t1[orbital])
             tmp = self.t2[orbital] * 2.0
             tmp -= self.t2[orbital].swapaxes(1, 2)
-            r1 -= einsum("imef,mef->i", self.l2, tmp)
+            r1 -= util.einsum("imef,mef->i", self.l2, tmp)
 
-            tmp = -einsum("ijea,e->ija", self.l2, self.t1[orbital])
+            tmp = -util.einsum("ijea,e->ija", self.l2, self.t1[orbital])
             r2 = tmp * 2.0
             r2 -= tmp.swapaxes(0, 1)
-            tmp = einsum("ja,i->ija", self.l1, np.eye(self.nocc)[orbital])
+            tmp = util.einsum("ja,i->ija", self.l1, np.eye(self.nocc)[orbital])
             r2 += tmp * 2.0
             r2 -= tmp.swapaxes(0, 1)
 
@@ -401,15 +399,15 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
 
         else:
             r1 = np.eye(self.nvir)[orbital - self.nocc]
-            r1 -= einsum("mb,m->b", self.l1, self.t1[:, orbital - self.nocc])
+            r1 -= util.einsum("mb,m->b", self.l1, self.t1[:, orbital - self.nocc])
             tmp = self.t2[:, :, :, orbital - self.nocc] * 2.0
             tmp -= self.t2[:, :, orbital - self.nocc]
-            r1 -= einsum("kmeb,kme->b", self.l2, tmp)
+            r1 -= util.einsum("kmeb,kme->b", self.l2, tmp)
 
-            tmp = -einsum("ikba,k->iab", self.l2, self.t1[:, orbital - self.nocc])
+            tmp = -util.einsum("ikba,k->iab", self.l2, self.t1[:, orbital - self.nocc])
             r2 = tmp * 2.0
             r2 -= tmp.swapaxes(1, 2)
-            tmp = einsum("ib,a->iab", self.l1, np.eye(self.nvir)[orbital - self.nocc])
+            tmp = util.einsum("ib,a->iab", self.l1, np.eye(self.nvir)[orbital - self.nocc])
             r2 += tmp * 2.0
             r2 -= tmp.swapaxes(1, 2)
 

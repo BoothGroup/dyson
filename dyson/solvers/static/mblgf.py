@@ -18,11 +18,6 @@ if TYPE_CHECKING:
     from dyson.typing import Array
     from dyson.lehmann import Lehmann
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
-# TODO: Use solvers for diagonalisation?
-# FIXME: left- and right-hand eigenvectors defo mixed up
-
 
 class RecursionCoefficients(BaseRecursionCoefficients):
     """Recursion coefficients for the moment block Lanczos algorithm for the Green's function.
@@ -385,7 +380,7 @@ class MBLGF(BaseMBL):
             orth = self.off_diagonal_lower[0]
         else:
             orth = np.array([self.off_diagonal_lower[0], self.off_diagonal_upper[0]])
-        couplings = einsum("...pq,...pk->...qk", orth.conj(), rotated[..., : self.nphys, :])
+        couplings = util.einsum("...pq,...pk->...qk", orth.conj(), rotated[..., : self.nphys, :])
 
         return energies, couplings
 
@@ -426,7 +421,7 @@ class MBLGF(BaseMBL):
 
             # Unorthogonalise the eigenvectors
             metric_inv = self.orthogonalisation_metric_inv
-            eigvecs[..., : self.nphys, :] = einsum(
+            eigvecs[..., : self.nphys, :] = util.einsum(
                 "pq,...qk->...pk", metric_inv, eigvecs[..., : self.nphys, :]
             )
 

@@ -5,12 +5,10 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np
+from dyson import numpy as np, util
 
 if TYPE_CHECKING:
     from dyson.typing import Array
-
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
 
 
 def gf_moments_galitskii_migdal(gf_moments_hole: Array, hcore: Array, factor: float = 1.0) -> float:
@@ -26,6 +24,6 @@ def gf_moments_galitskii_migdal(gf_moments_hole: Array, hcore: Array, factor: fl
     Returns:
         Galitskii--Migdal energy.
     """
-    e_gm = einsum("pq,qp->", gf_moments_hole[0], hcore)
+    e_gm = util.einsum("pq,qp->", gf_moments_hole[0], hcore)
     e_gm += np.trace(gf_moments_hole[1])
     return e_gm * factor

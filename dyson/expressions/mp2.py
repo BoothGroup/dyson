@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 class BaseMP2(BaseExpression):
     """Base class for MP2 expressions."""

@@ -18,8 +18,6 @@ if TYPE_CHECKING:
 
     T = TypeVar("T", bound="BaseMBL")
 
-einsum = functools.partial(np.einsum, optimize=True)  # TODO: Move
-
 
 class RecursionCoefficients(BaseRecursionCoefficients):
     """Recursion coefficients for the moment block Lanczos algorithm for the self-energy.
