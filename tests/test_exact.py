@@ -9,7 +9,7 @@ import numpy as np
 
 from dyson import util
 from dyson.lehmann import Lehmann
-from dyson.solvers import Exact, BlockExact
+from dyson.solvers import Exact, Componentwise
 from dyson.expressions.ccsd import BaseCCSD
 
 if TYPE_CHECKING:
@@ -113,8 +113,8 @@ def test_exact_solver_central(
         assert np.allclose(greens_function.moment(0), greens_function_other.moment(0))
         assert np.allclose(greens_function.moment(1), greens_function_other.moment(1))
 
-    # Use the block solver to do the same plus orthogonalise in the full space
-    solver = BlockExact(hamiltonian, bra, ket, hermitian=expression_h.hermitian)
+    # Use the component-wise solver to do the same plus orthogonalise in the full space
+    solver = Componentwise(solver_h, solver_p)
     solver.kernel()
 
     # Get the self-energy and Green's function from the solvers

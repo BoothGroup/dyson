@@ -57,7 +57,6 @@ import numpy
 from dyson.lehmann import Lehmann
 from dyson.solvers import (
     Exact,
-    BlockExact,
     Davidson,
     Downfolded,
     MBLSE,
@@ -65,5 +64,6 @@ from dyson.solvers import (
     AufbauPrinciple,
     AuxiliaryShift,
     DensityRelaxation,
+    Componentwise,
 )
 from dyson.expressions import HF, CCSD, FCI

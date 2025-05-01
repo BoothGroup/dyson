@@ -60,7 +60,8 @@ class Davidson(StaticSolver):
     Args:
         matvec: The matrix-vector operation for the self-energy supermatrix.
         diagonal: The diagonal of the self-energy supermatrix.
-        nphys: Number of physical degrees of freedom.
+        bra: The bra state vector mapping the supermatrix to the physical space.
+        ket: The ket state vector mapping the supermatrix to the physical space.
     """
 
     converged: Array | None = None
@@ -69,7 +70,8 @@ class Davidson(StaticSolver):
         self,
         matvec: Callable[[Array], Array],
         diagonal: Array,
-        nphys: int,
+        bra: Array,
+        ket: Array | None = None,
         hermitian: bool = True,
         nroots: int = 1,
         max_cycle: int = 100,
@@ -82,7 +84,9 @@ class Davidson(StaticSolver):
         Args:
             matvec: The matrix-vector operation for the self-energy supermatrix.
             diagonal: The diagonal of the self-energy supermatrix.
-            nphys: Number of physical degrees of freedom.
+            bra: The bra state vector mapping the supermatrix to the physical space.
+            ket: The ket state vector mapping the supermatrix to the physical space. If `None`, use
+                the same vectors as `bra`.
             hermitian: Whether the matrix is hermitian.
             nroots: Number of roots to find.
             max_cycle: Maximum number of iterations.
@@ -92,7 +96,8 @@ class Davidson(StaticSolver):
         """
         self._matvec = matvec
         self._diagonal = diagonal
-        self._nphys = nphys
+        self._bra = bra
+        self._ket = ket if ket is not None else bra
         self.hermitian = hermitian
         self.nroots = nroots
         self.max_cycle = max_cycle
@@ -112,10 +117,12 @@ class Davidson(StaticSolver):
         Returns:
             Solver instance.
         """
+        size = self_energy.nphys + self_energy.naux
+        bra = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),
-            self_energy.nphys,
+            bra,
             hermitian=self_energy.hermitian,
             **kwargs,
         )
@@ -173,6 +180,18 @@ class Davidson(StaticSolver):
         eigvecs = eigvecs[..., mask]
         converged = converged[mask]
 
+        # Get the full map onto physical + auxiliary and rotate the eigenvectors
+        vectors = util.null_space_basis(self.bra, ket=self.ket)
+        if self.ket is None or self.hermitian:
+            rotation = np.concatenate([self.bra, vectors[0]], axis=0)
+            eigvecs = rotation @ eigvecs
+        else:
+            rotation = (
+                np.concatenate([self.ket, vectors[0]], axis=0),
+                np.concatenate([self.bra, vectors[1]], axis=0),
+            )
+            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
+
         # Store the results
         self.eigvals = eigvals
         self.eigvecs = eigvecs
@@ -189,6 +208,18 @@ class Davidson(StaticSolver):
         return self._diagonal
 
     @property
+    def bra(self) -> Array:
+        """Get the bra state vector mapping the supermatrix to the physical space."""
+        return self._bra
+
+    @property
+    def ket(self) -> Array:
+        """Get the ket state vector mapping the supermatrix to the physical space."""
+        if self._ket is None:
+            return self._bra
+        return self._ket
+
+    @property
     def nphys(self) -> int:
         """Get the number of physical degrees of freedom."""
-        return self._nphys
+        return self.bra.shape[0]
