@@ -80,14 +80,29 @@ class Componentwise(StaticSolver):
             right = util.concatenate_paired_vectors(right_list, self.nphys)
 
         # Biorthogonalise the eigenvectors
-        if self.hermitian:
-            eigvecs = util.orthonormalise(left, transpose=True)
-        else:
-            eigvecs = np.array(util.biorthonormalise(left, right, transpose=True))
+        # FIXME: Can we make this work to properly recover non-Hermitian?
+        #if self.hermitian:
+        #    #left = np.concatenate(
+        #    #    [
+        #    #        util.orthonormalise(left[:self.nphys], transpose=True),
+        #    #        util.orthonormalise(left[self.nphys:], transpose=True),
+        #    #    ],
+        #    #    axis=0,
+        #    #)
+        #    left_p, left_a = left[:self.nphys], left[self.nphys:]
+        #    left_p = util.orthonormalise(left_p)
+        #    left = np.concatenate([left_p, left_a], axis=0)
+        #else:
+        #    #left_p, right_p = left[:self.nphys], right[:self.nphys]
+        #    left_a, right_a = left[self.nphys:], right[self.nphys:]
+        #    left_p, right_p = util.biorthonormalise(left[:self.nphys], right[:self.nphys])
+        #    #left_a, right_a = util.biorthonormalise(left[self.nphys:], right[self.nphys:])
+        #    left = np.concatenate([left_p, left_a], axis=0)
+        #    right = np.concatenate([right_p, right_a], axis=0)
 
         # Store the eigenvalues and eigenvectors
         self.eigvals = eigvals
-        self.eigvecs = eigvecs
+        self.eigvecs = left if self.hermitian else np.array([left, right])
 
     @property
     def solvers(self) -> list[StaticSolver]:

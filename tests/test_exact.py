@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
+from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 
 from dyson import util
 from dyson.lehmann import Lehmann
@@ -15,7 +16,33 @@ from dyson.expressions.ccsd import BaseCCSD
 if TYPE_CHECKING:
     from pyscf import scf
 
+    from dyson.typing import Array
     from dyson.expressions.expression import BaseExpression
+
+
+def _compare_moments(moments1: Array, moments2: Array, tol: float = 1e-8) -> bool:
+    """Compare two sets of moments."""
+    return all(util.scaled_error(m1, m2) < tol for m1, m2 in zip(moments1, moments2))
+
+
+def _compare_static(static1: Array, static2: Array, tol: float = 1e-8) -> bool:
+    """Compare two static self-energies."""
+    return util.scaled_error(static1, static2) < tol
+
+
+def _check_self_energy_to_greens_function(
+    static: Array, self_energy: Lehmann, greens_function: Lehmann, tol: float = 1e-8
+) -> None:
+    """Check a self-energy recovers the Green's function."""
+    greens_function_other = Lehmann(*self_energy.diagonalise_matrix_with_projection(static))
+    moments = greens_function.moments(range(2))
+    moments_other = greens_function_other.moments(range(2))
+    return _compare_moments(moments, moments_other, tol=tol)
+
+
+def _check_central_greens_function_orthogonality(greens_function: Lehmann, tol: float = 1e-8) -> bool:
+    """Check the orthogonality of the central Green's function."""
+    return _compare_moments(greens_function.moment(0), np.eye(greens_function.nphys), tol=tol)
 
 
 def test_exact_solver(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
@@ -54,9 +81,8 @@ def test_exact_solver(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> N
     self_energy_other = solver.get_self_energy()
     greens_function_other = solver.get_greens_function()
 
-    assert np.allclose(static, static_other)
-    assert np.allclose(self_energy.moment(0), self_energy_other.moment(0))
-    assert np.allclose(self_energy.moment(1), self_energy_other.moment(1))
+    assert _compare_static(static, static_other)
+    assert _compare_moments(self_energy.moments(range(2)), self_energy_other.moments(range(2)))
 
 
 def test_exact_solver_central(
@@ -79,6 +105,9 @@ def test_exact_solver_central(
         np.array([expression_p.get_state_ket(i) for i in range(expression_p.nphys)]),
     ]
 
+    # Context for non-Hermitian CCSD which currently doesn't recover orthogonality
+    ctx = pytest.raises(AssertionError) if isinstance(expression_h, BaseCCSD) else nullcontext()
+
     # Solve the Hamiltonians
     solver_h = Exact(hamiltonian[0], bra[0], ket[0], hermitian=expression_h.hermitian)
     solver_h.kernel()
@@ -92,28 +121,20 @@ def test_exact_solver_central(
         solver_h.get_greens_function(), solver_p.get_greens_function()
     )
 
-    if isinstance(expression_h, BaseCCSD):
-        # Needs additional biorthogonalisation
-        with pytest.raises(AssertionError):
-            assert np.allclose(greens_function.moment(0), np.eye(greens_function.nphys))
-    else:
-        assert np.allclose(greens_function.moment(0), np.eye(greens_function.nphys))
+    with ctx:
+        assert _check_central_greens_function_orthogonality(greens_function)
 
     # Recover the Green's function from the recovered self-energy
     solver = Exact.from_self_energy(static, self_energy)
     solver.kernel()
+    static_other = solver.get_static_self_energy()
+    self_energy_other = solver.get_self_energy()
     greens_function_other = solver.get_greens_function()
 
-    if isinstance(expression_h, BaseCCSD):
-        # Needs additional biorthogonalisation
-        with pytest.raises(AssertionError):
-            assert np.allclose(greens_function.moment(0), greens_function_other.moment(0))
-            assert np.allclose(greens_function.moment(1), greens_function_other.moment(1))
-    else:
-        assert np.allclose(greens_function.moment(0), greens_function_other.moment(0))
-        assert np.allclose(greens_function.moment(1), greens_function_other.moment(1))
+    with ctx:
+        assert _compare_moments(greens_function.moments(range(2)), greens_function_other.moments(range(2)))
 
-    # Use the component-wise solver to do the same plus orthogonalise in the full space
+    # Use the component-wise solver
     solver = Componentwise(solver_h, solver_p)
     solver.kernel()
 
@@ -122,10 +143,12 @@ def test_exact_solver_central(
     self_energy = solver.get_self_energy()
     greens_function = solver.get_greens_function()
 
-    assert np.allclose(greens_function.moment(0), np.eye(greens_function.nphys))
-
-    # Recover the Green's function from the self-energy
-    greens_function_other = Lehmann(*self_energy.diagonalise_matrix_with_projection(static))
-
-    assert np.allclose(greens_function.moment(0), greens_function_other.moment(0))
-    assert np.allclose(greens_function.moment(1), greens_function_other.moment(1))
+    assert _compare_static(static, static_other)
+    assert _compare_static(static, greens_function.moment(1))
+    assert _compare_moments(self_energy.moments(range(2)), self_energy_other.moments(range(2)))
+    with ctx:
+        assert _check_central_greens_function_orthogonality(greens_function)
+    with ctx:
+        assert _compare_moments(greens_function.moments(range(2)), greens_function_other.moments(range(2)))
+    with ctx:
+        assert _check_self_energy_to_greens_function(static, self_energy, greens_function)

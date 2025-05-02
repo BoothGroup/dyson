@@ -86,8 +86,8 @@ def gf_moments_to_se_moments(
     # which is equal to the desired LHS.
 
     # Get the powers of the static part
-    powers = [np.eye(nphys, dtype=gf_moments.dtype)]
-    for i in range(1, nmom):
+    powers = [np.eye(nphys, dtype=gf_moments.dtype), se_static]
+    for i in range(2, nmom):
         powers.append(powers[i - 1] @ se_static)
 
     # Perform the recursion

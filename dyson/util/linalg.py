@@ -29,7 +29,7 @@ def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
         vectors = vectors.T.conj()
     overlap = vectors.T.conj() @ vectors
     orth = matrix_power(overlap, -0.5, hermitian=False)
-    vectors = vectors @ orth.T.conj()
+    vectors = vectors @ orth
     if transpose:
         vectors = vectors.T.conj()
     return vectors
@@ -50,7 +50,7 @@ def biorthonormalise(left: Array, right: Array, transpose: bool = False) -> tupl
         left = left.T.conj()
         right = right.T.conj()
     overlap = left.T.conj() @ right
-    orth = matrix_power(overlap, -1, hermitian=False)
+    orth, error = matrix_power(overlap, -1, hermitian=False, return_error=True)
     right = right @ orth
     if transpose:
         left = left.T.conj()
@@ -192,7 +192,10 @@ def matrix_power(
     # Get the error if requested
     if return_error:
         null = (right[:, ~mask] * eigvals[~mask][None]) @ left[:, ~mask].T.conj()
-        error = cast(float, np.linalg.norm(null, ord=ord))
+        if null.size == 0:
+            error = 0.0
+        else:
+            error = cast(float, np.linalg.norm(null, ord=ord))
 
     return (matrix_power, error) if return_error else matrix_power
 
