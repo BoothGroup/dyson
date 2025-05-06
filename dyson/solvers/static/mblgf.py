@@ -329,6 +329,14 @@ class MBLGF(BaseMBL):
 
         return error_sqrt, error_inv_sqrt, error_moments
 
+    def get_static_self_energy(self, **kwargs: Any) -> Array:
+        """Get the static part of the self-energy.
+
+        Returns:
+            Static self-energy.
+        """
+        return self.static
+
     def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
         """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
 
@@ -362,7 +370,7 @@ class MBLGF(BaseMBL):
         subspace = hamiltonian[self.nphys :, self.nphys :]
         if self.hermitian:
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-            couplings = self.off_diagonal_upper[0] @ rotated[: self.nphys]
+            couplings = self.off_diagonal_upper[0].T.conj() @ rotated[: self.nphys]
         else:
             energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
             couplings = np.array([

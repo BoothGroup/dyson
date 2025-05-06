@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import warnings
 
 from pyscf import gto, scf
 import pytest

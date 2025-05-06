@@ -173,6 +173,9 @@ exclude_lines = [
 directory = "cov_html"
 
 [tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 testpaths = [
     "dyson",
     "tests",

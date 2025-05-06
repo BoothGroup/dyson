@@ -60,28 +60,12 @@ class Componentwise(StaticSolver):
             "solver from the self-energy directly and pass them to the constructor."
         )
 
-    def kernel(self) -> None:
-        """Run the solver."""
-        # TODO: We can combine the eigenvalues but can we project out the double counting that way?
-        # Run the solvers
-        for solver in self.solvers:
-            solver.kernel()
+    def get_static_self_energy(self, **kwargs: Any) -> Array:
+        """get the static part of the self-energy.
 
-        # Combine the auxiliaries
-        energies: Array = np.zeros((0))
-        left: Array = np.zeros((self.nphys, 0))
-        right: Array = np.zeros((self.nphys, 0))
-        for solver in self.solvers:
-            energies_i, couplings_i = solver.get_auxiliaries()
-            energies = np.concatenate([energies, energies_i])
-            if self.hermitian:
-                left = np.concatenate([left, couplings_i], axis=1)
-            else:
-                left_i, right_i = util.unpack_vectors(couplings_i)
-                left = np.concatenate([left, left_i], axis=1)
-                right = np.concatenate([right, right_i], axis=1)
-        couplings = np.array([left, right]) if not self.hermitian else left
-
+        returns:
+            static self-energy.
+        """
         # Combine the static part of the self-energy
         static_parts = [solver.get_static_self_energy() for solver in self.solvers]
         static_equal = all(
@@ -105,6 +89,40 @@ class Componentwise(StaticSolver):
                     stacklevel=2,
                 )
             static = sum(static_parts)
+        return static
+
+    def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Array]:
+        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
+
+        Returns:
+            Auxiliary energies and couplings.
+        """
+        # Combine the auxiliaries
+        energies: Array = np.zeros((0))
+        left: Array = np.zeros((self.nphys, 0))
+        right: Array = np.zeros((self.nphys, 0))
+        for solver in self.solvers:
+            energies_i, couplings_i = solver.get_auxiliaries()
+            energies = np.concatenate([energies, energies_i])
+            if self.hermitian:
+                left = np.concatenate([left, couplings_i], axis=1)
+            else:
+                left_i, right_i = util.unpack_vectors(couplings_i)
+                left = np.concatenate([left, left_i], axis=1)
+                right = np.concatenate([right, right_i], axis=1)
+        couplings = np.array([left, right]) if not self.hermitian else left
+        return energies, couplings
+
+    def kernel(self) -> None:
+        """Run the solver."""
+        # TODO: We can combine the eigenvalues but can we project out the double counting that way?
+        # Run the solvers
+        for solver in self.solvers:
+            solver.kernel()
+
+        # Combine the self-energies
+        static = self.get_static_self_energy()
+        energies, couplings = self.get_auxiliaries()
 
         # Solve the self-energy
         exact = Exact.from_self_energy(static, Lehmann(energies, couplings))
