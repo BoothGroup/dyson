@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
-from pyscf import gto, scf
+from typing import TYPE_CHECKING
 
-from dyson import numpy as np
+from pyscf import gto, scf
+import pytest
+
+from dyson import numpy as np, util
+from dyson.lehmann import Lehmann
 from dyson.expressions import HF, CCSD, FCI
+from dyson.solvers import Exact
+
+if TYPE_CHECKING:
+    from typing import Hashable, Any, Callable
+
+    from dyson.typing import Array
+    from dyson.expressions.expression import BaseExpression
+
+    ExactGetter = Callable[[scf.hf.RHF, type[BaseExpression]], Exact]
 
 
 MOL_CACHE = {
@@ -51,3 +64,73 @@ def pytest_generate_tests(metafunc):  # type: ignore
             expressions.append(method)
             ids.append(name)
         metafunc.parametrize("expression_method", expressions, ids=ids)
+
+
+class Helper():
+    """Helper class for tests."""
+
+    @staticmethod
+    def are_equal_arrays(moment1: Array, moment2: Array, tol: float = 1e-8) -> bool:
+        """Check if two arrays are equal to within a threshold."""
+        return np.allclose(moment1, moment2, atol=tol)
+
+    @staticmethod
+    def have_equal_moments(
+        lehmann1: Lehmann | Array, lehmann2: Lehmann | Array, num: int, tol: float = 1e-8
+    ) -> bool:
+        """Check if two :class:`Lehmann` objects have equal moments to within a threshold."""
+        moments1 = lehmann1.moments(range(num)) if isinstance(lehmann1, Lehmann) else lehmann1
+        moments2 = lehmann2.moments(range(num)) if isinstance(lehmann2, Lehmann) else lehmann2
+        return all(util.scaled_error(m1, m2) < tol for m1, m2 in zip(moments1, moments2))
+
+    @staticmethod
+    def recovers_greens_function(
+        static: Array,
+        self_energy: Lehmann,
+        greens_function: Lehmann,
+        tol: float = 1e-8,
+    ) -> bool:
+        """Check if a self-energy recovers the Green's function to within a threshold."""
+        greens_function_other = Lehmann(*self_energy.diagonalise_matrix_with_projection(static))
+        return Helper.have_equal_moments(greens_function, greens_function_other, 2, tol=tol)
+
+    @staticmethod
+    def has_orthonormal_couplings(greens_function: Lehmann, tol: float = 1e-8) -> bool:
+        """Check if the Green's function Dyson orbitals are orthonormal to within a threshold."""
+        return Helper.are_equal_arrays(
+            greens_function.moment(0), np.eye(greens_function.nphys), tol=tol
+        )
+
+
+@pytest.fixture(scope="session")
+def helper() -> Helper:
+    """Fixture for the :class:`Helper` class."""
+    return Helper()
+
+
+_EXACT_CACHE: dict[Hashable, Exact] = {}
+
+
+def get_exact(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Exact:
+    """Get the exact solver for a given mean-field object and expression."""
+    key = (mf.__class__, mf.mol.dumps(), expression_cls)
+    if key not in _EXACT_CACHE:
+        expression = expression_cls.from_mf(mf)
+        hamiltonian = expression.build_matrix()
+        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
+        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
+        exact = Exact(
+            hamiltonian,
+            bra=bra,
+            ket=ket if not expression.hermitian else None,
+            hermitian=expression.hermitian,
+        )
+        exact.kernel()
+        _EXACT_CACHE[key] = exact
+    return _EXACT_CACHE[key]
+
+
+@pytest.fixture(scope="session")
+def exact_cache() -> ExactGetter:
+    """Fixture for a getter function for cached :class:`Exact` classes."""
+    return get_exact

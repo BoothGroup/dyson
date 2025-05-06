@@ -135,17 +135,7 @@ class MBLSE(BaseMBL):
             The reconstructed moments.
         """
         self_energy = self.get_self_energy(iteration=iteration)
-        energies = self_energy.energies
-        left, right = self_energy.unpack_couplings()
-
-        # Construct the recovered moments
-        right_factored = right.copy()
-        moments: list[Array] = []
-        for order in range(2 * iteration + 2):
-            moments.append(right_factored @ left.T.conj())
-            right_factored = right_factored * energies[None]
-
-        return np.array(moments)
+        return self_energy.moments(range(2 * iteration))
 
     def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
         """Initialise the recurrence (zeroth iteration).
@@ -307,6 +297,7 @@ class MBLSE(BaseMBL):
         Returns:
             Auxiliary energies and couplings.
         """
+        # TODO: Same as MBLGF?
         if iteration is None:
             iteration = self.max_cycle
         if kwargs:

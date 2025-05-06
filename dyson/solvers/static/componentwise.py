@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import warnings
 
 from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
+from dyson.solvers.static.exact import Exact
 
 if TYPE_CHECKING:
     from typing import Any
@@ -26,13 +28,15 @@ class Componentwise(StaticSolver):
         space.
     """
 
-    def __init__(self, *solvers: StaticSolver):
+    def __init__(self, *solvers: StaticSolver, shared_static: bool = False):
         """Initialise the solver.
 
         Args:
             solvers: List of solvers for each component of the self-energy.
+            shared_static: Whether the solvers share the same static part of the self-energy.
         """
         self._solvers = list(solvers)
+        self._shared_static = shared_static
         self.hermitian = all(solver.hermitian for solver in solvers)
 
     @classmethod
@@ -58,56 +62,64 @@ class Componentwise(StaticSolver):
 
     def kernel(self) -> None:
         """Run the solver."""
+        # TODO: We can combine the eigenvalues but can we project out the double counting that way?
         # Run the solvers
         for solver in self.solvers:
             solver.kernel()
 
-        # Get the eigenvalues and eigenvectors
-        eigvals_list = []
-        left_list = []
-        right_list = []
+        # Combine the auxiliaries
+        energies: Array = np.zeros((0))
+        left: Array = np.zeros((self.nphys, 0))
+        right: Array = np.zeros((self.nphys, 0))
         for solver in self.solvers:
-            eigvals, eigvecs = solver.get_eigenfunctions()
-            eigvals_list.append(eigvals)
-            left, right = util.unpack_vectors(eigvecs)
-            left_list.append(left)
-            right_list.append(right)
+            energies_i, couplings_i = solver.get_auxiliaries()
+            energies = np.concatenate([energies, energies_i])
+            if self.hermitian:
+                left = np.concatenate([left, couplings_i], axis=1)
+            else:
+                left_i, right_i = util.unpack_vectors(couplings_i)
+                left = np.concatenate([left, left_i], axis=1)
+                right = np.concatenate([right, right_i], axis=1)
+        couplings = np.array([left, right]) if not self.hermitian else left
 
-        # Combine the eigenvalues and eigenvectors
-        eigvals = np.concatenate(eigvals_list)
-        left = util.concatenate_paired_vectors(left_list, self.nphys)
-        if not self.hermitian:
-            right = util.concatenate_paired_vectors(right_list, self.nphys)
+        # Combine the static part of the self-energy
+        static_parts = [solver.get_static_self_energy() for solver in self.solvers]
+        static_equal = all(
+            util.scaled_error(static, static_parts[0]) < 1e-10 for static in static_parts
+        )
+        if self.shared_static:
+            if not static_equal:
+                warnings.warn(
+                    "shared_static is True, but the static parts of the self-energy do not appear "
+                    "to be the same for each solver. This may lead to unexpected behaviour.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            static = static_parts[0]
+        else:
+            if static_equal:
+                warnings.warn(
+                    "shared_static is False, but the static parts of the self-energy appear to be "
+                    "the same for each solver. Please ensure this is not double counting.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            static = sum(static_parts)
 
-        # Biorthogonalise the eigenvectors
-        # FIXME: Can we make this work to properly recover non-Hermitian?
-        #if self.hermitian:
-        #    #left = np.concatenate(
-        #    #    [
-        #    #        util.orthonormalise(left[:self.nphys], transpose=True),
-        #    #        util.orthonormalise(left[self.nphys:], transpose=True),
-        #    #    ],
-        #    #    axis=0,
-        #    #)
-        #    left_p, left_a = left[:self.nphys], left[self.nphys:]
-        #    left_p = util.orthonormalise(left_p)
-        #    left = np.concatenate([left_p, left_a], axis=0)
-        #else:
-        #    #left_p, right_p = left[:self.nphys], right[:self.nphys]
-        #    left_a, right_a = left[self.nphys:], right[self.nphys:]
-        #    left_p, right_p = util.biorthonormalise(left[:self.nphys], right[:self.nphys])
-        #    #left_a, right_a = util.biorthonormalise(left[self.nphys:], right[self.nphys:])
-        #    left = np.concatenate([left_p, left_a], axis=0)
-        #    right = np.concatenate([right_p, right_a], axis=0)
-
-        # Store the eigenvalues and eigenvectors
-        self.eigvals = eigvals
-        self.eigvecs = left if self.hermitian else np.array([left, right])
+        # Solve the self-energy
+        exact = Exact.from_self_energy(static, Lehmann(energies, couplings))
+        exact.kernel()
+        self.eigvals, self.eigvecs = exact.get_eigenfunctions()
 
     @property
     def solvers(self) -> list[StaticSolver]:
         """Get the list of solvers."""
         return self._solvers
+
+    @property
+    def shared_static(self) -> bool:
+        """Get the shared static flag."""
+        return self._shared_static
 
     @property
     def nphys(self) -> int:

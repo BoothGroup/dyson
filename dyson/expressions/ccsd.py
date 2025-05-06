@@ -98,6 +98,7 @@ class BaseCCSD(BaseExpression):
             Expression object.
         """
         ccsd = cc.CCSD(mf)
+        ccsd.conv_tol_normt = 1e-8
         ccsd.kernel()
         ccsd.solve_lambda()
         return cls.from_ccsd(ccsd)
@@ -253,6 +254,43 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Bra vector.
 
+        Notes:
+            This is actually considered the ket vector in most contexts, with the :math:`\Lambda`
+            amplitudes acting on the bra state. The convention used here reflects the general
+            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
+            construction of moments.
+
+        See Also:
+            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
+        """
+        if orbital < self.nocc:
+            r1 = np.eye(self.nocc)[orbital]
+            r2 = np.zeros((self.nocc, self.nocc, self.nvir))
+
+        else:
+            r1 = self.t1[:, orbital - self.nocc]
+            r2 = self.t2[:, :, orbital - self.nocc]
+
+        return self.amplitudes_to_vector(r1, r2)
+
+    def get_state_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
+
+        The ket vector is the state vector corresponding to the ket state, which may or may not be
+        the same as the bra state vector.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            Ket vector.
+
+        Notes:
+            This is actually considered the bra vector in most contexts, with the :math:`\Lambda`
+            amplitudes acting on the ket state. The convention used here reflects the general
+            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
+            construction of moments.
+
         See Also:
             :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
@@ -274,31 +312,6 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             r1 = self.l1[:, orbital - self.nocc].copy()
             r2 = self.l2[:, :, orbital - self.nocc] * 2.0
             r2 -= self.l2[:, :, :, orbital - self.nocc]
-
-        return self.amplitudes_to_vector(r1, r2)
-
-    def get_state_ket(self, orbital: int) -> Array:
-        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
-
-        The ket vector is the state vector corresponding to the ket state, which may or may not be
-        the same as the bra state vector.
-
-        Args:
-            orbital: Orbital index.
-
-        Returns:
-            Ket vector.
-
-        See Also:
-            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
-        """
-        if orbital < self.nocc:
-            r1 = np.eye(self.nocc)[orbital]
-            r2 = np.zeros((self.nocc, self.nocc, self.nvir))
-
-        else:
-            r1 = self.t1[:, orbital - self.nocc]
-            r2 = self.t2[:, :, orbital - self.nocc]
 
         return self.amplitudes_to_vector(r1, r2)
 

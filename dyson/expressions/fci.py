@@ -87,7 +87,7 @@ class BaseFCI(BaseExpression):
         Returns:
             Expression object.
         """
-        h1e = mf.mo_coeff.T @ mf.get_hcore() @ mf.mo_coeff
+        h1e = mf.mo_coeff.T.conj() @ mf.get_hcore() @ mf.mo_coeff
         h2e = ao2mo.kernel(mf._eri, mf.mo_coeff)  # pylint: disable=protected-access
         ci = fci.direct_spin1.FCI(mf.mol)
         ci.verbose = 0

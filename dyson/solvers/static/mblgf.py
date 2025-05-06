@@ -144,17 +144,7 @@ class MBLGF(BaseMBL):
             The reconstructed moments.
         """
         greens_function = self.get_greens_function(iteration=iteration)
-        energies = greens_function.energies
-        left, right = greens_function.unpack_couplings()
-
-        # Construct the recovered moments
-        right_factored = right.copy()
-        moments: list[Array] = []
-        for order in range(2 * iteration + 2):
-            moments.append(right_factored @ left.T.conj())
-            right_factored = right_factored * energies[None]
-
-        return np.array(moments)
+        return greens_function.moments(range(2 * iteration + 2))
 
     def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
         """Initialise the recurrence (zeroth iteration).
@@ -228,7 +218,7 @@ class MBLGF(BaseMBL):
         on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
         for j in range(i + 2):
             for k in range(i + 2):
-                on_diagonal[i + 1] = (
+                on_diagonal[i + 1] += (
                     coefficients[i + 2, k + 1].T.conj()
                     @ self.orthogonalised_moment(j + k + 1)
                     @ coefficients[i + 2, j + 1]
@@ -252,14 +242,15 @@ class MBLGF(BaseMBL):
         off_diagonal_lower = self.off_diagonal_lower
 
         # Find the square of the off-diagonal blocks
-        off_diagonal_upper_squared = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
-        off_diagonal_lower_squared = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
+        dtype = np.result_type(self.moments.dtype, self.on_diagonal[0].dtype)
+        off_diagonal_upper_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
+        off_diagonal_lower_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 1):
                 off_diagonal_upper_squared += (
-                    coefficients[0][i + 1, k + 1]
+                    coefficients[1][i + 1, k + 1]
                     @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[1][i + 1, j]
+                    @ coefficients[0][i + 1, j]
                 )
                 off_diagonal_lower_squared += (
                     coefficients[1][i + 1, j]
@@ -310,22 +301,22 @@ class MBLGF(BaseMBL):
 
         for j in range(i + 2):
             # Horizontal recursion
-            residual = coefficients[0][i + 1, j].copy()
+            residual = coefficients[0][i + 1, j].astype(dtype, copy=True)
             residual -= coefficients[0][i + 1, j + 1] @ on_diagonal[i]
             residual -= coefficients[0][i, j + 1] @ off_diagonal_upper[i - 1]
             coefficients[0][i + 2, j + 1] = residual @ off_diagonal_lower_inv
 
             # Vertical recursion
-            residual = coefficients[1][i + 1, j].copy()
+            residual = coefficients[1][i + 1, j].astype(dtype, copy=True)
             residual -= on_diagonal[i] @ coefficients[1][i + 1, j + 1]
             residual -= off_diagonal_lower[i - 1] @ coefficients[1][i, j + 1]
-            coefficients[1][i + 2, j + 1] = residual @ off_diagonal_upper_inv
+            coefficients[1][i + 2, j + 1] = off_diagonal_upper_inv @ residual
 
         # Calculate the on-diagonal block
-        on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
+        on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 2):
-                on_diagonal[i + 1] = (
+                on_diagonal[i + 1] += (
                     coefficients[1][i + 2, k + 1]
                     @ self.orthogonalised_moment(j + k + 1)
                     @ coefficients[0][i + 2, j + 1]
@@ -371,16 +362,13 @@ class MBLGF(BaseMBL):
         subspace = hamiltonian[self.nphys :, self.nphys :]
         if self.hermitian:
             energies, rotated = util.eig(subspace, hermitian=self.hermitian)
+            couplings = self.off_diagonal_upper[0] @ rotated[: self.nphys]
         else:
             energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
-            rotated = np.array(rotated_tuple)
-
-        # Project back to the couplings  # TODO: check
-        if self.hermitian:
-            orth = self.off_diagonal_lower[0]
-        else:
-            orth = np.array([self.off_diagonal_lower[0], self.off_diagonal_upper[0]])
-        couplings = util.einsum("...pq,...pk->...qk", orth.conj(), rotated[..., : self.nphys, :])
+            couplings = np.array([
+                self.off_diagonal_lower[0].T.conj() @ rotated_tuple[0][: self.nphys],
+                self.off_diagonal_upper[0].T.conj() @ rotated_tuple[1][: self.nphys],
+            ])
 
         return energies, couplings
 
@@ -430,7 +418,7 @@ class MBLGF(BaseMBL):
     @property
     def static(self) -> Array:
         """Get the static part of the self-energy."""
-        return self.get_static_self_energy()  # FIXME
+        return self.moments[1]
 
     @property
     def coefficients(self) -> tuple[BaseRecursionCoefficients, BaseRecursionCoefficients]:

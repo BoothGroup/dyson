@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import functools
 from typing import TYPE_CHECKING, overload
+import warnings
 
 from dyson import numpy as np, util
 from dyson.solvers.solver import StaticSolver
@@ -88,9 +89,26 @@ class BaseMBL(StaticSolver):
         # pylint: disable=unused-variable
 
         # Run the solver
-        error_sqrt, error_inv_sqrt, error_moments = self.initialise_recurrence()
-        for iteration in range(1, self.max_cycle + 1):  # TODO: check
+        for iteration in range(self.max_cycle + 1):  # TODO: check
             error_sqrt, error_inv_sqrt, error_moments = self.recurrence_iteration(iteration)
+
+            error_decomp = max(error_sqrt, error_inv_sqrt) if self.calculate_errors else 0.0
+            if error_decomp > 1e-10 and self.hermitian:
+                warnings.warn(
+                    f"Space contributing non-zero weight to the moments ({error_decomp}) was "
+                    f"removed during iteration {iteration}. Allowing complex eigenvalues by "
+                    "setting hermitian=False may help resolve this.",
+                    UserWarning,
+                    2,
+                )
+            elif error_decomp > 1e-10:
+                warnings.warn(
+                    f"Space contributing non-zero weight to the moments ({error_decomp}) was "
+                    f"removed during iteration {iteration}. Since hermitian=False was set, this "
+                    "likely indicates singularities which may indicate convergence of the moments.",
+                    UserWarning,
+                    2,
+                )
 
         # Diagonalise the compressed self-energy
         self.eigvals, self.eigvecs = self.get_eigenfunctions(iteration=self.max_cycle)
