@@ -9,6 +9,7 @@ import scipy.linalg
 from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any
@@ -67,8 +68,12 @@ class Exact(StaticSolver):
             **kwargs,
         )
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Get the raw eigenvalues and eigenvectors
         if self.hermitian:
             eigvals, eigvecs = util.eig(self.matrix, hermitian=self.hermitian)
@@ -86,11 +91,14 @@ class Exact(StaticSolver):
                 np.concatenate([self.ket, vectors[0]], axis=0),
                 np.concatenate([self.bra, vectors[1]], axis=0),
             )
-            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
+            eigvecs = np.array(
+                util.biorthonormalise(rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1])
+            )
 
-        # Store the eigenvalues and eigenvectors
-        self.eigvals = eigvals
-        self.eigvecs = eigvecs
+        # Store the result
+        self.result = Spectral(eigvals, eigvecs, self.nphys)
+
+        return self.result
 
     @property
     def matrix(self) -> Array:

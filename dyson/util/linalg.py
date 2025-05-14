@@ -136,7 +136,7 @@ def null_space_basis(
 
     # Diagonalise the null space to find the basis
     weights, (left, right) = eig_lr(null, hermitian=hermitian)
-    mask = (1 - np.abs(weights)) < 1e-10
+    mask = (1 - np.abs(weights)) < threshold
     left = left[:, mask].T.conj()
     right = right[:, mask].T.conj()
 

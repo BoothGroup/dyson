@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable, Literal, TypeAlias
 
     from dyson.typing import Array
+    from dyson.spectral import Spectral
 
 
 class DensityRelaxation(StaticSolver):
@@ -102,8 +103,12 @@ class DensityRelaxation(StaticSolver):
         get_static = kwargs.pop("get_static")
         return cls(get_static, self_energy, nelec, **kwargs)
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         self_energy = self.self_energy
         nocc = self.nelec // self.occupancy
         rdm1 = np.diag(np.arange(self.nphys) < nocc).astype(self_energy.dtype) * self.occupancy
@@ -115,8 +120,7 @@ class DensityRelaxation(StaticSolver):
         for cycle_outer in range(1, self.max_cycle_outer + 1):
             # Solve the self-energy
             solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec)
-            solver_outer.kernel()
-            eigvals, eigvecs = solver_outer.get_eigenfunctions()
+            result = solver_outer.kernel()
 
             # Initialise DIIS for the inner loop
             diis = lib.diis.DIIS()
@@ -130,11 +134,10 @@ class DensityRelaxation(StaticSolver):
                 solver_inner = self.solver_inner.from_self_energy(
                     static, self_energy, nelec=self.nelec
                 )
-                solver_inner.kernel()
-                eigvals, eigvecs = solver_inner.get_eigenfunctions()
+                result = solver_inner.kernel()
 
                 # Get the density matrix
-                greens_function = solver_inner.get_greens_function()
+                greens_function = result.get_greens_function()
                 rdm1_prev = rdm1.copy()
                 rdm1 = greens_function.occupied().moment(0) * self.occupancy
 
@@ -155,9 +158,11 @@ class DensityRelaxation(StaticSolver):
                 converged = True
                 break
 
+        # Set the results
         self.converged = converged
-        self.eigvals = eigvals
-        self.eigvecs = eigvecs
+        self.result = result
+
+        return result
 
     @property
     def get_static(self) -> Callable[[Array], Array]:

@@ -122,6 +122,8 @@ def build_block_tridiagonal(
         The number of on-diagonal blocks should be one greater than the number of off-diagonal
         blocks.
     """
+    if len(on_diagonal) == 0:
+        return np.zeros((0, 0))
     zero = np.zeros_like(on_diagonal[0])
     if off_diagonal_lower is None:
         off_diagonal_lower = [matrix.T.conj() for matrix in off_diagonal_upper]

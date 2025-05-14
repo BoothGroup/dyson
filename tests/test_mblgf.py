@@ -9,7 +9,8 @@ import numpy as np
 
 from dyson import util
 from dyson.lehmann import Lehmann
-from dyson.solvers import MBLGF, Exact, Componentwise
+from dyson.spectral import Spectral
+from dyson.solvers import MBLGF, Exact
 from dyson.expressions.ccsd import BaseCCSD
 
 if TYPE_CHECKING:
@@ -40,9 +41,9 @@ def test_central_moments(
     solver.kernel()
 
     # Recover the Green's function and self-energy
-    static = solver.get_static_self_energy()
-    self_energy = solver.get_self_energy()
-    greens_function = solver.get_greens_function()
+    static = solver.result.get_static_self_energy()
+    self_energy = solver.result.get_self_energy()
+    greens_function = solver.result.get_greens_function()
 
     assert helper.have_equal_moments(greens_function, gf_moments, nmom_gf)
     assert helper.have_equal_moments(static, se_static, nmom_se)
@@ -57,6 +58,7 @@ def test_vs_exact_solver_central(
     exact_cache: ExactGetter,
     max_cycle: int,
 ) -> None:
+    """Test the MBLGF solver for central moments."""
     # Get the quantities required from the expressions
     expression_h = expression_method["1h"].from_mf(mf)
     expression_p = expression_method["1p"].from_mf(mf)
@@ -67,53 +69,41 @@ def test_vs_exact_solver_central(
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method["1h"])
     exact_p = exact_cache(mf, expression_method["1p"])
-    exact = Componentwise(exact_h, exact_p, shared_static=False)
-    exact.kernel()
+    result_exact_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
 
     # Get the self-energy and Green's function from the exact solver
-    greens_function_exact = exact.get_greens_function()
-    gf_h_moments_exact = greens_function_exact.occupied().moments(range(nmom_gf))
-    gf_p_moments_exact = greens_function_exact.virtual().moments(range(nmom_gf))
+    static_exact = result_exact_ph.get_static_self_energy()
+    self_energy_exact = result_exact_ph.get_self_energy()
+    greens_function_exact = result_exact_ph.get_greens_function()
+    gf_h_moments_exact = exact_h.result.get_greens_function().moments(range(nmom_gf))
+    gf_p_moments_exact = exact_p.result.get_greens_function().moments(range(nmom_gf))
 
     # Solve the Hamiltonian with MBLGF
     mblgf_h = MBLGF(gf_h_moments_exact, hermitian=expression_h.hermitian)
+    mblgf_h.kernel()
     mblgf_p = MBLGF(gf_p_moments_exact, hermitian=expression_p.hermitian)
-    mblgf = Componentwise(mblgf_h, mblgf_p, shared_static=False)
-    mblgf.kernel()
+    mblgf_p.kernel()
+    result_ph = Spectral.combine(mblgf_h.result, mblgf_p.result, shared_static=False)
+
+    assert helper.have_equal_moments(mblgf_h.result.get_self_energy(), exact_h.result.get_self_energy(), nmom_gf - 2)
+    assert helper.have_equal_moments(mblgf_p.result.get_self_energy(), exact_p.result.get_self_energy(), nmom_gf - 2)
 
     # Recover the hole Green's function from the MBLGF solver
-    greens_function = mblgf_h.get_greens_function()
+    greens_function = mblgf_h.result.get_greens_function()
 
-    #np.set_printoptions(precision=4, suppress=True, linewidth=110)
-    #print(greens_function.moments(0).real)
-    #print(gf_h_moments_exact[0].real)
     assert helper.have_equal_moments(greens_function, gf_h_moments_exact, nmom_gf)
 
     # Recover the particle Green's function from the MBLGF solver
-    greens_function = mblgf_p.get_greens_function()
+    greens_function = mblgf_p.result.get_greens_function()
 
     assert helper.have_equal_moments(greens_function, gf_p_moments_exact, nmom_gf)
 
     # Recover the self-energy and Green's function from the recovered MBLGF solver
-    static = mblgf.get_static_self_energy()
-    self_energy = mblgf.get_self_energy()
-    greens_function = mblgf.get_greens_function()
+    static = result_ph.get_static_self_energy()
+    self_energy = result_ph.get_self_energy()
+    greens_function = result_ph.get_greens_function()
 
-    assert helper.are_equal_arrays(static, exact.get_static_self_energy())
-    np.set_printoptions(precision=4, suppress=True, linewidth=110)
-    print(mblgf_h.get_self_energy().moments(0))
-    print(mblgf_p.get_self_energy().moments(0))
-    print(self_energy.moments(0))
-    print(exact.get_self_energy().occupied().moments(0))
-    print(exact.get_self_energy().virtual().moments(0))
-    print(exact.get_self_energy().moments(0))
-    print([util.scaled_error(a, b) for a, b in zip(self_energy.moments(range(nmom_gf-2)), exact.get_self_energy().moments(range(nmom_gf-2)))])
-    assert helper.have_equal_moments(self_energy, exact.get_self_energy(), nmom_gf - 2)
-    print(greens_function.moments(1))
-    print(gf_h_moments_exact[1] + gf_p_moments_exact[1])
-    print(greens_function.moments(2))
-    print(gf_h_moments_exact[2] + gf_p_moments_exact[2])
-    print([util.scaled_error(a, b) for a, b in zip(greens_function.moments(range(nmom_gf)), gf_h_moments_exact + gf_p_moments_exact)])
-    assert helper.have_equal_moments(greens_function, gf_h_moments_exact + gf_p_moments_exact, nmom_gf)
+    assert helper.are_equal_arrays(static, static_exact)
+    assert helper.have_equal_moments(self_energy, self_energy_exact, nmom_gf - 2)
     assert helper.have_equal_moments(greens_function, greens_function_exact, nmom_gf)
-    assert helper.recovers_greens_function(static, self_energy, greens_function)
+    assert helper.recovers_greens_function(static, self_energy, greens_function, 4)

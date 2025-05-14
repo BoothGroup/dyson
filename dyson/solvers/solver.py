@@ -13,6 +13,8 @@ from dyson.typing import Array
 if TYPE_CHECKING:
     from typing import Any, Callable, TypeAlias
 
+    from dyson.spectral import Spectral
+
 
 class BaseSolver(ABC):
     """Base class for Dyson equation solvers."""
@@ -41,126 +43,27 @@ class BaseSolver(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        pass
+
 
 class StaticSolver(BaseSolver):
     """Base class for static Dyson equation solvers."""
 
     hermitian: bool
 
-    eigvals: Array | None = None
-    eigvecs: Array | None = None
+    result: Spectral | None = None
 
     @abstractmethod
-    def kernel(self) -> None:
-        """Run the solver."""
-        pass
-
-    def get_static_self_energy(self, **kwargs: Any) -> Array:
-        """Get the static part of the self-energy.
+    def kernel(self) -> Spectral:
+        """Run the solver.
 
         Returns:
-            Static self-energy.
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
-        # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
-        # should implement this method.
-        nphys = self.nphys
-        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
-        left, right = util.unpack_vectors(eigvecs)
-
-        # Project back to the static part
-        static = util.einsum("pk,qk,k->pq", right[:nphys], left[:nphys].conj(), eigvals)
-
-        return static
-
-    def get_auxiliaries(self, **kwargs: Any) -> tuple[Array, Array]:
-        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
-
-        Returns:
-            Auxiliary energies and couplings.
-        """
-        # FIXME: Is this generally true? Even if so, some solvers can do this more cheaply and
-        # should implement this method.
-        nphys = self.nphys
-        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
-        left, right = util.unpack_vectors(eigvecs)
-
-        # Project back to the auxiliary subspace
-        subspace = util.einsum("pk,qk,k->pq", right[nphys:], left[nphys:].conj(), eigvals)
-
-        # Diagonalise the subspace to get the energies and basis for the couplings
-        energies, rotation = util.eig_lr(subspace, hermitian=self.hermitian)
-
-        # Project back to the couplings
-        couplings_right = util.einsum("pk,qk,k->pq", right[:nphys], left[nphys:].conj(), eigvals)
-        if self.hermitian:
-            couplings = couplings_right
-        else:
-            couplings_left = util.einsum("pk,qk,k->pq", right[nphys:], left[:nphys].conj(), eigvals)
-            couplings_left = couplings_left.T.conj()
-            couplings = np.array([couplings_left, couplings_right])
-
-        # Rotate the couplings to the auxiliary basis
-        if self.hermitian:
-            couplings = couplings @ rotation[0]
-        else:
-            couplings = np.array([couplings_left @ rotation[0], couplings_right @ rotation[1]])
-
-        return energies, couplings
-
-    def get_eigenfunctions(self, **kwargs: Any) -> tuple[Array, Array]:
-        """Get the eigenfunctions of the self-energy.
-
-        Returns:
-            Eigenvalues and eigenvectors.
-        """
-        if kwargs:
-            raise TypeError(
-                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
-            )
-        if self.eigvals is None or self.eigvecs is None:
-            raise ValueError("Must call kernel() to compute eigenvalues and eigenvectors.")
-        return self.eigvals, self.eigvecs
-
-    def get_dyson_orbitals(self, **kwargs: Any) -> tuple[Array, Array]:
-        """Get the Dyson orbitals contributing to the Green's function.
-
-        Returns:
-            Dyson orbital energies and couplings.
-        """
-        eigvals, eigvecs = self.get_eigenfunctions(**kwargs)
-        orbitals = eigvecs[..., : self.nphys, :]
-        return eigvals, orbitals
-
-    def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
-        """Get the Lehmann representation of the self-energy.
-
-        Args:
-            chempot: Chemical potential.
-
-        Returns:
-            Lehmann representation of the self-energy.
-        """
-        if chempot is None:
-            chempot = 0.0
-        return Lehmann(*self.get_auxiliaries(**kwargs), chempot=chempot)
-
-    def get_greens_function(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
-        """Get the Lehmann representation of the Green's function.
-
-        Args:
-            chempot: Chemical potential.
-
-        Returns:
-            Lehmann representation of the Green's function.
-        """
-        if chempot is None:
-            chempot = 0.0
-        return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
-
-    @property
-    @abstractmethod
-    def nphys(self) -> int:
-        """Get the number of physical degrees of freedom."""
         pass
 
 

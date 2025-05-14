@@ -51,8 +51,8 @@ class Lehmann:
 
     Note that the order of the couplings is `(left, right)`, whilst they act in the order
     `(right, left)` in the numerator. The naming convention is chosen to be consistent with the
-    eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a
-    matrix, and :math:`u` is an eigenvector acting on the left of a matrix.
+    eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a matrix,
+    and :math:`u` is an eigenvector acting on the left of a matrix.
     """
 
     def __init__(

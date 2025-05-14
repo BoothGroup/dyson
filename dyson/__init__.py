@@ -55,6 +55,7 @@ __version__ = "0.0.0"
 import numpy
 
 from dyson.lehmann import Lehmann
+from dyson.spectral import Spectral
 from dyson.solvers import (
     Exact,
     Davidson,

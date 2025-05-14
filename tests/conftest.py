@@ -82,18 +82,19 @@ class Helper():
         """Check if two :class:`Lehmann` objects have equal moments to within a threshold."""
         moments1 = lehmann1.moments(range(num)) if isinstance(lehmann1, Lehmann) else lehmann1
         moments2 = lehmann2.moments(range(num)) if isinstance(lehmann2, Lehmann) else lehmann2
-        return all(util.scaled_error(m1, m2) < tol for m1, m2 in zip(moments1, moments2))
+        return np.all(((m1 - m2) / np.maximum(m2, 1.0)) < tol for m1, m2 in zip(moments1, moments2))
 
     @staticmethod
     def recovers_greens_function(
         static: Array,
         self_energy: Lehmann,
         greens_function: Lehmann,
+        num: int = 2,
         tol: float = 1e-8,
     ) -> bool:
         """Check if a self-energy recovers the Green's function to within a threshold."""
         greens_function_other = Lehmann(*self_energy.diagonalise_matrix_with_projection(static))
-        return Helper.have_equal_moments(greens_function, greens_function_other, 2, tol=tol)
+        return Helper.have_equal_moments(greens_function, greens_function_other, num, tol=tol)
 
     @staticmethod
     def has_orthonormal_couplings(greens_function: Lehmann, tol: float = 1e-8) -> bool:

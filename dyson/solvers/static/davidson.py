@@ -10,6 +10,7 @@ from pyscf import lib
 from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -137,8 +138,12 @@ class Davidson(StaticSolver):
         dtype = np.float64 if self.hermitian else np.complex128
         return [util.unit_vector(self.diagonal.size, i, dtype=dtype) for i in args[: self.nroots]]
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Call the Davidson function
         if self.hermitian:
             converged, eigvals, eigvecs = lib.linalg_helper.davidson1(
@@ -193,9 +198,10 @@ class Davidson(StaticSolver):
             eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
 
         # Store the results
-        self.eigvals = eigvals
-        self.eigvecs = eigvecs
+        self.result = Spectral(eigvals, eigvecs, self.nphys)
         self.converged = converged
+
+        return self.result
 
     @property
     def matvec(self) -> Callable[[Array], Array]:

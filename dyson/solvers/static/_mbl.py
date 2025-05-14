@@ -11,9 +11,10 @@ from dyson import numpy as np, util
 from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
-    from typing import TypeAlias, Literal
+    from typing import TypeAlias, Literal, Any
 
     from dyson.typing import Array
+    from dyson.spectral import Spectral
 
 # TODO: reimplement caching
 
@@ -84,10 +85,24 @@ class BaseMBL(StaticSolver):
     force_orthogonality: bool
     calculate_errors: bool
 
-    def kernel(self) -> None:
-        """Run the solver."""
-        # pylint: disable=unused-variable
+    @abstractmethod
+    def solve(self, iteration: int | None = None) -> Spectral:
+        """Solve the eigenvalue problem at a given iteration.
 
+        Args:
+            iteration: The iteration to get the results for.
+
+        Returns:
+            The :cls:`Spectral` object.
+        """
+        pass
+
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Run the solver
         for iteration in range(self.max_cycle + 1):  # TODO: check
             error_sqrt, error_inv_sqrt, error_moments = self.recurrence_iteration(iteration)
@@ -111,7 +126,9 @@ class BaseMBL(StaticSolver):
                 )
 
         # Diagonalise the compressed self-energy
-        self.eigvals, self.eigvecs = self.get_eigenfunctions(iteration=self.max_cycle)
+        self.result = self.solve(iteration=self.max_cycle)
+
+        return self.result
 
     @functools.cached_property
     def orthogonalisation_metric(self) -> Array:
@@ -212,12 +229,6 @@ class BaseMBL(StaticSolver):
         if self.hermitian:
             return self._recurrence_iteration_hermitian(iteration)
         return self._recurrence_iteration_non_hermitian(iteration)
-
-    @property
-    @abstractmethod
-    def static(self) -> Array:
-        """Get the static part of the self-energy."""
-        pass
 
     @property
     def moments(self) -> Array:

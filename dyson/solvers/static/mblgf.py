@@ -11,6 +11,7 @@ import scipy.linalg
 from dyson import numpy as np, util
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static._mbl import BaseRecursionCoefficients, BaseMBL
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any, TypeAlias
@@ -143,7 +144,7 @@ class MBLGF(BaseMBL):
         Returns:
             The reconstructed moments.
         """
-        greens_function = self.get_greens_function(iteration=iteration)
+        greens_function = self.solve(iteration=iteration).get_greens_function()
         return greens_function.moments(range(2 * iteration + 2))
 
     def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
@@ -200,7 +201,6 @@ class MBLGF(BaseMBL):
         off_diagonal[i], error_sqrt = util.matrix_power(
             off_diagonal_squared, 0.5, hermitian=self.hermitian, return_error=self.calculate_errors
         )
-        self.off_diagonal_lower[i] = off_diagonal[i].T.conj()
 
         # Invert the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
@@ -251,7 +251,7 @@ class MBLGF(BaseMBL):
                     coefficients[1][i + 1, k + 1]
                     @ self.orthogonalised_moment(j + k + 1)
                     @ coefficients[0][i + 1, j]
-                )
+               )
                 off_diagonal_lower_squared += (
                     coefficients[1][i + 1, j]
                     @ self.orthogonalised_moment(j + k + 1)
@@ -329,104 +329,46 @@ class MBLGF(BaseMBL):
 
         return error_sqrt, error_inv_sqrt, error_moments
 
-    def get_static_self_energy(self, **kwargs: Any) -> Array:
-        """Get the static part of the self-energy.
-
-        Returns:
-            Static self-energy.
-        """
-        return self.static
-
-    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
-        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
+    def solve(self, iteration: int | None = None) -> Spectral:
+        """Solve the eigenvalue problem at a given iteration.
 
         Args:
-            iteration: The iteration to get the auxiliary energies and couplings for.
+            iteration: The iteration to get the results for.
 
         Returns:
-            Auxiliary energies and couplings.
+            The :cls:`Spectral` object.
         """
         if iteration is None:
             iteration = self.max_cycle
-        if kwargs:
-            raise TypeError(
-                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
-            )
 
-        # Get the block tridiagonal Hamiltonian
-        hamiltonian = util.build_block_tridiagonal(
-            [self.on_diagonal[i] for i in range(iteration + 1)],
-            [self.off_diagonal_upper[i] for i in range(iteration)],
-            [self.off_diagonal_lower[i] for i in range(iteration)],
-        )
+        # Check if we're just returning the result
+        if iteration == self.max_cycle and self.result is not None:
+            return self.result
 
-        # Return early if there are no auxiliaries
-        if hamiltonian.shape == (self.nphys, self.nphys):
-            energies = np.zeros((0,), dtype=hamiltonian.dtype)
-            couplings = np.zeros((self.nphys, 0), dtype=hamiltonian.dtype)
-            return energies, couplings
-
-        # Diagonalise the subspace to get the energies and basis for the couplings
-        subspace = hamiltonian[self.nphys :, self.nphys :]
+        # Diagonalise the block tridiagonal Hamiltonian
+        on_diag = [self.on_diagonal[i] for i in range(iteration + 1)]
+        off_diag_upper = [self.off_diagonal_upper[i] for i in range(iteration)]
+        off_diag_lower = [self.off_diagonal_lower[i] for i in range(iteration)] if not self.hermitian else None
+        hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
         if self.hermitian:
-            energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-            couplings = self.off_diagonal_upper[0].T.conj() @ rotated[: self.nphys]
+            eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
         else:
-            energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
-            couplings = np.array([
-                self.off_diagonal_lower[0].T.conj() @ rotated_tuple[0][: self.nphys],
-                self.off_diagonal_upper[0].T.conj() @ rotated_tuple[1][: self.nphys],
-            ])
+            eigvals, eigvecs_tuple = util.eig_lr(hamiltonian, hermitian=self.hermitian)
+            eigvecs = np.array(eigvecs_tuple)
 
-        return energies, couplings
-
-    def get_eigenfunctions(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Array]:
-        """Get the eigenfunction at a given iteration.
-
-        Args:
-            iteration: The iteration to get the eigenfunction for.
-
-        Returns:
-            The eigenfunction.
-        """
-        if iteration is None:
-            iteration = self.max_cycle
-        if kwargs:
-            raise TypeError(
-                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
-            )
-
-        # Get the eigenvalues and eigenvectors
-        if iteration == self.max_cycle and self.eigvals is not None and self.eigvecs is not None:
-            eigvals = self.eigvals
-            eigvecs = self.eigvecs
+        # Unorthogonalise the eigenvectors
+        metric_inv = self.orthogonalisation_metric_inv
+        if self.hermitian:
+            eigvecs[: self.nphys] = metric_inv @ eigvecs[: self.nphys]
         else:
-            # Diagonalise the block tridiagonal Hamiltonian
-            hamiltonian = util.build_block_tridiagonal(
-                [self.on_diagonal[i] for i in range(iteration + 1)],
-                [self.off_diagonal_upper[i] for i in range(iteration)],
-                [self.off_diagonal_lower[i] for i in range(iteration)],
-            )
-            if self.hermitian:
-                eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
-            else:
-                eigvals, eigvecs_tuple = util.eig_lr(hamiltonian, hermitian=self.hermitian)
-                eigvecs = np.array(eigvecs_tuple)
-
-            # Unorthogonalise the eigenvectors
-            metric_inv = self.orthogonalisation_metric_inv
-            eigvecs[..., : self.nphys, :] = util.einsum(
-                "pq,...qk->...pk", metric_inv, eigvecs[..., : self.nphys, :]
+            eigvecs[:, : self.nphys] = np.array(
+                [
+                    metric_inv.T.conj() @ eigvecs[0, : self.nphys],
+                    metric_inv @ eigvecs[1, : self.nphys],
+                ],
             )
 
-        return eigvals, eigvecs
-
-    @property
-    def static(self) -> Array:
-        """Get the static part of the self-energy."""
-        return self.moments[1]
+        return Spectral(eigvals, eigvecs, self.nphys)
 
     @property
     def coefficients(self) -> tuple[BaseRecursionCoefficients, BaseRecursionCoefficients]:

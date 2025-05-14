@@ -1,4 +1,4 @@
-"""Tests for :module:`~dyson.solvers.static.davidson`."""
+"""Tests for :module:`~dyson.results.static.davidson`."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ import numpy as np
 
 from dyson import util
 from dyson.lehmann import Lehmann
-from dyson.solvers import Davidson, Exact, Componentwise
+from dyson.spectral import Spectral
+from dyson.solvers import Davidson, Exact
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -50,14 +51,14 @@ def test_vs_exact_solver(helper: Helper, mf: scf.hf.RHF, expression_cls: type[Ba
     assert davidson.nphys == expression.nphys
 
     # Get the self-energy and Green's function from the Davidson solver
-    static = davidson.get_static_self_energy()
-    self_energy = davidson.get_self_energy()
-    greens_function = davidson.get_greens_function()
+    static = davidson.result.get_static_self_energy()
+    self_energy = davidson.result.get_self_energy()
+    greens_function = davidson.result.get_greens_function()
 
     # Get the self-energy and Green's function from the exact solver
-    static_exact = exact.get_static_self_energy()
-    self_energy_exact = exact.get_self_energy()
-    greens_function_exact = exact.get_greens_function()
+    static_exact = exact.result.get_static_self_energy()
+    self_energy_exact = exact.result.get_self_energy()
+    greens_function_exact = exact.result.get_greens_function()
 
     if expression.hermitian:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
@@ -116,21 +117,21 @@ def test_vs_exact_solver_central(
     davidson_p.kernel()
 
     # Get the self-energy and Green's function from the Davidson solver
-    static = davidson_h.get_static_self_energy() + davidson_p.get_static_self_energy()
+    static = davidson_h.result.get_static_self_energy() + davidson_p.result.get_static_self_energy()
     self_energy = Lehmann.concatenate(
-        davidson_h.get_self_energy(), davidson_p.get_self_energy()
+        davidson_h.result.get_self_energy(), davidson_p.result.get_self_energy()
     )
     greens_function = (
-        Lehmann.concatenate(davidson_h.get_greens_function(), davidson_p.get_greens_function())
+        Lehmann.concatenate(davidson_h.result.get_greens_function(), davidson_p.result.get_greens_function())
     )
 
     # Get the self-energy and Green's function from the exact solvers
-    static_exact = exact_h.get_static_self_energy() + exact_p.get_static_self_energy()
+    static_exact = exact_h.result.get_static_self_energy() + exact_p.result.get_static_self_energy()
     self_energy_exact = Lehmann.concatenate(
-        exact_h.get_self_energy(), exact_p.get_self_energy()
+        exact_h.result.get_self_energy(), exact_p.result.get_self_energy()
     )
     greens_function_exact = (
-        Lehmann.concatenate(exact_h.get_greens_function(), exact_p.get_greens_function())
+        Lehmann.concatenate(exact_h.result.get_greens_function(), exact_p.result.get_greens_function())
     )
 
     if expression_h.hermitian and expression_p.hermitian:
@@ -139,20 +140,18 @@ def test_vs_exact_solver_central(
         assert helper.have_equal_moments(self_energy, self_energy_exact, 2)
 
     # Use the component-wise solvers
-    exact = Componentwise(exact_h, exact_p)
-    exact.kernel()
-    davidson = Componentwise(davidson_h, davidson_p)
-    davidson.kernel()
+    result_exact = Spectral.combine(exact_h.result, exact_p.result)
+    result_davidson = Spectral.combine(davidson_h.result, davidson_p.result)
 
     # Get the self-energy and Green's function from the Davidson solver
-    static = davidson.get_static_self_energy()
-    self_energy = davidson.get_self_energy()
-    greens_function = davidson.get_greens_function()
+    static = result_davidson.get_static_self_energy()
+    self_energy = result_davidson.get_self_energy()
+    greens_function = result_davidson.get_greens_function()
 
     # Get the self-energy and Green's function from the exact solver
-    static_exact = exact.get_static_self_energy()
-    self_energy_exact = exact.get_self_energy()
-    greens_function_exact = exact.get_greens_function()
+    static_exact = result_exact.get_static_self_energy()
+    self_energy_exact = result_exact.get_self_energy()
+    greens_function_exact = result_exact.get_greens_function()
 
     if expression_h.hermitian and expression_p.hermitian:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO

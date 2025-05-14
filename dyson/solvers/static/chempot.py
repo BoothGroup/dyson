@@ -127,36 +127,6 @@ class ChemicalPotentialSolver(StaticSolver):
     chempot: float | None = None
     converged: bool | None = None
 
-    def get_self_energy(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
-        """Get the Lehmann representation of the self-energy.
-
-        Args:
-            chempot: Chemical potential.
-
-        Returns:
-            Lehmann representation of the self-energy.
-        """
-        if chempot is None:
-            chempot = self.chempot
-        if chempot is None:
-            chempot = 0.0
-        return Lehmann(*self.get_auxiliaries(**kwargs), chempot=chempot)
-
-    def get_green_function(self, chempot: float | None = None, **kwargs: Any) -> Lehmann:
-        """Get the Lehmann representation of the Green's function.
-
-        Args:
-            chempot: Chemical potential.
-
-        Returns:
-            Lehmann representation of the Green's function.
-        """
-        if chempot is None:
-            chempot = self.chempot
-        if chempot is None:
-            chempot = 0.0
-        return Lehmann(*self.get_dyson_orbitals(**kwargs), chempot=chempot)
-
     @property
     def static(self) -> Array:
         """Get the static part of the self-energy."""
@@ -242,9 +212,8 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         """Run the solver."""
         # Solve the self-energy
         solver = self.solver.from_self_energy(self.static, self.self_energy)
-        solver.kernel()
-        eigvals, eigvecs = solver.get_eigenfunctions()
-        greens_function = solver.get_greens_function()
+        result = solver.kernel()
+        greens_function = result.get_green_function()
 
         # Get the chemical potential and error
         if self.method == "direct":
@@ -253,8 +222,10 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             chempot, error = search_aufbau_bisect(greens_function, self.nelec, self.occupancy)
         else:
             raise ValueError(f"Unknown method: {self.method}")
-        self.eigvals = eigvals
-        self.eigvecs = eigvecs
+        result.chempot = chempot
+
+        # Set the results
+        self.result = result
         self.chempot = chempot
         self.error = error
         self.converged = True
@@ -410,9 +381,10 @@ class AuxiliaryShift(ChemicalPotentialSolver):
 
         # Solve the self-energy
         solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec)
-        solver.kernel()
+        result = solver.kernel()
 
-        self.eigvals, self.eigvecs = solver.get_eigenfunctions()
+        # Set the results
+        self.result = result
         self.chempot = solver.chempot
         self.error = solver.error
         self.converged = opt.success

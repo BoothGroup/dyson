@@ -8,6 +8,7 @@ from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.grids.frequency import RealFrequencyGrid
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -94,8 +95,12 @@ class Downfolded(StaticSolver):
             **kwargs,
         )
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Initialise the guess
         root = self.guess
         root_prev = 0.0
@@ -120,8 +125,12 @@ class Downfolded(StaticSolver):
         else:
             eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian)
             eigvecs = np.array(eigvecs_tuple)
-        self.eigvals, self.eigvecs = eigvals, eigvecs
+
+        # Store the results
+        self.result = Spectral(eigvals, eigvecs, self.nphys)
         self.converged = converged
+
+        return self.result
 
     @property
     def static(self) -> Array:

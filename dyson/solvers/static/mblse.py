@@ -9,12 +9,13 @@ from typing import TYPE_CHECKING
 from dyson import numpy as np, util
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static._mbl import BaseRecursionCoefficients, BaseMBL
+from dyson.spectral import Spectral
+from dyson.lehmann import Lehmann
 
 if TYPE_CHECKING:
     from typing import Any, TypeAlias, TypeVar
 
     from dyson.typing import Array
-    from dyson.lehmann import Lehmann
 
     T = TypeVar("T", bound="BaseMBL")
 
@@ -134,7 +135,7 @@ class MBLSE(BaseMBL):
         Returns:
             The reconstructed moments.
         """
-        self_energy = self.get_self_energy(iteration=iteration)
+        self_energy = self.solve(iteration=iteration).get_self_energy()
         return self_energy.moments(range(2 * iteration))
 
     def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
@@ -288,79 +289,43 @@ class MBLSE(BaseMBL):
 
         return error_sqrt, error_inv_sqrt, error_moments
 
-    def get_auxiliaries(self, iteration: int | None = None, **kwargs: Any) -> tuple[Array, Array]:
-        """Get the auxiliary energies and couplings contributing to the dynamic self-energy.
+    def solve(self, iteration: int | None = None) -> Spectral:
+        """Solve the eigenvalue problem at a given iteration.
 
         Args:
-            iteration: The iteration to get the auxiliary energies and couplings for.
+            iteration: The iteration to get the results for.
 
         Returns:
-            Auxiliary energies and couplings.
+            The :cls:`Spectral` object.
         """
-        # TODO: Same as MBLGF?
+        # TODO inherit
         if iteration is None:
             iteration = self.max_cycle
-        if kwargs:
-            raise TypeError(
-                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
-            )
 
-        # Get the block tridiagonal Hamiltonian
-        on_diagonal = [self.on_diagonal[i] for i in range(iteration + 2)]
-        off_diagonal = [self.off_diagonal[i] for i in range(iteration + 1)]
-        hamiltonian = util.build_block_tridiagonal(
-            on_diagonal,
-            off_diagonal,
-            off_diagonal if not self.hermitian else None,
-        )
+        # Check if we're just returning the result
+        if iteration == self.max_cycle and self.result is not None:
+            return self.result
 
-        # Return early if there are no auxiliaries
-        if hamiltonian.shape == (self.nphys, self.nphys):
-            energies = np.zeros((0,), dtype=hamiltonian.dtype)
-            couplings = np.zeros((self.nphys, 0), dtype=hamiltonian.dtype)
-            return energies, couplings
+        # Get the supermatrix
+        on_diag = [self.on_diagonal[i] for i in range(iteration + 2)]
+        off_diag_upper = [self.off_diagonal[i] for i in range(iteration + 1)]
+        off_diag_lower = [self.off_diagonal[i] for i in range(iteration + 1)] if not self.hermitian else None
+        hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
 
-        # Diagonalise the subspace to get the energies and basis for the couplings
+        # Diagonalise the subspace 
         subspace = hamiltonian[self.nphys :, self.nphys :]
+        energies, rotated = util.eig_lr(subspace, hermitian=self.hermitian)
         if self.hermitian:
-            energies, rotated = util.eig(subspace, hermitian=self.hermitian)
-            couplings = self.off_diagonal[0] @ rotated[: self.nphys]
+            couplings = self.off_diagonal[0] @ rotated[0][: self.nphys]
         else:
-            energies, rotated_tuple = util.eig_lr(subspace, hermitian=self.hermitian)
-            couplings = np.array([
-                self.off_diagonal[0].T.conj() @ rotated_tuple[0][: self.nphys],
-                self.off_diagonal[0] @ rotated_tuple[1][: self.nphys],
-            ])
-
-        return energies, couplings
-
-    def get_eigenfunctions(
-        self, iteration: int | None = None, **kwargs: Any
-    ) -> tuple[Array, Array]:
-        """Get the eigenfunction at a given iteration.
-
-        Args:
-            iteration: The iteration to get the eigenfunction for.
-
-        Returns:
-            The eigenfunction.
-        """
-        if iteration is None:
-            iteration = self.max_cycle
-        if kwargs:
-            raise TypeError(
-                f"get_auxiliaries() got unexpected keyword argument {next(iter(kwargs))}"
+            couplings = np.array(
+                [
+                    self.off_diagonal[0].T.conj() @ rotated[0][: self.nphys],
+                    self.off_diagonal[0] @ rotated[1][: self.nphys],
+                ]
             )
 
-        # Get the eigenvalues and eigenvectors
-        if iteration == self.max_cycle and self.eigvals is not None and self.eigvecs is not None:
-            eigvals = self.eigvals
-            eigvecs = self.eigvecs
-        else:
-            self_energy = self.get_self_energy(iteration=iteration)
-            eigvals, eigvecs = self_energy.diagonalise_matrix(self.static)
-
-        return eigvals, eigvecs
+        return Spectral.from_self_energy(self.static, Lehmann(energies, couplings))
 
     @property
     def static(self) -> Array:

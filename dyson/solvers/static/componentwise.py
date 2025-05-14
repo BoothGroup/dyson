@@ -67,7 +67,7 @@ class Componentwise(StaticSolver):
             static self-energy.
         """
         # Combine the static part of the self-energy
-        static_parts = [solver.get_static_self_energy() for solver in self.solvers]
+        static_parts = [solver.get_static_self_energy(**kwargs) for solver in self.solvers]
         static_equal = all(
             util.scaled_error(static, static_parts[0]) < 1e-10 for static in static_parts
         )
@@ -102,7 +102,7 @@ class Componentwise(StaticSolver):
         left: Array = np.zeros((self.nphys, 0))
         right: Array = np.zeros((self.nphys, 0))
         for solver in self.solvers:
-            energies_i, couplings_i = solver.get_auxiliaries()
+            energies_i, couplings_i = solver.get_auxiliaries(**kwargs)
             energies = np.concatenate([energies, energies_i])
             if self.hermitian:
                 left = np.concatenate([left, couplings_i], axis=1)
@@ -112,6 +112,44 @@ class Componentwise(StaticSolver):
                 right = np.concatenate([right, right_i], axis=1)
         couplings = np.array([left, right]) if not self.hermitian else left
         return energies, couplings
+
+    #def get_eigenfunctions(self, **kwargs: Any) -> tuple[Array, Array]:
+    #    """Get the eigenfunctions of the self-energy.
+
+    #    Returns:
+    #        Eigenvalues and eigenvectors.
+    #    """
+    #    # Get the eigenfunctions
+    #    eigvals: Array = np.zeros((0))
+    #    left: list[Array] = []
+    #    right: list[Array] = []
+    #    for solver in self.solvers:
+    #        eigvals_i, eigvecs_i = solver.get_eigenfunctions(**kwargs)
+    #        eigvals = np.concatenate([eigvals, eigvals_i])
+    #        if self.hermitian:
+    #            left.append(eigvecs_i)
+    #        else:
+    #            left_i, right_i = util.unpack_vectors(eigvecs_i)
+    #            left.append(left_i)
+    #            right.append(right_i)
+
+    #    # Combine the eigenfunctions
+    #    if self.hermitian:
+    #        eigvecs = util.concatenate_paired_vectors(left, self.nphys)
+    #    else:
+    #        eigvecs = np.array(
+    #            [
+    #                util.concatenate_paired_vectors(left, self.nphys),
+    #                util.concatenate_paired_vectors(right, self.nphys),
+    #            ]
+    #        )
+
+    #    # Sort the eigenvalues and eigenvectors
+    #    idx = np.argsort(eigvals)
+    #    eigvals = eigvals[idx]
+    #    eigvecs = eigvecs[..., idx]
+
+    #    return eigvals, eigvecs
 
     def kernel(self) -> None:
         """Run the solver."""
