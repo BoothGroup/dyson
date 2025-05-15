@@ -66,6 +66,8 @@ class BaseFCI(BaseExpression):
         Returns:
             Expression object.
         """
+        if ci.mol is None:
+            raise ValueError("FCI object must be initialised with a molecule.")
         nelec = (ci.mol.nelec[0] + cls.DELTA_ALPHA, ci.mol.nelec[1] + cls.DELTA_BETA)
         hamiltonian = ci.absorb_h1e(h1e, h2e, ci.mol.nao, nelec, 0.5)
         diagonal = ci.make_hdiag(h1e, h2e, ci.mol.nao, nelec)
@@ -111,7 +113,7 @@ class BaseFCI(BaseExpression):
             nelec,
             self.link_index,
         )
-        result -= self.chempot * vector
+        result -= (self.e_fci + self.chempot) * vector
         return self.SIGN * result
 
     def diagonal(self) -> Array:
@@ -120,7 +122,7 @@ class BaseFCI(BaseExpression):
         Returns:
             Diagonal of the Hamiltonian.
         """
-        return self.SIGN * self._diagonal - self.chempot
+        return self.SIGN * self._diagonal - (self.e_fci - self.chempot)
 
     def get_state(self, orbital: int) -> Array:
         r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.

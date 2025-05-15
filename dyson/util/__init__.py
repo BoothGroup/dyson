@@ -14,6 +14,7 @@ from dyson.util.linalg import (
     null_space_basis,
     concatenate_paired_vectors,
     unpack_vectors,
+    block_diag,
 )
 from dyson.util.moments import (
     se_moments_to_gf_moments,

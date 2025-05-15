@@ -7,6 +7,10 @@ import pytest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pyscf
+
+from dyson import util
+from dyson.expressions import HF, CCSD, FCI
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -58,3 +62,55 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpressio
 
     assert np.allclose(ref[0], moments[0])
     assert np.allclose(ref[1], moments[1])
+
+
+def test_hf(mf: scf.hf.RHF) -> None:
+    """Test the HF expression."""
+    hf_h = HF["1h"].from_mf(mf)
+    hf_p = HF["1p"].from_mf(mf)
+    gf_h_moments = hf_h.build_gf_moments(2)
+    gf_p_moments = hf_p.build_gf_moments(2)
+
+    # Get the energy from the hole moments
+    h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
+    energy = util.gf_moments_galitskii_migdal(gf_h_moments, h1e, factor=1.0)
+
+    assert np.allclose(energy, mf.energy_elec()[0])
+
+    # Get the Fock matrix Fock matrix from the moments
+    fock_ref = np.einsum("pq,pi,qj->ij", mf.get_fock(), mf.mo_coeff, mf.mo_coeff)
+    fock = gf_h_moments[1] + gf_p_moments[1]
+
+    assert np.allclose(fock, fock_ref)
+
+
+def test_ccsd(mf: scf.hf.RHF) -> None:
+    """Test the CCSD expression."""
+    ccsd = CCSD["1h"].from_mf(mf)
+    gf_moments = ccsd.build_gf_moments(2)
+
+    # Get the energy from the hole moments
+    h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
+    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy_ref = pyscf.cc.CCSD(mf).run().e_tot - mf.mol.energy_nuc()
+
+    if mf.mol.nelectron == 2:
+        assert np.allclose(energy, energy_ref)
+    else:
+        with pytest.raises(AssertionError):
+            # Galitskii--Migdal should not capture the energy for CCSD with >2 electrons
+            assert np.allclose(energy, energy_ref)
+
+
+def test_fci(mf: scf.hf.RHF) -> None:
+    """Test the FCI expression."""
+    fci = FCI["1h"].from_mf(mf)
+    gf_moments = fci.build_gf_moments(2)
+    np.set_printoptions(precision=6, suppress=True, linewidth=120)
+
+    # Get the energy from the hole moments
+    h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
+    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy_ref = pyscf.fci.FCI(mf).kernel()[0] - mf.mol.energy_nuc()
+
+    assert np.allclose(energy, energy_ref)

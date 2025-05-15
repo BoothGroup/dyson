@@ -318,3 +318,15 @@ def unpack_vectors(vector: Array) -> tuple[Array, Array]:
     raise ValueError(
         f"Vector has invalid shape {vector.shape} for unpacking. Must be 2D or 3D array."
     )
+
+
+def block_diag(*arrays: Array) -> Array:
+    """Return a block diagonal matrix from a list of arrays.
+
+    Args:
+        arrays: The arrays to be combined into a block diagonal matrix.
+
+    Returns:
+        The block diagonal matrix.
+    """
+    return scipy.linalg.block_diag(*arrays)
