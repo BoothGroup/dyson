@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
     from dyson.typing import Array
+    from dyson.expression.expression import Expression
 
 
 def search_aufbau_direct(
@@ -208,6 +209,21 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         nelec = kwargs.pop("nelec")
         return cls(static, self_energy, nelec, **kwargs)
 
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> AufbauPrinciple:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError(
+            "Cannot instantiate AufbauPrinciple from expression, use from_self_energy instead."
+        )
+
     def kernel(self) -> None:
         """Run the solver."""
         # Solve the self-energy
@@ -295,6 +311,21 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             raise ValueError("Missing required argument nelec.")
         nelec = kwargs.pop("nelec")
         return cls(static, self_energy, nelec, **kwargs)
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> AuxiliaryShift:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError(
+            "Cannot instantiate AuxiliaryShift from expression, use from_self_energy instead."
+        )
 
     def objective(self, shift: float) -> float:
         """Objective function for the chemical potential search.

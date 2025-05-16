@@ -65,6 +65,5 @@ from dyson.solvers import (
     AufbauPrinciple,
     AuxiliaryShift,
     DensityRelaxation,
-    Componentwise,
 )
 from dyson.expressions import HF, CCSD, FCI

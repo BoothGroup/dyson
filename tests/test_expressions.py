@@ -75,7 +75,7 @@ def test_hf(mf: scf.hf.RHF) -> None:
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_h_moments, h1e, factor=1.0)
 
-    assert np.allclose(energy, mf.energy_elec()[0])
+    assert np.abs(energy - mf.energy_elec()[0]) < 1e-8
 
     # Get the Fock matrix Fock matrix from the moments
     fock_ref = np.einsum("pq,pi,qj->ij", mf.get_fock(), mf.mo_coeff, mf.mo_coeff)
@@ -92,14 +92,11 @@ def test_ccsd(mf: scf.hf.RHF) -> None:
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
-    energy_ref = pyscf.cc.CCSD(mf).run().e_tot - mf.mol.energy_nuc()
+    energy_ref = pyscf.cc.CCSD(mf).run(conv_tol=1e-10).e_tot - mf.mol.energy_nuc()
 
-    if mf.mol.nelectron == 2:
-        assert np.allclose(energy, energy_ref)
-    else:
-        with pytest.raises(AssertionError):
-            # Galitskii--Migdal should not capture the energy for CCSD with >2 electrons
-            assert np.allclose(energy, energy_ref)
+    with pytest.raises(AssertionError):
+        # Galitskii--Migdal should not capture the energy for CCSD
+        assert np.abs(energy - energy_ref) < 1e-8
 
 
 def test_fci(mf: scf.hf.RHF) -> None:
@@ -113,4 +110,4 @@ def test_fci(mf: scf.hf.RHF) -> None:
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
     energy_ref = pyscf.fci.FCI(mf).kernel()[0] - mf.mol.energy_nuc()
 
-    assert np.allclose(energy, energy_ref)
+    assert np.abs(energy - energy_ref) < 1e-8

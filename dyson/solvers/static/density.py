@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
     from dyson.spectral import Spectral
+    from dyson.expression.expression import Expression
 
 
 class DensityRelaxation(StaticSolver):
@@ -102,6 +103,21 @@ class DensityRelaxation(StaticSolver):
         nelec = kwargs.pop("nelec")
         get_static = kwargs.pop("get_static")
         return cls(get_static, self_energy, nelec, **kwargs)
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> DensityRelaxation:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError(
+            "Cannot instantiate DensityRelaxation from expression, use from_self_energy instead."
+        )
 
     def kernel(self) -> Spectral:
         """Run the solver.

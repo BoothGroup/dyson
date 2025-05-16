@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable
 
     from dyson.typing import Array
+    from dyson.expression.expression import Expression
 
 
 def _pick_real_eigenvalues(
@@ -125,6 +126,30 @@ class Davidson(StaticSolver):
             self_energy.diagonal(static),
             bra,
             hermitian=self_energy.hermitian,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> Davidson:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        diagonal = expression.diagonal()
+        matvec = expression.apply_hamiltonian
+        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
+        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)]) if not expression.hermitian else None
+        return cls(
+            matvec,
+            diagonal,
+            bra,
+            ket,
+            hermitian=expression.hermitian,
             **kwargs,
         )
 

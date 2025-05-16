@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable
 
     from dyson.typing import Array
+    from dyson.expression.expression import Expression
 
 # TODO: Use Newton solver as C* Σ(ω) C - ω = 0
 # TODO: Diagonal version
@@ -93,6 +94,21 @@ class Downfolded(StaticSolver):
             _function,
             hermitian=self_energy.hermitian,
             **kwargs,
+        )
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> Downfolded:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError(
+            "Cannot instantiate Downfolded from expression, use from_self_energy instead."
         )
 
     def kernel(self) -> Spectral:

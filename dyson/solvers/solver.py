@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable, TypeAlias
 
     from dyson.spectral import Spectral
+    from dyson.expression.expression import Expression
 
 
 class BaseSolver(ABC):
@@ -39,7 +40,25 @@ class BaseSolver(ABC):
 
         Notes:
             This method will extract the appropriate quantities or functions from the self-energy
-            to instantiate the solver. In some cases, additional keyword arguments are required.
+            to instantiate the solver. In some cases, additional keyword arguments may required.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> BaseSolver:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+
+        Notes:
+            This method will extract the appropriate quantities or functions from the expression
+            to instantiate the solver. In some cases, additional keyword arguments may required.
         """
         pass
 

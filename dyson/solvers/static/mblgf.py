@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
     from dyson.lehmann import Lehmann
+    from dyson.expression.expression import Expression
 
 
 class RecursionCoefficients(BaseRecursionCoefficients):
@@ -134,6 +135,20 @@ class MBLGF(BaseMBL):
         greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
         moments = greens_function.moments(range(2 * max_cycle + 2))
         return cls(moments, hermitian=greens_function.hermitian, **kwargs)
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> MBLGF:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        moments = expression.build_gf_moments(2 * kwargs.get("max_cycle", 0) + 2)
+        return cls(moments, hermitian=expression.hermitian, **kwargs)
 
     def reconstruct_moments(self, iteration: int) -> Array:
         """Reconstruct the moments.

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from typing import Any, TypeAlias, TypeVar
 
     from dyson.typing import Array
+    from dyson.expression.expression import Expression
 
     T = TypeVar("T", bound="BaseMBL")
 
@@ -125,6 +126,21 @@ class MBLSE(BaseMBL):
         max_cycle = kwargs.get("max_cycle", 0)
         moments = self_energy.moments(range(2 * max_cycle + 2))
         return cls(static, moments, hermitian=self_energy.hermitian, **kwargs)
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> MBLSE:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError(
+            "Cannot instantiate MBLSE from expression, use from_self_energy instead."
+        )
 
     def reconstruct_moments(self, iteration: int) -> Array:
         """Reconstruct the moments.

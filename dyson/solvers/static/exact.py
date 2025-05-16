@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from dyson.typing import Array
+    from dyson.expression.expression import Expression
 
 
 class Exact(StaticSolver):
@@ -67,6 +68,22 @@ class Exact(StaticSolver):
             hermitian=self_energy.hermitian,
             **kwargs,
         )
+
+    @classmethod
+    def from_expression(cls, expression: Expression, **kwargs: Any) -> Exact:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        matrix = expression.build_matrix()
+        bra = np.array([util.unit_vector(matrix.shape[0], i) for i in range(expression.nphys)])
+        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)]) if not expression.hermitian else None
+        return cls(matrix, bra, ket, hermitian=expression.hermitian, **kwargs)
 
     def kernel(self) -> Spectral:
         """Run the solver.

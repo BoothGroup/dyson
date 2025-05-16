@@ -7,4 +7,3 @@ from dyson.solvers.static.mblse import MBLSE
 from dyson.solvers.static.mblgf import MBLGF
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
 from dyson.solvers.static.density import DensityRelaxation
-from dyson.solvers.static.componentwise import Componentwise

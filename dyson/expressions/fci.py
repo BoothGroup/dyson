@@ -122,7 +122,7 @@ class BaseFCI(BaseExpression):
         Returns:
             Diagonal of the Hamiltonian.
         """
-        return self.SIGN * self._diagonal - (self.e_fci - self.chempot)
+        return self.SIGN * (self._diagonal - (self.e_fci + self.chempot))
 
     def get_state(self, orbital: int) -> Array:
         r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
