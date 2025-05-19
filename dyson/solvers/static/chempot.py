@@ -226,7 +226,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
 
     occupancy: float = 2.0
     solver: type[Exact] = Exact
-    method: Literal["direct", "bisect", "global"] = "direct"
+    method: Literal["direct", "bisect", "global"] = "global"
     _options: set[str] = {"occupancy", "solver", "method"}
 
     def __init__(
@@ -321,6 +321,8 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         self.chempot = chempot
         self.error = error
         self.converged = True
+
+        return result
 
 
 class AuxiliaryShift(ChemicalPotentialSolver):
@@ -433,8 +435,8 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
             solver.kernel()
         assert solver.error is not None
-        eigvals, eigvecs = solver.get_eigenfunctions()
-        left, right = util.unpack_vectors(eigvecs)
+        eigvals = solver.result.eigvals
+        left, right = util.unpack_vectors(solver.result.eigvecs)
         nphys = self.nphys
         nocc = np.count_nonzero(eigvals < solver.chempot)
 
@@ -462,7 +464,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             The :class:`OptimizeResult` object from the minimizer.
         """
         return scipy.optimize.minimize(
-            self.objective,
+            self.gradient,
             x0=self.guess,
             method="TNC",
             jac=True,
@@ -483,6 +485,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         """
         # Minimize the objective function
         opt = self._minimize()
+        print(opt)
 
         # Get the shifted self-energy
         self_energy = Lehmann(
@@ -502,3 +505,5 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         self.error = solver.error
         self.converged = opt.success
         self.shift = opt.x
+
+        return result
