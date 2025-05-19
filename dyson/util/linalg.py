@@ -131,7 +131,7 @@ def null_space_basis(
         ket = bra
 
     # Find the null space
-    proj = bra.T.conj() @ ket
+    proj = bra.T @ ket.conj()
     null = np.eye(bra.shape[1]) - proj
 
     # Diagonalise the null space to find the basis

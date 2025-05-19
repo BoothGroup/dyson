@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
+    from .conftest import ExactGetter
 
 
 def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
@@ -62,6 +63,36 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpressio
 
     assert np.allclose(ref[0], moments[0])
     assert np.allclose(ref[1], moments[1])
+
+
+def test_static(
+    mf: scf.hf.RHF,
+    expression_cls: dict[str, type[BaseExpression]],
+    exact_cache: ExactGetter,
+) -> None:
+    """Test the static self-energy of the expression."""
+    # Get the quantities required from the expression
+    expression = expression_cls.from_mf(mf)
+    if expression.nconfig > 1024:
+        pytest.skip("Skipping test for large Hamiltonian")
+    gf_moments = expression.build_gf_moments(2)
+
+    # Get the static self-energy
+    exact = exact_cache(mf, expression)
+    static = exact.result.get_static_self_energy()
+
+    bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
+    ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
+    np.set_printoptions(precision=10, suppress=True, linewidth=120)
+    print(gf_moments[0].real)
+    print((exact.result.get_dyson_orbitals()[1][1] @ exact.result.get_dyson_orbitals()[1][0].T.conj()).real)
+    print((gf_moments[0] - exact.result.get_dyson_orbitals()[1][1] @ exact.result.get_dyson_orbitals()[1][0].T.conj()).real)
+    print()
+    print(gf_moments[1].real)
+    print(static.real)
+    print((gf_moments[1] - static).real)
+
+    assert np.allclose(static, gf_moments[1])
 
 
 def test_hf(mf: scf.hf.RHF) -> None:

@@ -81,10 +81,7 @@ class MBLSE(BaseMBL):
         self,
         static: Array,
         moments: Array,
-        max_cycle: int | None = None,
-        hermitian: bool = True,
-        force_orthogonality: bool = True,
-        calculate_errors: bool = True,
+        **kwargs: Any,
     ) -> None:
         """Initialise the solver.
 
@@ -98,10 +95,12 @@ class MBLSE(BaseMBL):
         """
         self._static = static
         self._moments = moments
-        self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
-        self.hermitian = hermitian
-        self.force_orthogonality = force_orthogonality
-        self.calculate_errors = calculate_errors
+        self.max_cycle = kwargs["max_cycle"] if "max_cycle" in kwargs else _infer_max_cycle(moments)
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
+
         self._coefficients = self.Coefficients(
             self.nphys,
             hermitian=self.hermitian,

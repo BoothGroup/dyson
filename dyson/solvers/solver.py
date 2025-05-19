@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 class BaseSolver(ABC):
     """Base class for Dyson equation solvers."""
 
+    _options: set[str] = set()
+
     @abstractmethod
     def kernel(self) -> Any:
         """Run the solver."""
@@ -72,7 +74,7 @@ class BaseSolver(ABC):
 class StaticSolver(BaseSolver):
     """Base class for static Dyson equation solvers."""
 
-    hermitian: bool
+    _options: set[str] = {}
 
     result: Spectral | None = None
 

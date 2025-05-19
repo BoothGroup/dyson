@@ -27,12 +27,15 @@ class Exact(StaticSolver):
         ket: The ket state vector mapping the supermatrix to the physical space.
     """
 
+    hermitian: bool = True
+    _options: set[str] = {"hermitian"}
+
     def __init__(
         self,
         matrix: Array,
         bra: Array,
         ket: Array | None = None,
-        hermitian: bool = True,
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -46,7 +49,10 @@ class Exact(StaticSolver):
         self._matrix = matrix
         self._bra = bra
         self._ket = ket
-        self.hermitian = hermitian
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Exact:
@@ -81,7 +87,7 @@ class Exact(StaticSolver):
             Solver instance.
         """
         matrix = expression.build_matrix()
-        bra = np.array([util.unit_vector(matrix.shape[0], i) for i in range(expression.nphys)])
+        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
         ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)]) if not expression.hermitian else None
         return cls(matrix, bra, ket, hermitian=expression.hermitian, **kwargs)
 
@@ -105,11 +111,12 @@ class Exact(StaticSolver):
             eigvecs = rotation @ eigvecs
         else:
             rotation = (
-                np.concatenate([self.ket, vectors[0]], axis=0),
-                np.concatenate([self.bra, vectors[1]], axis=0),
+                # FIXME: Shouldn't this be ket,bra? this way moments end up as ket@bra
+                np.concatenate([self.bra, vectors[0]], axis=0),
+                np.concatenate([self.ket, vectors[1]], axis=0),
             )
             eigvecs = np.array(
-                util.biorthonormalise(rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1])
+                [rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]]
             )
 
         # Store the result

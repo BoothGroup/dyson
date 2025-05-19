@@ -191,6 +191,8 @@ class Spectral:
             Lehmann representation of the self-energy.
         """
         if chempot is None:
+            chempot = self.chempot
+        if chempot is None:
             chempot = 0.0
         return Lehmann(*self.get_auxiliaries(), chempot=chempot)
 
@@ -203,6 +205,8 @@ class Spectral:
         Returns:
             Lehmann representation of the Green's function.
         """
+        if chempot is None:
+            chempot = self.chempot
         if chempot is None:
             chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)

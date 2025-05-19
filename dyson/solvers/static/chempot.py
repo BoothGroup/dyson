@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import warnings
 
 import scipy.optimize
 
@@ -16,6 +17,67 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
     from dyson.expression.expression import Expression
+    from dyson.spectral import Spectral
+
+
+def _warn_or_raise_if_negative_weight(weight: float, hermitian: bool, tol: float = 1e-6) -> None:
+    """Warn or raise an error for negative weights.
+
+    Args:
+        weight: Weight to check.
+        hermitian: Whether the Green's function is hermitian.
+        tol: Tolerance for the weight to be considered negative.
+
+    Raises:
+        ValueError: If the weight is negative and the Green's function is hermitian.
+        UserWarning: If the weight is negative and the Green's function is not hermitian.
+    """
+    if weight < -tol:
+        if hermitian:
+            raise ValueError(
+                f"Negative number of electrons in state: {weight:.6f}. This should be "
+                "impossible for a hermitian Green's function."
+            )
+        else:
+            warnings.warn(
+                f"Negative number of electrons in state: {weight:.6f}. This is possible for "
+                "a non-hermitian Green's function, but may be problematic for finding the "
+                "chemical potential. Consider using the global method.",
+                UserWarning,
+            )
+    return
+
+
+def search_aufbau_global(
+    greens_function: Lehmann, nelec: int, occupancy: float = 2.0
+) -> tuple[float, float]:
+    """Search for a chemical potential in a Green's function using a global minimisation.
+
+    Args:
+        greens_function: Green's function.
+        nelec: Target number of electrons.
+        occupancy: Occupancy of each state, typically 2 for a restricted reference and 1
+            otherwise.
+
+    Returns:
+        The chemical potential and the error in the number of electrons.
+    """
+    energies = greens_function.energies
+    weights = greens_function.weights(occupancy=occupancy)
+    cumweights = np.cumsum(weights)
+
+    # Find the global minimum
+    i = np.argmin(np.abs(cumweights - nelec))
+    error = cumweights[i] - nelec
+    homo = i
+    lumo = i + 1
+
+    # Find the chemical potential
+    if homo < 0 or lumo >= energies.size:
+        raise ValueError("Failed to identify HOMO and LUMO")
+    chempot = 0.5 * (energies[homo] + energies[lumo]).real
+
+    return chempot, error
 
 
 def search_aufbau_direct(
@@ -38,9 +100,10 @@ def search_aufbau_direct(
     # Find the two states bounding the chemical potential
     sum_i = sum_j = 0.0
     for i in range(greens_function.naux):
-        number = (left[:, i] @ right[:, i].conj()).real * occupancy
-        sum_i, sum_j = sum_j, sum_i + number
-        if i and sum_i < nelec <= sum_j:
+        number = (right[:, i] @ left[:, i].conj()).real * occupancy
+        _warn_or_raise_if_negative_weight(number, greens_function.hermitian)
+        sum_i, sum_j = sum_j, sum_j + number
+        if sum_i < nelec <= sum_j:
             break
 
     # Find the best HOMO
@@ -55,7 +118,7 @@ def search_aufbau_direct(
     lumo = homo + 1
     if homo < 0 or lumo >= energies.size:
         raise ValueError("Failed to identify HOMO and LUMO")
-    chempot = 0.5 * (energies[homo] + energies[lumo])
+    chempot = 0.5 * (energies[homo] + energies[lumo]).real
 
     return chempot, error
 
@@ -84,9 +147,12 @@ def search_aufbau_bisect(
     for cycle in range(1, max_cycle + 1):
         number = cumweights[mid]
         if number < nelec:
-            low, mid = mid, mid + (high - low) // 2
-        elif number > nelec:
-            high, mid = mid, mid - (high - low) // 2
+            low = mid
+            mid = mid + (high - low) // 2
+        else:
+            high = mid
+            mid = mid - (high - low) // 2
+        print(low, mid, high, number, nelec)
         if low == mid or mid == high:
             break
     else:
@@ -96,17 +162,17 @@ def search_aufbau_bisect(
 
     # Find the best HOMO
     if abs(sum_i - nelec) < abs(sum_j - nelec):
-        homo = low - 1
+        homo = low
         error = nelec - sum_i
     else:
-        homo = high - 1
+        homo = high
         error = nelec - sum_j
 
     # Find the chemical potential
     lumo = homo + 1
     if homo < 0 or lumo >= energies.size:
         raise ValueError("Failed to identify HOMO and LUMO")
-    chempot = 0.5 * (energies[homo] + energies[lumo])
+    chempot = 0.5 * (energies[homo] + energies[lumo]).real
 
     return chempot, error
 
@@ -158,14 +224,17 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         nelec: Target number of electrons.
     """
 
+    occupancy: float = 2.0
+    solver: type[Exact] = Exact
+    method: Literal["direct", "bisect", "global"] = "direct"
+    _options: set[str] = {"occupancy", "solver", "method"}
+
     def __init__(
         self,
         static: Array,
         self_energy: Lehmann,
         nelec: int,
-        occupancy: float = 2.0,
-        solver: type[Exact] = Exact,
-        method: Literal["direct", "bisect"] = "direct",
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -181,9 +250,10 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         self._static = static
         self._self_energy = self_energy
         self._nelec = nelec
-        self.occupancy = occupancy
-        self.solver = solver
-        self.method = method
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(
@@ -224,18 +294,24 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             "Cannot instantiate AufbauPrinciple from expression, use from_self_energy instead."
         )
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Solve the self-energy
         solver = self.solver.from_self_energy(self.static, self.self_energy)
         result = solver.kernel()
-        greens_function = result.get_green_function()
+        greens_function = result.get_greens_function()
 
         # Get the chemical potential and error
         if self.method == "direct":
             chempot, error = search_aufbau_direct(greens_function, self.nelec, self.occupancy)
         elif self.method == "bisect":
             chempot, error = search_aufbau_bisect(greens_function, self.nelec, self.occupancy)
+        elif self.method == "global":
+            chempot, error = search_aufbau_global(greens_function, self.nelec, self.occupancy)
         else:
             raise ValueError(f"Unknown method: {self.method}")
         result.chempot = chempot
@@ -256,6 +332,13 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         nelec: Target number of electrons.
     """
 
+    occupancy: float = 2.0
+    solver: type[AufbauPrinciple] = AufbauPrinciple
+    max_cycle: int = 200
+    conv_tol: float = 1e-8
+    guess: float = 0.0
+    _options: set[str] = {"occupancy", "solver", "max_cycle", "conv_tol", "guess"}
+
     shift: float | None = None
 
     def __init__(
@@ -263,11 +346,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         static: Array,
         self_energy: Lehmann,
         nelec: int,
-        occupancy: float = 2.0,
-        solver: type[AufbauPrinciple] = AufbauPrinciple,
-        max_cycle: int = 200,
-        conv_tol: float = 1e-8,
-        guess: float = 0.0,
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -285,11 +364,10 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         self._static = static
         self._self_energy = self_energy
         self._nelec = nelec
-        self.occupancy = occupancy
-        self.solver = solver
-        self.max_cycle = max_cycle
-        self.conv_tol = conv_tol
-        self.guess = guess
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> AuxiliaryShift:
@@ -397,8 +475,12 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             callback=self._callback,
         )
 
-    def kernel(self) -> None:
-        """Run the solver."""
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
+        """
         # Minimize the objective function
         opt = self._minimize()
 

@@ -30,6 +30,19 @@ class DensityRelaxation(StaticSolver):
         nelec: Target number of electrons.
     """
 
+    occupancy: float = 2.0
+    solver_outer: type[AuxiliaryShift] = AuxiliaryShift
+    solver_inner: type[AufbauPrinciple] = AufbauPrinciple
+    diis_min_space: int = 2
+    diis_max_space: int = 8
+    max_cycle_outer: int = 20
+    max_cycle_inner: int = 50
+    conv_tol: float = 1e-8
+    _options: set[str] = {
+        "occupancy", "solver_outer", "solver_inner", "diis_min_space", "diis_max_space",
+        "max_cycle_outer", "max_cycle_inner", "conv_tol"
+    }
+
     converged: bool | None = None
 
     def __init__(
@@ -37,14 +50,7 @@ class DensityRelaxation(StaticSolver):
         get_static: Callable[[Array], Array],
         self_energy: Lehmann,
         nelec: int,
-        occupancy: float = 2.0,
-        solver_outer: type[AuxiliaryShift] = AuxiliaryShift,
-        solver_inner: type[AufbauPrinciple] = AufbauPrinciple,
-        diis_min_space: int = 2,
-        diis_max_space: int = 8,
-        max_cycle_outer: int = 20,
-        max_cycle_inner: int = 50,
-        conv_tol: float = 1e-8,
+        **kwargs: Any,
     ):
         """Initialise the solver
 
@@ -68,14 +74,10 @@ class DensityRelaxation(StaticSolver):
         self._get_static = get_static
         self._self_energy = self_energy
         self._nelec = nelec
-        self.occupancy = occupancy
-        self.solver_outer = solver_outer
-        self.solver_inner = solver_inner
-        self.diis_min_space = diis_min_space
-        self.diis_max_space = diis_max_space
-        self.max_cycle_outer = max_cycle_outer
-        self.max_cycle_inner = max_cycle_inner
-        self.conv_tol = conv_tol
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(

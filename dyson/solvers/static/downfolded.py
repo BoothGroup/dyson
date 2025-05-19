@@ -36,16 +36,19 @@ class Downfolded(StaticSolver):
             argument.
     """
 
+    guess: float = 0.0
+    max_cycle: int = 100
+    conv_tol: float = 1e-8
+    hermitian: bool = True
+    _options: set[str] = {"guess", "max_cycle", "conv_tol", "hermitian"}
+
     converged: bool | None = None
 
     def __init__(
         self,
         static: Array,
         function: Callable[[float], Array],
-        guess: float = 0.0,
-        max_cycle: int = 100,
-        conv_tol: float = 1e-8,
-        hermitian: bool = True,
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -60,10 +63,10 @@ class Downfolded(StaticSolver):
         """
         self._static = static
         self._function = function
-        self.guess = guess
-        self.max_cycle = max_cycle
-        self.conv_tol = conv_tol
-        self.hermitian = hermitian
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Downfolded:
@@ -82,12 +85,9 @@ class Downfolded(StaticSolver):
 
         def _function(freq: float) -> Array:
             """Evaluate the self-energy at the frequency."""
-            grid = RealFrequencyGrid(freq)
+            grid = RealFrequencyGrid(1, buffer=np.array([freq]))
             grid.eta = eta
-            return grid.evaluate_lehmann(
-                self_energy,
-                ordering="time-ordered",
-            )
+            return grid.evaluate_lehmann(self_energy, ordering="time-ordered")[0]
 
         return cls(
             static,

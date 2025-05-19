@@ -82,8 +82,10 @@ class BaseMBL(StaticSolver):
     _moments: Array
 
     max_cycle: int
-    force_orthogonality: bool
-    calculate_errors: bool
+    hermitian: bool = True
+    force_orthogonality: bool = True
+    calculate_errors: bool = True
+    _options: set[str] = {"max_cycle", "hermitian", "force_orthogonality", "calculate_errors"}
 
     @abstractmethod
     def solve(self, iteration: int | None = None) -> Spectral:

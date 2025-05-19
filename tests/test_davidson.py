@@ -16,24 +16,26 @@ if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper
+    from .conftest import Helper, ExactGetter
 
 
-def test_vs_exact_solver(helper: Helper, mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
+def test_vs_exact_solver(
+    helper: Helper,
+    mf: scf.hf.RHF,
+    expression_cls: type[BaseExpression],
+    exact_cache: ExactGetter,
+) -> None:
     """Test Davidson compared to the exact solver."""
     expression = expression_cls.from_mf(mf)
     if expression.nconfig > 512:  # TODO: Make larger for CI runs?
         pytest.skip("Skipping test for large Hamiltonian")
     if expression.nsingle == (expression.nocc + expression.nvir):
         pytest.skip("Skipping test for central Hamiltonian")
-    diagonal = expression.diagonal()
-    hamiltonian = expression.build_matrix()
     bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
     ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
 
     # Solve the Hamiltonian exactly
-    exact = Exact(hamiltonian, bra, ket, hermitian=expression.hermitian)
-    exact.kernel()
+    exact = exact_cache(mf, expression_cls)
 
     # Solve the Hamiltonian with Davidson
     davidson = Davidson(
@@ -67,7 +69,10 @@ def test_vs_exact_solver(helper: Helper, mf: scf.hf.RHF, expression_cls: type[Ba
 
 
 def test_vs_exact_solver_central(
-    helper: Helper, mf: scf.hf.RHF, expression_method: dict[str, type[BaseExpression]]
+    helper: Helper,
+    mf: scf.hf.RHF,
+    expression_method: dict[str, type[BaseExpression]],
+    exact_cache: ExactGetter,
 ) -> None:
     """Test the exact solver for central moments."""
     # Get the quantities required from the expressions
@@ -76,7 +81,6 @@ def test_vs_exact_solver_central(
     if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
     diagonal = [expression_h.diagonal(), expression_p.diagonal()]
-    hamiltonian = [expression_h.build_matrix(), expression_p.build_matrix()]
     bra = [
         np.array([expression_h.get_state_bra(i) for i in range(expression_h.nphys)]),
         np.array([expression_p.get_state_bra(i) for i in range(expression_p.nphys)]),
@@ -87,10 +91,8 @@ def test_vs_exact_solver_central(
     ]
 
     # Solve the Hamiltonian exactly
-    exact_h = Exact(hamiltonian[0], bra[0], ket[0], hermitian=expression_h.hermitian)
-    exact_h.kernel()
-    exact_p = Exact(hamiltonian[1], bra[1], ket[1], hermitian=expression_p.hermitian)
-    exact_p.kernel()
+    exact_h = exact_cache(mf, expression_method["1h"])
+    exact_p = exact_cache(mf, expression_method["1p"])
 
     # Solve the Hamiltonian with Davidson
     davidson_h = Davidson(

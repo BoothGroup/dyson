@@ -66,6 +66,16 @@ class Davidson(StaticSolver):
         ket: The ket state vector mapping the supermatrix to the physical space.
     """
 
+    hermitian: bool = True
+    nroots: int = 1
+    max_cycle: int = 100
+    max_space: int = 16
+    conv_tol: float = 1e-8
+    conv_tol_residual: float = 1e-5
+    _options: set[str] = {
+        "hermitian", "nroots", "max_cycle", "max_space", "conv_tol", "conv_tol_residual"
+    }
+
     converged: Array | None = None
 
     def __init__(
@@ -74,12 +84,7 @@ class Davidson(StaticSolver):
         diagonal: Array,
         bra: Array,
         ket: Array | None = None,
-        hermitian: bool = True,
-        nroots: int = 1,
-        max_cycle: int = 100,
-        max_space: int = 16,
-        conv_tol: float = 1e-8,
-        conv_tol_residual: float = 1e-5,
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -100,12 +105,10 @@ class Davidson(StaticSolver):
         self._diagonal = diagonal
         self._bra = bra
         self._ket = ket if ket is not None else bra
-        self.hermitian = hermitian
-        self.nroots = nroots
-        self.max_cycle = max_cycle
-        self.max_space = max_space
-        self.conv_tol = conv_tol
-        self.conv_tol_residual = conv_tol_residual
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
 
     @classmethod
     def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Davidson:
@@ -217,8 +220,9 @@ class Davidson(StaticSolver):
             eigvecs = rotation @ eigvecs
         else:
             rotation = (
-                np.concatenate([self.ket, vectors[0]], axis=0),
-                np.concatenate([self.bra, vectors[1]], axis=0),
+                # FIXME: Shouldn't this be ket,bra? this way moments end up as ket@bra
+                np.concatenate([self.bra, vectors[0]], axis=0),
+                np.concatenate([self.ket, vectors[1]], axis=0),
             )
             eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
 
