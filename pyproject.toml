@@ -1,6 +1,6 @@
 [project]
 name = "dyson"
-version = "0.1.0"
+version = "1.0.0"
 description = "Dyson equation solvers for electron propagator methods"
 keywords = [
     "quantum", "chemistry",
@@ -11,7 +11,7 @@ keywords = [
     "greens", "function",
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
 	"Development Status :: 2 - Pre-Alpha",
 	"Intended Audience :: Science/Research",
@@ -36,105 +36,53 @@ dynamic = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=22.6.0",
-    "isort>=5.10.1",
+    "ruff>=0.10.0",
+    "mypy>=1.5.0",
     "coverage[toml]>=5.5.0",
     "pytest>=6.2.4",
     "pytest-cov>=4.0.0",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 100
-target-version = [
-    "py312",
-]
-include = '\.pyi?$'
-exclude = """
-/(
-    | __pycache__
-    | .git
-)/
-"""
+target-version = "py312"
+include = ["pyproject.toml", "dyson/**/*.py", "tests/**/*.py"]
 
-[tool.isort]
-atomic = true
-profile = "black"
-line_length = 100
-known_first_part = [
-	"dyson",
-]
-skip_glob = [
-    "*/__pycache__/*",
-    "*/__init__.py",
-]
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "spaces"
+line-ending = "lf"
 
-[tool.unimport]
-include_star_import = true
-ignore_init = true
-include = '\.pyi?$'
-exclude = """
-/(
-    | __init__.py
-)/
-"""
-
-[tool.flake8]
-max-line-length = 100
-max-doc-length = 100
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "D",  # pydocstyle
+    "PL",  # pylint
+]
 ignore = [
-    "E203",  # Whitespace before ':'
-    "E731",  # Do not assign a lambda expression, use a def
-    "E741",  # Ambiguous variable name
-    "W503",  # Line break before binary operator
-    "D400",  # First line should end with a period
-    "B007",  # Loop control variable not used within the loop body
-    "B019",  # Use of `functools.lru_cache` or `functools.cache` ...
-    "B027",  # Empty method in an abstract base class wit no abstract decorator
-]
-per-file-ignores = [
-    "__init__.py:E402,W605,F401,F811,D103,D205,D212,D415",
-    "tests/*:D101,D103,D104",
-]
-docstring-convention = "google"
-count = true
-include = '\.pyi?$'
-exclude = """
-/(
-    | __pycache__
-    | .git
-)/
-"""
-
-[tool.pylint.format]
-good-names = [
-    "mf", "ci",
-    "t1", "t2", "l1", "l2", "r1", "r2",
-    "i", "j", "n",
+    "E722",  # bare-except
+    "E731",  # lambda-assignment
+    "E741",  # ambiguous-variable-name
+    "PLR0911",  # too-many-return-statements
+    "PLR0912",  # too-many-branches
+    "PLR0913",  # too-many-arguments
+    "PLR0915",  # too-many-statements
+    "PLR5501",  # collapsible-else-if
 ]
 
-[tool.pylint.messages_control]
-max-line-length = 100
-disable = [
-    "duplicate-code",  # Similar lines in N files
-    "too-many-locals",  # Too many local variables
-    "too-many-public-methods",  # Too many public methods
-    "too-many-arguments",  # Too many arguments
-    "too-many-branches",  # Too many branches
-    "too-many-statements",  # Too many statements
-    "too-many-instance-attributes",  # Too many instance attributes
-    "unnecessary-pass",  # Unnecessary pass statement
-    "no-else-return",  # No else return
-    "non-ascii-name",  # Non-ASCII characters in identifier
-    "unnecessary-ellipsis",  # Unnecessary ellipsis constant
-    "fixme",  # FIXME comments
+[tool.ruff.lint.per-file-ignores]
+"dyson/**/__init__.py" = [
+    "I001",  # unsorted-imports
+    "F401",  # unused-import
 ]
-exclude = """
-/(
-    | __pycache__
-    | .git
-    | tests
-)/
-"""
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["dyson"]
 
 [tool.mypy]
 python_version = "3.12"
