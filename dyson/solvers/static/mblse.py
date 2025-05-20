@@ -13,7 +13,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any, TypeVar
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
 
     T = TypeVar("T", bound="BaseMBL")
@@ -125,7 +125,7 @@ class MBLSE(BaseMBL):
         return cls(static, moments, hermitian=self_energy.hermitian, **kwargs)
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> MBLSE:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> MBLSE:
         """Create a solver from an expression.
 
         Args:

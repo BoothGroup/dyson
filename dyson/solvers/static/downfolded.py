@@ -14,7 +14,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any, Callable
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
 
 # TODO: Use Newton solver as C* Σ(ω) C - ω = 0
@@ -98,7 +98,7 @@ class Downfolded(StaticSolver):
         )
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> Downfolded:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> Downfolded:
         """Create a solver from an expression.
 
         Args:

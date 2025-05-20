@@ -13,7 +13,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
 
 
@@ -75,7 +75,7 @@ class Exact(StaticSolver):
         )
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> Exact:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> Exact:
         """Create a solver from an expression.
 
         Args:

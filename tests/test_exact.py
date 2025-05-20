@@ -33,6 +33,7 @@ def test_exact_solver(
     solver = exact_cache(mf, expression_cls)
     solver.kernel()
 
+    assert solver.result is not None
     assert solver.nphys == expression.nphys
     assert solver.hermitian == expression.hermitian
 
@@ -47,6 +48,7 @@ def test_exact_solver(
     # Recover the Green's function from the recovered self-energy
     solver = Exact.from_self_energy(static, self_energy)
     solver.kernel()
+    assert solver.result is not None
     static_other = solver.result.get_static_self_energy()
     self_energy_other = solver.result.get_self_energy()
 
@@ -70,6 +72,8 @@ def test_vs_exact_solver_central(
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method["1h"])
     exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
 
     # Recover the hole self-energy and Green's function

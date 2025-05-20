@@ -173,7 +173,7 @@ class BaseCCSD(BaseExpression):
     # The following properties are for interoperability with PySCF:
 
     @property
-    def nmo(self):
+    def nmo(self) -> int:
         """Get the number of molecular orbitals."""
         return self.nphys
 
@@ -263,6 +263,9 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         See Also:
             :func:`get_state`: Function to get the state vector when the bra and ket are the same.
         """
+        r1: Array
+        r2: Array
+
         if orbital < self.nocc:
             r1 = np.eye(self.nocc)[orbital]
             r2 = np.zeros((self.nocc, self.nocc, self.nvir))
@@ -438,6 +441,9 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         Returns:
             Ket vector.
         """
+        r1: Array
+        r2: Array
+
         if orbital < self.nocc:
             r1 = self.t1[orbital]
             r2 = self.t2[orbital]

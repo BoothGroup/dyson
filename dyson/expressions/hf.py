@@ -131,7 +131,9 @@ class HF_1h(BaseHF):  # pylint: disable=invalid-name
         Returns:
             State vector.
         """
-        return util.unit_vector(self.shape[0], orbital)
+        if orbital < self.nocc:
+            return util.unit_vector(self.shape[0], orbital)
+        return np.zeros(self.shape[0])
 
     @property
     def nsingle(self) -> int:
@@ -167,7 +169,9 @@ class HF_1p(BaseHF):  # pylint: disable=invalid-name
         Returns:
             State vector.
         """
-        return util.unit_vector(self.shape[0], orbital - self.nocc)
+        if orbital >= self.nocc:
+            return util.unit_vector(self.shape[0], orbital - self.nocc)
+        return np.zeros(self.shape[0])
 
     @property
     def nsingle(self) -> int:

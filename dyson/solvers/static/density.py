@@ -12,18 +12,37 @@ from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Any, Callable, Protocol
 
     from pyscf import scf
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.spectral import Spectral
     from dyson.typing import Array
 
+    class StaticFunction(Protocol):
+        """Protocol for a function that computes the static self-energy."""
 
-def get_fock_matrix_function(
-    mf: scf.hf.RHF,
-) -> Callable[[Array, Array | None, Array | None], Array]:
+        def __call__(
+            self,
+            rdm1: Array,
+            rdm1_prev: Array | None = None,
+            static_prev: Array | None = None,
+        ) -> Array:
+            """Compute the static self-energy for a given density matrix.
+
+            Args:
+                rdm1: Density matrix.
+                rdm1_prev: Previous density matrix. Used for direct build.
+                static_prev: Previous Fock matrix. Used for direct build.
+
+            Returns:
+                Static self-energy.
+            """
+            ...
+
+
+def get_fock_matrix_function(mf: scf.hf.RHF) -> StaticFunction:
     """Get a function to compute the Fock matrix for a given density matrix.
 
     Args:
@@ -104,7 +123,7 @@ class DensityRelaxation(StaticSolver):
 
     def __init__(  # noqa: D417
         self,
-        get_static: Callable[[Array, Array | None, Array | None], Array],
+        get_static: StaticFunction,
         self_energy: Lehmann,
         nelec: int,
         **kwargs: Any,
@@ -164,7 +183,7 @@ class DensityRelaxation(StaticSolver):
         return cls(get_static, self_energy, nelec, **kwargs)
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> DensityRelaxation:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> DensityRelaxation:
         """Create a solver from an expression.
 
         Args:
@@ -238,7 +257,7 @@ class DensityRelaxation(StaticSolver):
         return result
 
     @property
-    def get_static(self) -> Callable[[Array], Array]:
+    def get_static(self) -> StaticFunction:
         """Get the static self-energy function."""
         return self._get_static
 

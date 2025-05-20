@@ -35,8 +35,10 @@ def test_aufbau_vs_exact_solver(
         pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
 
     # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_h)
-    exact_p = exact_cache(mf, expression_p)
+    exact_h = exact_cache(mf, expression_method["1h"])
+    exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result_exact = Spectral.combine(exact_h.result, exact_p.result)
 
     # Solve the Hamiltonian with AufbauPrinciple
@@ -54,6 +56,7 @@ def test_aufbau_vs_exact_solver(
         method=method,
     )
     aufbau.kernel()
+    assert aufbau.result is not None
 
     # Get the Green's function and number of electrons
     greens_function = aufbau.result.get_greens_function()
@@ -83,8 +86,10 @@ def test_shift_vs_exact_solver(
         pytest.skip("Skipping test for large Hamiltonian")
 
     # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_h)
-    exact_p = exact_cache(mf, expression_p)
+    exact_h = exact_cache(mf, expression_method["1h"])
+    exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result_exact = Spectral.combine(exact_h.result, exact_p.result)
 
     # Solve the Hamiltonian with AuxiliaryShift
@@ -100,6 +105,7 @@ def test_shift_vs_exact_solver(
         nelec=mf.mol.nelectron,
     )
     solver.kernel()
+    assert solver.result is not None
 
     # Get the Green's function and number of electrons
     greens_function = solver.result.get_greens_function()

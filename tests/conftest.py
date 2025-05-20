@@ -87,7 +87,7 @@ class Helper:
         """Check if two :class:`Lehmann` objects have equal moments to within a threshold."""
         moments1 = lehmann1.moments(range(num)) if isinstance(lehmann1, Lehmann) else lehmann1
         moments2 = lehmann2.moments(range(num)) if isinstance(lehmann2, Lehmann) else lehmann2
-        return np.all(((m1 - m2) / np.maximum(m2, 1.0)) < tol for m1, m2 in zip(moments1, moments2))
+        return all(((m1 - m2) / np.maximum(m2, 1.0)) < tol for m1, m2 in zip(moments1, moments2))
 
     @staticmethod
     def recovers_greens_function(
@@ -134,7 +134,11 @@ def get_exact(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Exact:
         )
         exact.kernel()
         _EXACT_CACHE[key] = exact
-    return _EXACT_CACHE[key]
+
+    exact = _EXACT_CACHE[key]
+    assert exact.result is not None
+
+    return exact
 
 
 @pytest.fixture(scope="session")

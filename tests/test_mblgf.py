@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 def test_central_moments(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: type[BaseExpression],
+    expression_method: dict[str, type[BaseExpression]],
     max_cycle: int,
 ) -> None:
     """Test the recovery of the exact central moments from the MBLGF solver."""
@@ -37,6 +37,7 @@ def test_central_moments(
     # Run the MBLGF solver
     solver = MBLGF(gf_moments, hermitian=expression_h.hermitian)
     solver.kernel()
+    assert solver.result is not None
 
     # Recover the Green's function and self-energy
     static = solver.result.get_static_self_energy()
@@ -67,6 +68,8 @@ def test_vs_exact_solver_central(
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method["1h"])
     exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result_exact_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
 
     # Get the self-energy and Green's function from the exact solver
@@ -81,6 +84,8 @@ def test_vs_exact_solver_central(
     mblgf_h.kernel()
     mblgf_p = MBLGF(gf_p_moments_exact, hermitian=expression_p.hermitian)
     mblgf_p.kernel()
+    assert mblgf_h.result is not None
+    assert mblgf_p.result is not None
     result_ph = Spectral.combine(mblgf_h.result, mblgf_p.result, shared_static=False)
 
     assert helper.have_equal_moments(

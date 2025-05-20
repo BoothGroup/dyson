@@ -11,7 +11,7 @@ from dyson.typing import Array
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.spectral import Spectral
 
 
@@ -46,7 +46,7 @@ class BaseSolver(ABC):
 
     @classmethod
     @abstractmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> BaseSolver:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> BaseSolver:
         """Create a solver from an expression.
 
         Args:
@@ -72,7 +72,7 @@ class BaseSolver(ABC):
 class StaticSolver(BaseSolver):
     """Base class for static Dyson equation solvers."""
 
-    _options: set[str] = {}
+    _options: set[str] = set()
 
     result: Spectral | None = None
 

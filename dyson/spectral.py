@@ -285,7 +285,7 @@ class Spectral:
                     UserWarning,
                     stacklevel=2,
                 )
-            static = sum(statics)
+            static = sum(statics, np.zeros_like(statics[0]))
 
         # Solve the eigenvalue problem
         self_energy = Lehmann(energies, couplings)

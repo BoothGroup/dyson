@@ -10,7 +10,7 @@ import pyscf
 import pytest
 
 from dyson import util
-from dyson.expressions import CCSD, FCI, HF
+from dyson.expressions import CCSD, FCI, HF, ADC2, ADC2x
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -42,7 +42,7 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 
 
-def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpression]]) -> None:
+def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Green's function moments of the expression."""
     # Get the quantities required from the expression
     expression = expression_cls.from_mf(mf)
@@ -67,7 +67,7 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpressio
 
 def test_static(
     mf: scf.hf.RHF,
-    expression_cls: dict[str, type[BaseExpression]],
+    expression_cls: type[BaseExpression],
     exact_cache: ExactGetter,
 ) -> None:
     """Test the static self-energy of the expression."""
@@ -78,7 +78,8 @@ def test_static(
     gf_moments = expression.build_gf_moments(2)
 
     # Get the static self-energy
-    exact = exact_cache(mf, expression)
+    exact = exact_cache(mf, expression_cls)
+    assert exact.result is not None
     static = exact.result.get_static_self_energy()
 
     assert np.allclose(static, gf_moments[1])
@@ -123,11 +124,38 @@ def test_fci(mf: scf.hf.RHF) -> None:
     """Test the FCI expression."""
     fci = FCI["1h"].from_mf(mf)
     gf_moments = fci.build_gf_moments(2)
-    np.set_printoptions(precision=6, suppress=True, linewidth=120)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
     energy_ref = pyscf.fci.FCI(mf).kernel()[0] - mf.mol.energy_nuc()
+
+    assert np.abs(energy - energy_ref) < 1e-8
+
+
+def test_adc2(mf: scf.hf.RHF) -> None:
+    """Test the ADC(2) expression."""
+    adc = ADC2["1h"].from_mf(mf)
+    gf_moments = adc.build_gf_moments(2)
+
+    # Get the energy from the hole moments
+    h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
+    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy_ref = mf.energy_elec()[0] + pyscf.adc.ADC(mf).kernel_gs()[0]
+
+    assert np.abs(energy - energy_ref) < 1e-8
+
+
+def test_adc2x(mf: scf.hf.RHF) -> None:
+    """Test the ADC(2)-x expression."""
+    adc = ADC2x["1h"].from_mf(mf)
+    gf_moments = adc.build_gf_moments(2)
+
+    # Get the energy from the hole moments
+    h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
+    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    adc_obj = pyscf.adc.ADC(mf)
+    adc_obj.method = "adc(2)-x"
+    energy_ref = mf.energy_elec()[0] + adc_obj.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8

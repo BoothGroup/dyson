@@ -16,7 +16,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any, Callable
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
 
 
@@ -26,7 +26,7 @@ def _pick_real_eigenvalues(
     nroots: int,
     env: dict[str, Any],
     threshold: float = 1e-3,
-) -> tuple[Array, Array, int]:
+) -> tuple[Array, Array, Array]:
     """Pick real eigenvalues."""
     iabs = np.abs(eigvals.imag)
     tol = max(threshold, np.sort(iabs)[min(eigvals.size, nroots) - 1])
@@ -139,7 +139,7 @@ class Davidson(StaticSolver):
         )
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> Davidson:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> Davidson:
         """Create a solver from an expression.
 
         Args:
@@ -173,7 +173,7 @@ class Davidson(StaticSolver):
             Initial guesses for the eigenvectors.
         """
         args = np.argsort(np.abs(self.diagonal))
-        dtype = np.float64 if self.hermitian else np.complex128
+        dtype = "<f8" if self.hermitian else "<c16"
         return [util.unit_vector(self.diagonal.size, i, dtype=dtype) for i in args[: self.nroots]]
 
     def kernel(self) -> Spectral:

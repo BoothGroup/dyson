@@ -16,12 +16,14 @@ from dyson.solvers.static.exact import Exact
 if TYPE_CHECKING:
     from typing import Any, Literal
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.spectral import Spectral
     from dyson.typing import Array
 
 
-def _warn_or_raise_if_negative_weight(weight: float, hermitian: bool, tol: float = 1e-6) -> None:
+def _warn_or_raise_if_negative_weight(
+    weight: float | Array, hermitian: bool, tol: float = 1e-6
+) -> None:
     """Warn or raise an error for negative weights.
 
     Args:
@@ -33,7 +35,9 @@ def _warn_or_raise_if_negative_weight(weight: float, hermitian: bool, tol: float
         ValueError: If the weight is negative and the Green's function is hermitian.
         UserWarning: If the weight is negative and the Green's function is not hermitian.
     """
-    if weight < -tol:
+    if not isinstance(weight, np.ndarray):
+        weight = np.array(weight)
+    if np.any(weight < -tol):
         if hermitian:
             raise ValueError(
                 f"Negative number of electrons in state: {weight:.6f}. This should be "
@@ -100,7 +104,7 @@ def search_aufbau_direct(
     # Find the two states bounding the chemical potential
     sum_i = sum_j = 0.0
     for i in range(greens_function.naux):
-        number = (right[:, i] @ left[:, i].conj()).real * occupancy
+        number = np.vdot(left[:, i], right[:, i]).real * occupancy
         _warn_or_raise_if_negative_weight(number, greens_function.hermitian)
         sum_i, sum_j = sum_j, sum_j + number
         if sum_i < nelec <= sum_j:
@@ -279,7 +283,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         return cls(static, self_energy, nelec, **kwargs)
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> AufbauPrinciple:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> AufbauPrinciple:
         """Create a solver from an expression.
 
         Args:
@@ -392,7 +396,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         return cls(static, self_energy, nelec, **kwargs)
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> AuxiliaryShift:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> AuxiliaryShift:
         """Create a solver from an expression.
 
         Args:
@@ -434,6 +438,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
             solver.kernel()
         assert solver.error is not None
+        assert solver.result is not None
         eigvals = solver.result.eigvals
         left, right = util.unpack_vectors(solver.result.eigvecs)
         nphys = self.nphys

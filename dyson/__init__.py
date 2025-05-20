@@ -67,4 +67,4 @@ from dyson.solvers import (
     AuxiliaryShift,
     DensityRelaxation,
 )
-from dyson.expressions import HF, CCSD, FCI
+from dyson.expressions import HF, CCSD, FCI, ADC2, ADC2x

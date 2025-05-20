@@ -108,23 +108,29 @@ class BaseMBL(StaticSolver):
         for iteration in range(self.max_cycle + 1):  # TODO: check
             error_sqrt, error_inv_sqrt, error_moments = self.recurrence_iteration(iteration)
 
-            error_decomp = max(error_sqrt, error_inv_sqrt) if self.calculate_errors else 0.0
-            if error_decomp > 1e-10 and self.hermitian:
-                warnings.warn(
-                    f"Space contributing non-zero weight to the moments ({error_decomp}) was "
-                    f"removed during iteration {iteration}. Allowing complex eigenvalues by "
-                    "setting hermitian=False may help resolve this.",
-                    UserWarning,
-                    2,
-                )
-            elif error_decomp > 1e-10:
-                warnings.warn(
-                    f"Space contributing non-zero weight to the moments ({error_decomp}) was "
-                    f"removed during iteration {iteration}. Since hermitian=False was set, this "
-                    "likely indicates singularities which may indicate convergence of the moments.",
-                    UserWarning,
-                    2,
-                )
+            if self.calculate_errors:
+                assert error_sqrt is not None
+                assert error_inv_sqrt is not None
+                assert error_moments is not None
+
+                error_decomp = max(error_sqrt, error_inv_sqrt)
+                if error_decomp > 1e-10 and self.hermitian:
+                    warnings.warn(
+                        f"Space contributing non-zero weight to the moments ({error_decomp}) was "
+                        f"removed during iteration {iteration}. Allowing complex eigenvalues by "
+                        "setting hermitian=False may help resolve this.",
+                        UserWarning,
+                        2,
+                    )
+                elif error_decomp > 1e-10:
+                    warnings.warn(
+                        f"Space contributing non-zero weight to the moments ({error_decomp}) was "
+                        f"removed during iteration {iteration}. Since hermitian=False was set, "
+                        "this likely indicates singularities which may indicate convergence of the "
+                        "moments.",
+                        UserWarning,
+                        2,
+                    )
 
         # Diagonalise the compressed self-energy
         self.result = self.solve(iteration=self.max_cycle)
@@ -134,12 +140,12 @@ class BaseMBL(StaticSolver):
     @functools.cached_property
     def orthogonalisation_metric(self) -> Array:
         """Get the orthogonalisation metric."""
-        return util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)
+        return util.matrix_power(self.moments[0], -0.5, hermitian=self.hermitian)[0]
 
     @functools.cached_property
     def orthogonalisation_metric_inv(self) -> Array:
         """Get the inverse of the orthogonalisation metric."""
-        return util.matrix_power(self.moments[0], 0.5, hermitian=self.hermitian)
+        return util.matrix_power(self.moments[0], 0.5, hermitian=self.hermitian)[0]
 
     @functools.lru_cache(maxsize=64)
     def orthogonalised_moment(self, order: int) -> Array:

@@ -36,6 +36,7 @@ def test_vs_exact_solver(
 
     # Solve the Hamiltonian exactly
     exact = exact_cache(mf, expression_cls)
+    assert exact.result is not None
 
     # Solve the Hamiltonian with Davidson
     davidson = Davidson(
@@ -47,6 +48,7 @@ def test_vs_exact_solver(
         hermitian=expression.hermitian,
     )
     davidson.kernel()
+    assert davidson.result is not None
 
     assert davidson.matvec == expression.apply_hamiltonian
     assert np.all(davidson.diagonal == expression.diagonal())
@@ -91,6 +93,8 @@ def test_vs_exact_solver_central(
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method["1h"])
     exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
 
     # Solve the Hamiltonian with Davidson
     davidson_h = Davidson(
@@ -115,6 +119,8 @@ def test_vs_exact_solver_central(
         conv_tol_residual=1e-8,
     )
     davidson_p.kernel()
+    assert davidson_h.result is not None
+    assert davidson_p.result is not None
 
     # Get the self-energy and Green's function from the Davidson solver
     static = davidson_h.result.get_static_self_energy() + davidson_p.result.get_static_self_energy()

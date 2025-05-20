@@ -150,7 +150,7 @@ def matrix_power(
     threshold: float = 1e-10,
     return_error: bool = False,
     ord: int | float = np.inf,
-) -> Array | tuple[Array, float]:
+) -> tuple[Array, float | None]:
     """Compute the power of a matrix via the eigenvalue decomposition.
 
     Args:
@@ -190,6 +190,7 @@ def matrix_power(
     matrix_power: Array = (right[:, mask] * eigvals[mask][None] ** power) @ left[:, mask].T.conj()
 
     # Get the error if requested
+    error: float | None = None
     if return_error:
         null = (right[:, ~mask] * eigvals[~mask][None]) @ left[:, ~mask].T.conj()
         if null.size == 0:
@@ -197,7 +198,7 @@ def matrix_power(
         else:
             error = cast(float, np.linalg.norm(null, ord=ord))
 
-    return (matrix_power, error) if return_error else matrix_power
+    return matrix_power, error
 
 
 def hermi_sum(matrix: Array) -> Array:

@@ -12,7 +12,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.expression.expression import Expression
+    from dyson.expressions.expression import BaseExpression
     from dyson.lehmann import Lehmann
     from dyson.typing import Array
 
@@ -132,7 +132,7 @@ class MBLGF(BaseMBL):
         return cls(moments, hermitian=greens_function.hermitian, **kwargs)
 
     @classmethod
-    def from_expression(cls, expression: Expression, **kwargs: Any) -> MBLGF:
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> MBLGF:
         """Create a solver from an expression.
 
         Args:

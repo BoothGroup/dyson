@@ -32,8 +32,10 @@ def test_vs_exact_solver(
         pytest.skip("Skipping test for large Hamiltonian")
 
     # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_h)
-    exact_p = exact_cache(mf, expression_p)
+    exact_h = exact_cache(mf, expression_method["1h"])
+    exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result_exact = Spectral.combine(exact_h.result, exact_p.result)
 
     # Solve the Hamiltonian with DensityRelaxation
@@ -45,6 +47,7 @@ def test_vs_exact_solver(
         get_static=get_fock,
     )
     solver.kernel()
+    assert solver.result is not None
 
     # Get the Green's function
     greens_function = solver.result.get_greens_function()
