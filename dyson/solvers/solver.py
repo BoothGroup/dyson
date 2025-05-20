@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-import functools
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
 from dyson.lehmann import Lehmann
 from dyson.typing import Array
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, TypeAlias
+    from typing import Any
 
-    from dyson.spectral import Spectral
     from dyson.expression.expression import Expression
+    from dyson.spectral import Spectral
 
 
 class BaseSolver(ABC):

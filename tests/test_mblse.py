@@ -2,24 +2,21 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
-import pytest
 from typing import TYPE_CHECKING
 
-import numpy as np
+import pytest
 
 from dyson import util
-from dyson.lehmann import Lehmann
-from dyson.spectral import Spectral
-from dyson.solvers import MBLSE, Exact
-from dyson.expressions.ccsd import BaseCCSD
 from dyson.expressions.fci import BaseFCI
+from dyson.solvers import MBLSE
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 @pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])

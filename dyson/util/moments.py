@@ -17,7 +17,7 @@ def se_moments_to_gf_moments(static: Array, se_moments: Array) -> Array:
 
     Args:
         static: Static part of the self-energy.
-        moments: Moments of the self-energy.
+        se_moments: Moments of the self-energy.
 
     Returns:
         Moments of the Green's function.

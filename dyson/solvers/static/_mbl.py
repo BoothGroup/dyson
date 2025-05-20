@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import functools
-from typing import TYPE_CHECKING, overload
 import warnings
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
-    from typing import TypeAlias, Literal, Any
-
-    from dyson.typing import Array
     from dyson.spectral import Spectral
+    from dyson.typing import Array
 
 # TODO: reimplement caching
 

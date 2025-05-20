@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING
 
 import scipy.optimize
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.exact import Exact
@@ -15,9 +16,9 @@ from dyson.solvers.static.exact import Exact
 if TYPE_CHECKING:
     from typing import Any, Literal
 
-    from dyson.typing import Array
     from dyson.expression.expression import Expression
     from dyson.spectral import Spectral
+    from dyson.typing import Array
 
 
 def _warn_or_raise_if_negative_weight(weight: float, hermitian: bool, tol: float = 1e-6) -> None:
@@ -45,7 +46,6 @@ def _warn_or_raise_if_negative_weight(weight: float, hermitian: bool, tol: float
                 "chemical potential. Consider using the global method.",
                 UserWarning,
             )
-    return
 
 
 def search_aufbau_global(
@@ -152,8 +152,7 @@ def search_aufbau_bisect(
         else:
             high = mid
             mid = mid - (high - low) // 2
-        print(low, mid, high, number, nelec)
-        if low == mid or mid == high:
+        if mid in {low, high}:
             break
     else:
         raise ValueError("Failed to converge bisection")
@@ -229,7 +228,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
     method: Literal["direct", "bisect", "global"] = "global"
     _options: set[str] = {"occupancy", "solver", "method"}
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         static: Array,
         self_energy: Lehmann,
@@ -343,7 +342,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
 
     shift: float | None = None
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         static: Array,
         self_energy: Lehmann,

@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import functools
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Any
-
-    from dyson.typing import Array
     from dyson.grids.frequency import RealFrequencyGrid
+    from dyson.typing import Array
 
 
 def _infer_max_cycle(moments: Array) -> int:
@@ -33,7 +31,7 @@ class CPGF(DynamicSolver):
         [1] A. Ferreira, and E. R. Mucciolo, Phys. Rev. Lett. 115, 106601 (2015).
     """
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         moments: Array,
         grid: RealFrequencyGrid,

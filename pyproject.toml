@@ -50,7 +50,7 @@ include = ["pyproject.toml", "dyson/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "spaces"
+indent-style = "space"
 line-ending = "lf"
 
 [tool.ruff.lint]
@@ -69,13 +69,22 @@ ignore = [
     "PLR0912",  # too-many-branches
     "PLR0913",  # too-many-arguments
     "PLR0915",  # too-many-statements
+    "PLR2004",  # magic-value-comparison
     "PLR5501",  # collapsible-else-if
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"dyson/__init__.py" = [
+    "D205",  # missing-blank-line-after-summary
+    "D212",  # multi-line-summary-first-line
+    "D415",  # missing-terminal-punctuation
+]
 "dyson/**/__init__.py" = [
     "I001",  # unsorted-imports
     "F401",  # unused-import
+]
+"tests/**/*.py" = [
+    "D103",  # undocumented-public-function
 ]
 
 [tool.ruff.lint.pydocstyle]

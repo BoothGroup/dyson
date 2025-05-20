@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-import functools
 from typing import TYPE_CHECKING
 
-import scipy.linalg
-
-from dyson import numpy as np, util
-from dyson.solvers.solver import StaticSolver
-from dyson.solvers.static._mbl import BaseRecursionCoefficients, BaseMBL
+from dyson import numpy as np
+from dyson import util
+from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
-    from typing import Any, TypeAlias
+    from typing import Any
 
-    from dyson.typing import Array
-    from dyson.lehmann import Lehmann
     from dyson.expression.expression import Expression
+    from dyson.lehmann import Lehmann
+    from dyson.typing import Array
 
 
 class RecursionCoefficients(BaseRecursionCoefficients):
@@ -68,7 +64,7 @@ class MBLGF(BaseMBL):
 
     Coefficients = RecursionCoefficients
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         moments: Array,
         **kwargs: Any,
@@ -265,7 +261,7 @@ class MBLGF(BaseMBL):
                     coefficients[1][i + 1, k + 1]
                     @ self.orthogonalised_moment(j + k + 1)
                     @ coefficients[0][i + 1, j]
-               )
+                )
                 off_diagonal_lower_squared += (
                     coefficients[1][i + 1, j]
                     @ self.orthogonalised_moment(j + k + 1)
@@ -362,7 +358,9 @@ class MBLGF(BaseMBL):
         # Diagonalise the block tridiagonal Hamiltonian
         on_diag = [self.on_diagonal[i] for i in range(iteration + 1)]
         off_diag_upper = [self.off_diagonal_upper[i] for i in range(iteration)]
-        off_diag_lower = [self.off_diagonal_lower[i] for i in range(iteration)] if not self.hermitian else None
+        off_diag_lower = (
+            [self.off_diagonal_lower[i] for i in range(iteration)] if not self.hermitian else None
+        )
         hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
         if self.hermitian:
             eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)

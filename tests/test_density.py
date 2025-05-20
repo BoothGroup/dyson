@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-import pytest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 
-from dyson import util
-from dyson.lehmann import Lehmann
-from dyson.spectral import Spectral
-from dyson.solvers import DensityRelaxation, Exact
+from dyson.solvers import DensityRelaxation
 from dyson.solvers.static.density import get_fock_matrix_function
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 def test_vs_exact_solver(

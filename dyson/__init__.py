@@ -48,6 +48,7 @@ For dynamic solvers, all solvers require the grid parameters, along with:
     +-------------------+--------------------------------------------------------------------------+
 
 For a full accounting of the inputs and their types, please see the documentation for each solver.
+
 """
 
 __version__ = "0.0.0"

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import functools
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 
 if TYPE_CHECKING:
     from dyson.typing import Array

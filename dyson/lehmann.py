@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-import functools
 from typing import TYPE_CHECKING, cast
 
 import scipy.linalg
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.typing import Array
 
 if TYPE_CHECKING:
-    from typing import Iterable, Iterator, Literal, TypeAlias
+    from typing import Iterable, Iterator
 
     import pyscf.agf2.aux
 
@@ -337,7 +337,7 @@ class Lehmann:
         scaling: tuple[float, float] | None = None,
         scale_couplings: bool = False,
     ) -> Array:
-        """Calculate the Chebyshev polynomial moment(s) of the Lehmann representation.
+        r"""Calculate the Chebyshev polynomial moment(s) of the Lehmann representation.
 
         The Chebyshev moments are defined as
 
@@ -608,7 +608,9 @@ class Lehmann:
         weights = util.einsum("pk,pk->k", right, left.conj()) * occupancy
         return weights
 
-    def as_orbitals(self, occupancy: float = 1.0, mo_coeff: Array | None = None) -> tuple[
+    def as_orbitals(
+        self, occupancy: float = 1.0, mo_coeff: Array | None = None
+    ) -> tuple[
         Array,
         Array,
         Array,
@@ -699,13 +701,13 @@ class Lehmann:
         """
         occ = self.__class__(
             self.energies,
-            self.couplings[..., : nocc, :],
+            self.couplings[..., :nocc, :],
             chempot=self.chempot,
             sort=False,
         )
         vir = self.__class__(
             self.energies,
-            self.couplings[..., nocc :, :],
+            self.couplings[..., nocc:, :],
             chempot=self.chempot,
             sort=False,
         )
@@ -769,9 +771,11 @@ class Lehmann:
         else:
             left_self, right_self = self.unpack_couplings()
             left_other, right_other = other.unpack_couplings()
-            couplings = np.array([
-                np.concatenate((left_self, left_other), axis=-1),
-                np.concatenate((right_self, right_other), axis=-1),
-            ])
+            couplings = np.array(
+                [
+                    np.concatenate((left_self, left_other), axis=-1),
+                    np.concatenate((right_self, right_other), axis=-1),
+                ]
+            )
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)

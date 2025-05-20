@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import pytest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 
-from dyson import util
 from dyson.lehmann import Lehmann
+from dyson.solvers import Davidson
 from dyson.spectral import Spectral
-from dyson.solvers import Davidson, Exact
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 def test_vs_exact_solver(
@@ -55,12 +55,10 @@ def test_vs_exact_solver(
     # Get the self-energy and Green's function from the Davidson solver
     static = davidson.result.get_static_self_energy()
     self_energy = davidson.result.get_self_energy()
-    greens_function = davidson.result.get_greens_function()
 
     # Get the self-energy and Green's function from the exact solver
     static_exact = exact.result.get_static_self_energy()
     self_energy_exact = exact.result.get_self_energy()
-    greens_function_exact = exact.result.get_greens_function()
 
     if expression.hermitian:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
@@ -123,8 +121,8 @@ def test_vs_exact_solver_central(
     self_energy = Lehmann.concatenate(
         davidson_h.result.get_self_energy(), davidson_p.result.get_self_energy()
     )
-    greens_function = (
-        Lehmann.concatenate(davidson_h.result.get_greens_function(), davidson_p.result.get_greens_function())
+    greens_function = Lehmann.concatenate(
+        davidson_h.result.get_greens_function(), davidson_p.result.get_greens_function()
     )
 
     # Get the self-energy and Green's function from the exact solvers
@@ -132,8 +130,8 @@ def test_vs_exact_solver_central(
     self_energy_exact = Lehmann.concatenate(
         exact_h.result.get_self_energy(), exact_p.result.get_self_energy()
     )
-    greens_function_exact = (
-        Lehmann.concatenate(exact_h.result.get_greens_function(), exact_p.result.get_greens_function())
+    greens_function_exact = Lehmann.concatenate(
+        exact_h.result.get_greens_function(), exact_p.result.get_greens_function()
     )
 
     if expression_h.hermitian and expression_p.hermitian:
@@ -162,6 +160,8 @@ def test_vs_exact_solver_central(
         assert helper.are_equal_arrays(greens_function.moment(1), static)
         assert helper.are_equal_arrays(greens_function_exact.moment(1), static_exact)
         assert helper.recovers_greens_function(static, self_energy, greens_function)
-        assert helper.recovers_greens_function(static_exact, self_energy_exact, greens_function_exact)
+        assert helper.recovers_greens_function(
+            static_exact, self_energy_exact, greens_function_exact
+        )
         assert helper.has_orthonormal_couplings(greens_function)
         assert helper.has_orthonormal_couplings(greens_function_exact)

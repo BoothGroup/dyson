@@ -10,10 +10,10 @@ from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from typing import Callable
 
-    from dyson.typing import Array
     from dyson.grids.frequency import RealFrequencyGrid
+    from dyson.typing import Array
 
 # TODO: (m,k) for GCROTMK, more solvers, DIIS
 
@@ -164,8 +164,8 @@ class CorrectionVector(DynamicSolver):
             x: Array | None = None
             for w in range(self.grid.size):
                 shape = (self.diagonal.size, self.diagonal.size)
-                matvec = LinearOperator(shape, lambda ω: self.matvec_dynamic(ket, ω), dtype=complex)
-                matdiv = LinearOperator(shape, lambda ω: self.matdiv_dynamic(ket, ω), dtype=complex)
+                matvec = LinearOperator(shape, lambda w: self.matvec_dynamic(ket, w), dtype=complex)
+                matdiv = LinearOperator(shape, lambda w: self.matdiv_dynamic(ket, w), dtype=complex)
                 if x is None:
                     x = matdiv @ ket
                 x, info = gcrotmk(

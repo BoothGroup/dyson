@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-import functools
 from typing import TYPE_CHECKING
 
 import scipy.special
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.grids.grid import BaseGrid
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ class BaseFrequencyGrid(BaseGrid):
     """Base class for frequency grids."""
 
     def evaluate_lehmann(self, lehmann: Lehmann, trace: bool = False, **kwargs: Any) -> Array:
-        """Evaluate a Lehmann representation on the grid.
+        r"""Evaluate a Lehmann representation on the grid.
 
         The imaginary frequency representation is defined as
 
@@ -60,7 +60,7 @@ class BaseFrequencyGrid(BaseGrid):
         return "frequency"
 
     @abstractmethod
-    def resolvent(self, energies: Array, chempot: float, **kwargs: Any) -> Array:
+    def resolvent(self, energies: Array, chempot: float, **kwargs: Any) -> Array:  # noqa: D417
         """Get the resolvent of the grid.
 
         Args:
@@ -122,7 +122,7 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         """
         self._eta = value
 
-    def resolvent(
+    def resolvent(  # noqa: D417
         self,
         energies: Array,
         chempot: float,
@@ -257,7 +257,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         """
         self._beta = value
 
-    def resolvent(
+    def resolvent(  # noqa: D417
         self,
         energies: Array,
         chempot: float,

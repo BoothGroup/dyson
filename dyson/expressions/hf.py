@@ -5,7 +5,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:

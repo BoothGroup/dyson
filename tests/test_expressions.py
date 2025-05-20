@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import itertools
-import pytest
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pyscf
+import pytest
 
 from dyson import util
-from dyson.expressions import HF, CCSD, FCI
+from dyson.expressions import CCSD, FCI, HF
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
+
     from .conftest import ExactGetter
 
 
@@ -47,7 +48,6 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: dict[str, type[BaseExpressio
     expression = expression_cls.from_mf(mf)
     if expression.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
-    diagonal = expression.diagonal()
     hamiltonian = expression.build_matrix()
 
     # Construct the moments
@@ -80,17 +80,6 @@ def test_static(
     # Get the static self-energy
     exact = exact_cache(mf, expression)
     static = exact.result.get_static_self_energy()
-
-    bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-    ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
-    np.set_printoptions(precision=10, suppress=True, linewidth=120)
-    print(gf_moments[0].real)
-    print((exact.result.get_dyson_orbitals()[1][1] @ exact.result.get_dyson_orbitals()[1][0].T.conj()).real)
-    print((gf_moments[0] - exact.result.get_dyson_orbitals()[1][1] @ exact.result.get_dyson_orbitals()[1][0].T.conj()).real)
-    print()
-    print(gf_moments[1].real)
-    print(static.real)
-    print((gf_moments[1] - static).real)
 
     assert np.allclose(static, gf_moments[1])
 

@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 
-from dyson import util
-from dyson.lehmann import Lehmann
 from dyson.solvers import Exact
-from dyson.expressions.ccsd import BaseCCSD
 from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.typing import Array
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 def test_exact_solver(
@@ -54,7 +49,6 @@ def test_exact_solver(
     solver.kernel()
     static_other = solver.result.get_static_self_energy()
     self_energy_other = solver.result.get_self_energy()
-    greens_function_other = solver.result.get_greens_function()
 
     assert helper.are_equal_arrays(static, static_other)
     assert helper.have_equal_moments(self_energy, self_energy_other, 2)

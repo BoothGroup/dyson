@@ -7,23 +7,22 @@ from typing import TYPE_CHECKING
 from pyscf import lib
 
 from dyson import numpy as np
-from dyson.lehmann import Lehmann, shift_energies
+from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
-from dyson.solvers.static.exact import Exact
-from dyson.solvers.static.chempot import AuxiliaryShift, AufbauPrinciple
+from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal, TypeAlias
+    from typing import Any, Callable
 
     from pyscf import scf
 
-    from dyson.typing import Array
-    from dyson.spectral import Spectral
     from dyson.expression.expression import Expression
+    from dyson.spectral import Spectral
+    from dyson.typing import Array
 
 
 def get_fock_matrix_function(
-    mf: scf.hf.RHF
+    mf: scf.hf.RHF,
 ) -> Callable[[Array, Array | None, Array | None], Array]:
     """Get a function to compute the Fock matrix for a given density matrix.
 
@@ -91,20 +90,26 @@ class DensityRelaxation(StaticSolver):
     max_cycle_inner: int = 50
     conv_tol: float = 1e-8
     _options: set[str] = {
-        "occupancy", "solver_outer", "solver_inner", "diis_min_space", "diis_max_space",
-        "max_cycle_outer", "max_cycle_inner", "conv_tol"
+        "occupancy",
+        "solver_outer",
+        "solver_inner",
+        "diis_min_space",
+        "diis_max_space",
+        "max_cycle_outer",
+        "max_cycle_inner",
+        "conv_tol",
     }
 
     converged: bool | None = None
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         get_static: Callable[[Array, Array | None, Array | None], Array],
         self_energy: Lehmann,
         nelec: int,
         **kwargs: Any,
     ):
-        """Initialise the solver
+        """Initialise the solver.
 
         Args:
             get_static: Function to get the static self-energy (including Fock contributions) for a
@@ -185,8 +190,6 @@ class DensityRelaxation(StaticSolver):
         static = self.get_static(rdm1)
 
         converged = False
-        eigvals: Array | None = None
-        eigvecs: Array | None = None
         for cycle_outer in range(1, self.max_cycle_outer + 1):
             # Solve the self-energy
             solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec)

@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import scipy.linalg
-
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -14,8 +13,8 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.typing import Array
     from dyson.expression.expression import Expression
+    from dyson.typing import Array
 
 
 class Exact(StaticSolver):
@@ -30,7 +29,7 @@ class Exact(StaticSolver):
     hermitian: bool = True
     _options: set[str] = {"hermitian"}
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         matrix: Array,
         bra: Array,
@@ -88,7 +87,11 @@ class Exact(StaticSolver):
         """
         matrix = expression.build_matrix()
         bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)]) if not expression.hermitian else None
+        ket = (
+            np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
+            if not expression.hermitian
+            else None
+        )
         return cls(matrix, bra, ket, hermitian=expression.hermitian, **kwargs)
 
     def kernel(self) -> Spectral:
@@ -115,9 +118,7 @@ class Exact(StaticSolver):
                 np.concatenate([self.bra, vectors[0]], axis=0),
                 np.concatenate([self.ket, vectors[1]], axis=0),
             )
-            eigvecs = np.array(
-                [rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]]
-            )
+            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
 
         # Store the result
         self.result = Spectral(eigvals, eigvecs, self.nphys)

@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
 
-from dyson import util
-from dyson.lehmann import Lehmann
+from dyson.solvers import AufbauPrinciple, AuxiliaryShift
 from dyson.spectral import Spectral
-from dyson.solvers import AufbauPrinciple, AuxiliaryShift, Exact
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 @pytest.mark.parametrize("method", ["direct", "bisect", "global"])

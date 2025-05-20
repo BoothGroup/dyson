@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING
 
 from pyscf import lib
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -15,8 +16,8 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Any, Callable
 
-    from dyson.typing import Array
     from dyson.expression.expression import Expression
+    from dyson.typing import Array
 
 
 def _pick_real_eigenvalues(
@@ -73,12 +74,17 @@ class Davidson(StaticSolver):
     conv_tol: float = 1e-8
     conv_tol_residual: float = 1e-5
     _options: set[str] = {
-        "hermitian", "nroots", "max_cycle", "max_space", "conv_tol", "conv_tol_residual"
+        "hermitian",
+        "nroots",
+        "max_cycle",
+        "max_space",
+        "conv_tol",
+        "conv_tol_residual",
     }
 
     converged: Array | None = None
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         matvec: Callable[[Array], Array],
         diagonal: Array,
@@ -146,7 +152,11 @@ class Davidson(StaticSolver):
         diagonal = expression.diagonal()
         matvec = expression.apply_hamiltonian
         bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)]) if not expression.hermitian else None
+        ket = (
+            np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
+            if not expression.hermitian
+            else None
+        )
         return cls(
             matvec,
             diagonal,

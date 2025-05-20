@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
+from dyson.grids.frequency import RealFrequencyGrid
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
-from dyson.grids.frequency import RealFrequencyGrid
 from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any, Callable
 
-    from dyson.typing import Array
     from dyson.expression.expression import Expression
+    from dyson.typing import Array
 
 # TODO: Use Newton solver as C* Σ(ω) C - ω = 0
 # TODO: Diagonal version
@@ -44,7 +45,7 @@ class Downfolded(StaticSolver):
 
     converged: bool | None = None
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         static: Array,
         function: Callable[[float], Array],

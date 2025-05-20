@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-import functools
 from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
-from dyson.solvers.solver import StaticSolver
-from dyson.solvers.static._mbl import BaseRecursionCoefficients, BaseMBL
-from dyson.spectral import Spectral
+from dyson import numpy as np
+from dyson import util
 from dyson.lehmann import Lehmann
+from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
-    from typing import Any, TypeAlias, TypeVar
+    from typing import Any, TypeVar
 
-    from dyson.typing import Array
     from dyson.expression.expression import Expression
+    from dyson.typing import Array
 
     T = TypeVar("T", bound="BaseMBL")
 
@@ -77,7 +75,7 @@ class MBLSE(BaseMBL):
 
     Coefficients = RecursionCoefficients
 
-    def __init__(
+    def __init__(  # noqa: D417
         self,
         static: Array,
         moments: Array,
@@ -324,10 +322,12 @@ class MBLSE(BaseMBL):
         # Get the supermatrix
         on_diag = [self.on_diagonal[i] for i in range(iteration + 2)]
         off_diag_upper = [self.off_diagonal[i] for i in range(iteration + 1)]
-        off_diag_lower = [self.off_diagonal[i] for i in range(iteration + 1)] if not self.hermitian else None
+        off_diag_lower = (
+            [self.off_diagonal[i] for i in range(iteration + 1)] if not self.hermitian else None
+        )
         hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
 
-        # Diagonalise the subspace 
+        # Diagonalise the subspace
         subspace = hamiltonian[self.nphys :, self.nphys :]
         energies, rotated = util.eig_lr(subspace, hermitian=self.hermitian)
         if self.hermitian:

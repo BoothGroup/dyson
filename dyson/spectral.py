@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 from dyson.lehmann import Lehmann
 
 if TYPE_CHECKING:
@@ -179,7 +180,7 @@ class Spectral:
         Returns:
             Dyson orbitals.
         """
-        return self.eigvals, self.eigvecs[..., :self.nphys, :]
+        return self.eigvals, self.eigvecs[..., : self.nphys, :]
 
     def get_self_energy(self, chempot: float | None = None) -> Lehmann:
         """Get the Lehmann representation of the self-energy.

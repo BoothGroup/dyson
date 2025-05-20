@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, cast
 
 import scipy.linalg
 
@@ -218,6 +218,7 @@ def scaled_error(matrix1: Array, matrix2: Array, ord: int | float = np.inf) -> f
     Args:
         matrix1: The first matrix.
         matrix2: The second matrix.
+        ord: The order of the norm to be used for the error.
 
     Returns:
         The scaled error between the two matrices.

@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
 from typing import TYPE_CHECKING
 
-import numpy as np
+import pytest
 
 from dyson import util
-from dyson.lehmann import Lehmann
+from dyson.solvers import MBLGF
 from dyson.spectral import Spectral
-from dyson.solvers import MBLGF, Exact
-from dyson.expressions.ccsd import BaseCCSD
 
 if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from .conftest import Helper, ExactGetter
+
+    from .conftest import ExactGetter, Helper
 
 
 @pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])
@@ -85,8 +83,12 @@ def test_vs_exact_solver_central(
     mblgf_p.kernel()
     result_ph = Spectral.combine(mblgf_h.result, mblgf_p.result, shared_static=False)
 
-    assert helper.have_equal_moments(mblgf_h.result.get_self_energy(), exact_h.result.get_self_energy(), nmom_gf - 2)
-    assert helper.have_equal_moments(mblgf_p.result.get_self_energy(), exact_p.result.get_self_energy(), nmom_gf - 2)
+    assert helper.have_equal_moments(
+        mblgf_h.result.get_self_energy(), exact_h.result.get_self_energy(), nmom_gf - 2
+    )
+    assert helper.have_equal_moments(
+        mblgf_p.result.get_self_energy(), exact_p.result.get_self_energy(), nmom_gf - 2
+    )
 
     # Recover the hole Green's function from the MBLGF solver
     greens_function = mblgf_h.result.get_greens_function()

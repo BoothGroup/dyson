@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
-import warnings
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson import util
 
 if TYPE_CHECKING:
     from typing import Callable

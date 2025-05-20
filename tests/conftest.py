@@ -3,21 +3,20 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-import warnings
 
-from pyscf import gto, scf
 import pytest
+from pyscf import gto, scf
 
-from dyson import numpy as np, util
+from dyson import numpy as np
+from dyson.expressions import CCSD, FCI, HF
 from dyson.lehmann import Lehmann
-from dyson.expressions import HF, CCSD, FCI
 from dyson.solvers import Exact
 
 if TYPE_CHECKING:
-    from typing import Hashable, Any, Callable
+    from typing import Callable, Hashable
 
-    from dyson.typing import Array
     from dyson.expressions.expression import BaseExpression
+    from dyson.typing import Array
 
     ExactGetter = Callable[[scf.hf.RHF, type[BaseExpression]], Exact]
 
@@ -73,7 +72,7 @@ def pytest_generate_tests(metafunc):  # type: ignore
         metafunc.parametrize("expression_method", expressions, ids=ids)
 
 
-class Helper():
+class Helper:
     """Helper class for tests."""
 
     @staticmethod
