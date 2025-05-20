@@ -485,7 +485,6 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         """
         # Minimize the objective function
         opt = self._minimize()
-        print(opt)
 
         # Get the shifted self-energy
         self_energy = Lehmann(

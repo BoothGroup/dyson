@@ -15,9 +15,61 @@ from dyson.solvers.static.chempot import AuxiliaryShift, AufbauPrinciple
 if TYPE_CHECKING:
     from typing import Any, Callable, Literal, TypeAlias
 
+    from pyscf import scf
+
     from dyson.typing import Array
     from dyson.spectral import Spectral
     from dyson.expression.expression import Expression
+
+
+def get_fock_matrix_function(
+    mf: scf.hf.RHF
+) -> Callable[[Array, Array | None, Array | None], Array]:
+    """Get a function to compute the Fock matrix for a given density matrix.
+
+    Args:
+        mf: Mean-field object.
+
+    Returns:
+        Function to compute the Fock matrix.
+    """
+    h1e = mf.get_hcore()
+    s1e = mf.get_ovlp()
+
+    def get_fock(
+        rdm1: Array, rdm1_prev: Array | None = None, static_prev: Array | None = None
+    ) -> Array:
+        """Compute the Fock matrix for a given density matrix.
+
+        Args:
+            rdm1: Density matrix.
+            rdm1_prev: Previous density matrix. Used for direct build.
+            static_prev: Previous Fock matrix. Used for direct build.
+
+        Returns:
+            Fock matrix.
+        """
+        # Transform to AO basis
+        rdm1 = mf.mo_coeff @ rdm1 @ mf.mo_coeff.T.conj()
+        if (rdm1_prev is None) != (static_prev is None):
+            raise ValueError(
+                "Both rdm1_prev and static_prev must be None or both must be provided."
+            )
+        if rdm1_prev is not None and static_prev is not None:
+            rdm1_prev = mf.mo_coeff @ rdm1_prev @ mf.mo_coeff.T.conj()
+            static_prev = mf.mo_coeff @ static_prev @ mf.mo_coeff.T.conj()
+
+        # Compute the new Fock matrix
+        veff_last = static_prev - h1e if static_prev is not None else None
+        veff = mf.get_veff(dm=rdm1, dm_last=rdm1_prev, vhf_last=veff_last)
+        fock = mf.get_fock(h1e=h1e, s1e=s1e, vhf=veff, dm=rdm1)
+
+        # Transform back to MO basis
+        fock = mf.mo_coeff.T.conj() @ fock @ mf.mo_coeff
+
+        return fock
+
+    return get_fock
 
 
 class DensityRelaxation(StaticSolver):
@@ -47,7 +99,7 @@ class DensityRelaxation(StaticSolver):
 
     def __init__(
         self,
-        get_static: Callable[[Array], Array],
+        get_static: Callable[[Array, Array | None, Array | None], Array],
         self_energy: Lehmann,
         nelec: int,
         **kwargs: Any,
@@ -160,7 +212,7 @@ class DensityRelaxation(StaticSolver):
                 rdm1 = greens_function.occupied().moment(0) * self.occupancy
 
                 # Update the static self-energy
-                static = self.get_static(rdm1)
+                static = self.get_static(rdm1, rdm1_prev=rdm1_prev, static_prev=static)
                 try:
                     static = diis.update(static, xerr=None)
                 except np.linalg.LinAlgError:
