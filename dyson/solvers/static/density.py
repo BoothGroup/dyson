@@ -12,7 +12,7 @@ from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Protocol
+    from typing import Any, Protocol
 
     from pyscf import scf
 

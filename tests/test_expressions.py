@@ -10,8 +10,7 @@ import pyscf
 import pytest
 
 from dyson import util
-from dyson.expressions import CCSD, FCI, HF, ADC2, ADC2x
-from dyson.expressions.adc import BaseADC
+from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x
 
 if TYPE_CHECKING:
     from pyscf import scf

@@ -8,7 +8,7 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
-from dyson.expressions import CCSD, FCI, HF, ADC2, ADC2x
+from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x
 from dyson.lehmann import Lehmann
 from dyson.solvers import Exact
 
@@ -98,7 +98,7 @@ class Helper:
         for i, (m1, m2) in enumerate(zip(moments1, moments2)):
             errors = np.abs(m1 - m2)
             errors_scaled = errors / np.maximum(np.max(np.abs(m1)), 1.0)
-            checks.append(np.all(errors_scaled < tol))
+            checks.append(bool(np.all(errors_scaled < tol)))
             print(
                 f"Error in moment {i} of {object.__repr__(lehmann1)} and "
                 f"{object.__repr__(lehmann2)}: {np.max(errors_scaled)} ({np.max(errors)})"

@@ -139,7 +139,9 @@ class Davidson(StaticSolver):
             bra = util.rotate_subspace(bra, orth.T.conj())
             ket = util.rotate_subspace(ket, orth) if not hermitian else bra
             static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(unorth if hermitian else (unorth, unorth.T.conj()))
+            self_energy = self_energy.rotate_couplings(
+                unorth if hermitian else (unorth, unorth.T.conj())
+            )
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),

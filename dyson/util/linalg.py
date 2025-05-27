@@ -95,7 +95,7 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
     # Find the eigenvalues and eigenvectors
     if hermitian:
         # assert np.allclose(m, m.T.conj())
-        #eigvals, eigvecs = np.linalg.eigh(matrix)
+        # eigvals, eigvecs = np.linalg.eigh(matrix)
         eigvals, eigvecs = scipy.linalg.eigh(matrix, b=overlap)
     else:
         eigvals, eigvecs = scipy.linalg.eig(matrix, b=overlap)
@@ -399,5 +399,5 @@ def rotate_subspace(vectors: Array, rotation: Array) -> Array:
     if rotation.shape[0] != rotation.shape[1]:
         raise ValueError(f"Rotation matrix must be square, got shape {rotation.shape}.")
     size = rotation.shape[0]
-    subspace = rotation @ vectors[: size]
+    subspace = rotation @ vectors[:size]
     return set_subspace(vectors, subspace)

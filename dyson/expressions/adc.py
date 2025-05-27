@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-import sys
 import warnings
+from typing import TYPE_CHECKING
 
 from pyscf import adc
 
@@ -14,8 +12,8 @@ from dyson import util
 from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:
-    from typing import Any
     from types import ModuleType
+    from typing import Any
 
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF

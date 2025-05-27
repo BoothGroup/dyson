@@ -566,14 +566,15 @@ class Lehmann:
             auxiliary space assumed to be the identity.
         """
         # Orthogonalise the physical space if overlap is provided
+        lehmann = self
         if overlap is not None:
             orth = util.matrix_power(overlap, -0.5, hermitian=False)[0]
             unorth = util.matrix_power(overlap, 0.5, hermitian=False)[0]
             physical = orth @ physical @ orth
-            self = self.rotate_couplings(orth if self.hermitian else (orth, orth.T.conj()))
+            lehmann = lehmann.rotate_couplings(orth if self.hermitian else (orth, orth.T.conj()))
 
         # Diagonalise the supermatrix
-        matrix = self.matrix(physical, chempot=chempot)
+        matrix = lehmann.matrix(physical, chempot=chempot)
         if self.hermitian:
             eigvals, eigvecs = util.eig(matrix, hermitian=True)
             if overlap is not None:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
-import warnings
 
 from dyson import numpy as np
 from dyson import util
@@ -290,7 +290,7 @@ class Spectral:
 
         # Solve the eigenvalue problem
         self_energy = Lehmann(energies, couplings)
-        result = cls(*self_energy.diagonalise_matrix(static), nphys, chempot=chempot)  #TODO orth
+        result = cls(*self_energy.diagonalise_matrix(static), nphys, chempot=chempot)  # TODO orth
 
         return result
 
