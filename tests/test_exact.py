@@ -46,14 +46,17 @@ def test_exact_solver(
     assert greens_function.nphys == expression.nphys
 
     # Recover the Green's function from the recovered self-energy
-    solver = Exact.from_self_energy(static, self_energy)
+    overlap = greens_function.moment(0)
+    solver = Exact.from_self_energy(static, self_energy, overlap=overlap)
     solver.kernel()
     assert solver.result is not None
     static_other = solver.result.get_static_self_energy()
     self_energy_other = solver.result.get_self_energy()
+    greens_function_other = solver.result.get_greens_function()
 
     assert helper.are_equal_arrays(static, static_other)
-    assert helper.have_equal_moments(self_energy, self_energy_other, 2)
+    assert helper.have_equal_moments(self_energy, self_energy_other, 4)
+    assert helper.have_equal_moments(greens_function, greens_function_other, 4)
 
 
 def test_vs_exact_solver_central(

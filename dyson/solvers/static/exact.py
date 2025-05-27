@@ -60,16 +60,27 @@ class Exact(StaticSolver):
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
             Solver instance.
         """
         size = self_energy.nphys + self_energy.naux
-        bra = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
+        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
+        if "overlap" in kwargs:
+            overlap = kwargs.pop("overlap")
+            hermitian = self_energy.hermitian
+            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
+            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
+            bra = util.rotate_subspace(bra, orth.T.conj())
+            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
+            static = unorth @ static @ unorth
+            self_energy = self_energy.rotate_couplings(unorth if hermitian else (unorth, unorth.T.conj()))
         return cls(
             self_energy.matrix(static),
             bra,
+            ket,
             hermitian=self_energy.hermitian,
             **kwargs,
         )
@@ -108,15 +119,21 @@ class Exact(StaticSolver):
             eigvecs = np.array([left, right])
 
         # Get the full map onto physical + auxiliary and rotate the eigenvectors
-        vectors = util.null_space_basis(self.bra, ket=self.ket)
+        vectors = util.null_space_basis(self.bra, ket=self.ket if not self.hermitian else None)
         if self.ket is None or self.hermitian:
             rotation = np.concatenate([self.bra, vectors[0]], axis=0)
             eigvecs = rotation @ eigvecs
         else:
+            # Ensure biorthonormality of auxiliary vectors
+            overlap = vectors[1].T.conj() @ vectors[0]
+            overlap -= self.ket.T.conj() @ self.bra
+            vectors = (
+                vectors[0],
+                vectors[1] @ util.matrix_power(overlap, -1, hermitian=False)[0],
+            )
             rotation = (
-                # FIXME: Shouldn't this be ket,bra? this way moments end up as ket@bra
-                np.concatenate([self.bra, vectors[0]], axis=0),
-                np.concatenate([self.ket, vectors[1]], axis=0),
+                np.concatenate([self.bra, vectors[1]], axis=0),
+                np.concatenate([self.ket, vectors[0]], axis=0),
             )
             eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
 

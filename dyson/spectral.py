@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING
+import warnings
 
 from dyson import numpy as np
 from dyson import util
@@ -289,9 +290,16 @@ class Spectral:
 
         # Solve the eigenvalue problem
         self_energy = Lehmann(energies, couplings)
-        result = cls(*self_energy.diagonalise_matrix(static), nphys, chempot=chempot)
+        result = cls(*self_energy.diagonalise_matrix(static), nphys, chempot=chempot)  #TODO orth
 
         return result
+
+    @cached_property
+    def overlap(self) -> Array:
+        """Get the overlap matrix (the zeroth moment of the Green's function)."""
+        orbitals = self.get_dyson_orbitals()[1]
+        left, right = util.unpack_vectors(orbitals)
+        return util.einsum("pk,qk->pq", right, left.conj())
 
     @property
     def eigvals(self) -> Array:

@@ -11,6 +11,7 @@ import pytest
 
 from dyson import util
 from dyson.expressions import CCSD, FCI, HF, ADC2, ADC2x
+from dyson.expressions.adc import BaseADC
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -37,7 +38,12 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     diagonal = expression.diagonal()
     hamiltonian = expression.build_matrix()
 
-    assert np.allclose(np.diag(hamiltonian), diagonal)
+    if expression_cls not in ADC2x.values():
+        assert np.allclose(np.diag(hamiltonian), diagonal)
+    else:
+        with pytest.raises(AssertionError):
+            # ADC(2)-x diagonal is set to ADC(2) diagonal in PySCF for better Davidson convergence
+            assert np.allclose(np.diag(hamiltonian), diagonal)
     assert hamiltonian.shape == expression.shape
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 

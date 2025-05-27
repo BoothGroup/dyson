@@ -15,12 +15,16 @@ if TYPE_CHECKING:
 einsum = functools.partial(np.einsum, optimize=True)
 
 
-def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
+def orthonormalise(
+    vectors: Array, transpose: bool = False, add_to_overlap: Array | None = None
+) -> Array:
     """Orthonormalise a set of vectors.
 
     Args:
         vectors: The set of vectors to be orthonormalised.
         transpose: Whether to transpose the vectors before and after orthonormalisation.
+        add_to_overlap: An optional matrix to be added to the overlap matrix before
+            orthonormalisation.
 
     Returns:
         The orthonormalised set of vectors.
@@ -28,6 +32,8 @@ def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
     if transpose:
         vectors = vectors.T.conj()
     overlap = vectors.T.conj() @ vectors
+    if add_to_overlap is not None:
+        overlap += add_to_overlap
     orth = matrix_power(overlap, -0.5, hermitian=False)
     vectors = vectors @ orth
     if transpose:
@@ -35,13 +41,23 @@ def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
     return vectors
 
 
-def biorthonormalise(left: Array, right: Array, transpose: bool = False) -> tuple[Array, Array]:
+def biorthonormalise(
+    left: Array,
+    right: Array,
+    transpose: bool = False,
+    split: bool = False,
+    add_to_overlap: Array | None = None,
+) -> tuple[Array, Array]:
     """Biorthonormalise two sets of vectors.
 
     Args:
         left: The left set of vectors.
         right: The right set of vectors.
         transpose: Whether to transpose the vectors before and after biorthonormalisation.
+        split: Whether to square root the orthogonalisation metric to factor each of the left and
+            right vectors, rather than just applying the metric to the right vectors.
+        add_to_overlap: An optional matrix to be added to the overlap matrix before
+            biorthonormalisation.
 
     Returns:
         The biorthonormalised left and right sets of vectors.
@@ -50,20 +66,28 @@ def biorthonormalise(left: Array, right: Array, transpose: bool = False) -> tupl
         left = left.T.conj()
         right = right.T.conj()
     overlap = left.T.conj() @ right
-    orth, error = matrix_power(overlap, -1, hermitian=False, return_error=True)
-    right = right @ orth
+    if add_to_overlap is not None:
+        overlap += add_to_overlap
+    if not split:
+        orth, error = matrix_power(overlap, -1, hermitian=False, return_error=True)
+        right = right @ orth
+    else:
+        orth, error = matrix_power(overlap, -0.5, hermitian=False, return_error=True)
+        left = left @ orth
+        right = right @ orth
     if transpose:
         left = left.T.conj()
         right = right.T.conj()
     return left, right
 
 
-def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
+def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> tuple[Array, Array]:
     """Compute the eigenvalues and eigenvectors of a matrix.
 
     Args:
         matrix: The matrix to be diagonalised.
         hermitian: Whether the matrix is hermitian.
+        overlap: An optional overlap matrix to be used for the eigenvalue decomposition.
 
     Returns:
         The eigenvalues and eigenvectors of the matrix.
@@ -71,9 +95,10 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     # Find the eigenvalues and eigenvectors
     if hermitian:
         # assert np.allclose(m, m.T.conj())
-        eigvals, eigvecs = np.linalg.eigh(matrix)
+        #eigvals, eigvecs = np.linalg.eigh(matrix)
+        eigvals, eigvecs = scipy.linalg.eigh(matrix, b=overlap)
     else:
-        eigvals, eigvecs = np.linalg.eig(matrix)
+        eigvals, eigvecs = scipy.linalg.eig(matrix, b=overlap)
 
     # Sort the eigenvalues and eigenvectors
     idx = np.argsort(eigvals)
@@ -83,22 +108,27 @@ def eig(matrix: Array, hermitian: bool = True) -> tuple[Array, Array]:
     return eigvals, eigvecs
 
 
-def eig_lr(matrix: Array, hermitian: bool = True) -> tuple[Array, tuple[Array, Array]]:
+def eig_lr(
+    matrix: Array, hermitian: bool = True, overlap: Array | None = None
+) -> tuple[Array, tuple[Array, Array]]:
     """Compute the eigenvalues and biorthogonal left- and right-hand eigenvectors of a matrix.
 
     Args:
         matrix: The matrix to be diagonalised.
         hermitian: Whether the matrix is hermitian.
+        overlap: An optional overlap matrix to be used for the eigenvalue decomposition.
 
     Returns:
         The eigenvalues and biorthogonal left- and right-hand eigenvectors of the matrix.
     """
     # Find the eigenvalues and eigenvectors
     if hermitian:
-        eigvals, eigvecs_left = np.linalg.eigh(matrix)
+        eigvals, eigvecs_left = scipy.linalg.eigh(matrix, b=overlap)
         eigvecs_right = eigvecs_left
     else:
-        eigvals, eigvecs_left, eigvecs_right = scipy.linalg.eig(matrix, left=True, right=True)
+        eigvals, eigvecs_left, eigvecs_right = scipy.linalg.eig(
+            matrix, left=True, right=True, b=overlap
+        )
         eigvecs_left, eigvecs_right = biorthonormalise(eigvecs_left, eigvecs_right)
 
     # Sort the eigenvalues and eigenvectors
@@ -332,3 +362,42 @@ def block_diag(*arrays: Array) -> Array:
         The block diagonal matrix.
     """
     return scipy.linalg.block_diag(*arrays)
+
+
+def set_subspace(vectors: Array, subspace: Array) -> Array:
+    """Set the subspace of a set of vectors.
+
+    Args:
+        vectors: The vectors to be set.
+        subspace: The subspace to be applied to the vectors.
+
+    Returns:
+        The vectors with the subspace applied.
+
+    Note:
+        This operation is equivalent to applying `vectors[: n] = subspace` where `n` is the size of
+        both dimensions in the subspace.
+    """
+    size = subspace.shape[0]
+    return np.concatenate([subspace, vectors[size:]], axis=0)
+
+
+def rotate_subspace(vectors: Array, rotation: Array) -> Array:
+    """Rotate the subspace of a set of vectors.
+
+    Args:
+        vectors: The vectors to be rotated.
+        rotation: The rotation matrix to be applied to the vectors.
+
+    Returns:
+        The rotated vectors.
+
+    Note:
+        This operation is equivalent to applying `vectors[: n] = rotation @ vectors[: n]` where `n`
+        is the size of both dimensions in the rotation matrix.
+    """
+    if rotation.shape[0] != rotation.shape[1]:
+        raise ValueError(f"Rotation matrix must be square, got shape {rotation.shape}.")
+    size = rotation.shape[0]
+    subspace = rotation @ vectors[: size]
+    return set_subspace(vectors, subspace)

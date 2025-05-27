@@ -27,7 +27,7 @@ def test_vs_exact_solver(
 ) -> None:
     """Test Davidson compared to the exact solver."""
     expression = expression_cls.from_mf(mf)
-    if expression.nconfig > 512:  # TODO: Make larger for CI runs?
+    if expression.nconfig > 1024:  # TODO: Make larger for CI runs?
         pytest.skip("Skipping test for large Hamiltonian")
     if expression.nsingle == (expression.nocc + expression.nvir):
         pytest.skip("Skipping test for central Hamiltonian")
@@ -53,19 +53,23 @@ def test_vs_exact_solver(
     assert davidson.matvec == expression.apply_hamiltonian
     assert np.all(davidson.diagonal == expression.diagonal())
     assert davidson.nphys == expression.nphys
+    assert exact.matrix.shape == (davidson.nroots, davidson.nroots)
 
     # Get the self-energy and Green's function from the Davidson solver
     static = davidson.result.get_static_self_energy()
     self_energy = davidson.result.get_self_energy()
+    greens_function = davidson.result.get_greens_function()
 
     # Get the self-energy and Green's function from the exact solver
     static_exact = exact.result.get_static_self_energy()
     self_energy_exact = exact.result.get_self_energy()
+    greens_function_exact = exact.result.get_greens_function()
 
     if expression.hermitian:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
         assert helper.are_equal_arrays(static, static_exact)
-        assert helper.have_equal_moments(self_energy, self_energy_exact, 2)
+        assert helper.have_equal_moments(self_energy, self_energy_exact, 4)
+        assert helper.have_equal_moments(greens_function, greens_function_exact, 4)
 
 
 def test_vs_exact_solver_central(

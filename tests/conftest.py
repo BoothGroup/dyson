@@ -8,7 +8,7 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
-from dyson.expressions import CCSD, FCI, HF
+from dyson.expressions import CCSD, FCI, HF, ADC2, ADC2x
 from dyson.lehmann import Lehmann
 from dyson.solvers import Exact
 
@@ -51,6 +51,9 @@ MF_CACHE = {
     "he-ccpvdz": scf.RHF(MOL_CACHE["he-ccpvdz"]).run(conv_tol=1e-12),
 }
 
+METHODS = [HF, CCSD, FCI, ADC2, ADC2x]
+METHOD_NAMES = ["HF", "CCSD", "FCI", "ADC2", "ADC2x"]
+
 
 def pytest_generate_tests(metafunc):  # type: ignore
     if "mf" in metafunc.fixturenames:
@@ -58,7 +61,7 @@ def pytest_generate_tests(metafunc):  # type: ignore
     if "expression_cls" in metafunc.fixturenames:
         expressions = []
         ids = []
-        for method, name in zip([HF, CCSD, FCI], ["HF", "CCSD", "FCI"]):
+        for method, name in zip(METHODS, METHOD_NAMES):
             for sector, expression in method.items():
                 expressions.append(expression)
                 ids.append(f"{name}-{sector}")
@@ -66,7 +69,7 @@ def pytest_generate_tests(metafunc):  # type: ignore
     if "expression_method" in metafunc.fixturenames:
         expressions = []
         ids = []
-        for method, name in zip([HF, CCSD, FCI], ["HF", "CCSD", "FCI"]):
+        for method, name in zip(METHODS, METHOD_NAMES):
             expressions.append(method)
             ids.append(name)
         metafunc.parametrize("expression_method", expressions, ids=ids)
@@ -78,6 +81,10 @@ class Helper:
     @staticmethod
     def are_equal_arrays(moment1: Array, moment2: Array, tol: float = 1e-8) -> bool:
         """Check if two arrays are equal to within a threshold."""
+        print(
+            f"Error in {object.__repr__(moment1)} and {object.__repr__(moment2)}: "
+            f"{np.max(np.abs(moment1 - moment2))}"
+        )
         return np.allclose(moment1, moment2, atol=tol)
 
     @staticmethod
@@ -87,7 +94,16 @@ class Helper:
         """Check if two :class:`Lehmann` objects have equal moments to within a threshold."""
         moments1 = lehmann1.moments(range(num)) if isinstance(lehmann1, Lehmann) else lehmann1
         moments2 = lehmann2.moments(range(num)) if isinstance(lehmann2, Lehmann) else lehmann2
-        return all(((m1 - m2) / np.maximum(m2, 1.0)) < tol for m1, m2 in zip(moments1, moments2))
+        checks: list[bool] = []
+        for i, (m1, m2) in enumerate(zip(moments1, moments2)):
+            errors = np.abs(m1 - m2)
+            errors_scaled = errors / np.maximum(np.max(np.abs(m1)), 1.0)
+            checks.append(np.all(errors_scaled < tol))
+            print(
+                f"Error in moment {i} of {object.__repr__(lehmann1)} and "
+                f"{object.__repr__(lehmann2)}: {np.max(errors_scaled)} ({np.max(errors)})"
+            )
+        return all(checks)
 
     @staticmethod
     def recovers_greens_function(
@@ -98,7 +114,10 @@ class Helper:
         tol: float = 1e-8,
     ) -> bool:
         """Check if a self-energy recovers the Green's function to within a threshold."""
-        greens_function_other = Lehmann(*self_energy.diagonalise_matrix_with_projection(static))
+        overlap = greens_function.moment(0)
+        greens_function_other = Lehmann(
+            *self_energy.diagonalise_matrix_with_projection(static, overlap=overlap)
+        )
         return Helper.have_equal_moments(greens_function, greens_function_other, num, tol=tol)
 
     @staticmethod

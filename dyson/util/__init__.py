@@ -15,6 +15,8 @@ from dyson.util.linalg import (
     concatenate_paired_vectors,
     unpack_vectors,
     block_diag,
+    set_subspace,
+    rotate_subspace,
 )
 from dyson.util.moments import (
     se_moments_to_gf_moments,

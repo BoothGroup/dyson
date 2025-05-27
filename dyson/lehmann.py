@@ -259,7 +259,7 @@ class Lehmann:
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
 
-    def rotate_couplings(self, rotation: Array) -> Lehmann:
+    def rotate_couplings(self, rotation: Array | tuple[Array, Array]) -> Lehmann:
         """Rotate the couplings and return a new Lehmann representation.
 
         Args:
@@ -270,19 +270,18 @@ class Lehmann:
         Returns:
             A new Lehmann representation with the couplings rotated into the new basis.
         """
-        if rotation.shape[-2] != self.nphys:
-            raise ValueError(
-                f"Rotation matrix has shape {rotation.shape}, but expected {self.nphys} "
-                f"physical degrees of freedom."
-            )
-        if rotation.ndim == 2:
-            couplings = util.einsum("...pk,pq->...qk", rotation.conj(), self.couplings)
+        if not isinstance(rotation, tuple) and rotation.ndim == 2:
+            couplings = util.einsum("...pk,pq->...qk", self.couplings, rotation.conj())
         else:
             left, right = self.unpack_couplings()
+            if isinstance(rotation, tuple) or rotation.ndim == 3:
+                rot_left, rot_right = rotation
+            else:
+                rot_left = rot_right = rotation
             couplings = np.array(
                 [
-                    rotation[0].T.conj() @ left,
-                    rotation[1].T.conj() @ right,
+                    rot_left.T.conj() @ left,
+                    rot_right.T.conj() @ right,
                 ],
             )
         return self.__class__(
@@ -525,7 +524,7 @@ class Lehmann:
         return result
 
     def diagonalise_matrix(
-        self, physical: Array, chempot: bool | float = False
+        self, physical: Array, chempot: bool | float = False, overlap: Array | None = None
     ) -> tuple[Array, Array]:
         r"""Diagonalise the supermatrix.
 
@@ -555,20 +554,43 @@ class Lehmann:
             chempot: Whether to include the chemical potential in the supermatrix. If `True`, the
                 chemical potential from :attr:`chempot` is used. If a float is given, that value is
                 used.
+            overlap: The overlap matrix to use for the physical space part of the supermatrix. If
+                `None`, the identity matrix is used.
 
         Returns:
             The eigenvalues and eigenvectors of the supermatrix.
+
+        Note:
+            If a non-identity overlap matrix is provided, this is equivalent to performing a
+            generalised eigenvalue decomposition of the supermatrix, with the overlap in the
+            auxiliary space assumed to be the identity.
         """
+        # Orthogonalise the physical space if overlap is provided
+        if overlap is not None:
+            orth = util.matrix_power(overlap, -0.5, hermitian=False)[0]
+            unorth = util.matrix_power(overlap, 0.5, hermitian=False)[0]
+            physical = orth @ physical @ orth
+            self = self.rotate_couplings(orth if self.hermitian else (orth, orth.T.conj()))
+
+        # Diagonalise the supermatrix
         matrix = self.matrix(physical, chempot=chempot)
         if self.hermitian:
-            return util.eig(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs = util.eig(matrix, hermitian=True)
+            if overlap is not None:
+                eigvecs = util.rotate_subspace(eigvecs, unorth.T.conj())
         else:
-            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=False)
+            if overlap is not None:
+                left, right = eigvecs_tuple
+                left = util.rotate_subspace(left, unorth.T.conj())
+                right = util.rotate_subspace(right, unorth)
+                eigvecs_tuple = (left, right)
             eigvecs = np.array(eigvecs_tuple)
-            return eigvals, eigvecs
+
+        return eigvals, eigvecs
 
     def diagonalise_matrix_with_projection(
-        self, physical: Array, chempot: bool | float = False
+        self, physical: Array, chempot: bool | float = False, overlap: Array | None = None
     ) -> tuple[Array, Array]:
         """Diagonalise the supermatrix and project the eigenvectors into the physical space.
 
@@ -577,12 +599,17 @@ class Lehmann:
             chempot: Whether to include the chemical potential in the supermatrix. If `True`, the
                 chemical potential from :attr:`chempot` is used. If a float is given, that value is
                 used.
+            overlap: The overlap matrix to use for the physical space part of the supermatrix. If
+                `None`, the identity matrix is used.
 
         Returns:
             The eigenvalues and eigenvectors of the supermatrix, with the eigenvectors projected
             into the physical space.
+
+        See Also:
+            :meth:`diagonalise_matrix` for the full eigenvalue decomposition of the supermatrix.
         """
-        eigvals, eigvecs = self.diagonalise_matrix(physical, chempot=chempot)
+        eigvals, eigvecs = self.diagonalise_matrix(physical, chempot=chempot, overlap=overlap)
         eigvecs_projected = eigvecs[..., : self.nphys, :]
         return eigvals, eigvecs_projected
 

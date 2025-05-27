@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class BaseADC(BaseExpression):
     """Base class for ADC expressions."""
 
-    hermitian = True
+    hermitian = False  # FIXME: hermitian downfolded, but not formally hermitian supermatrix
 
     PYSCF_ADC: ModuleType
     SIGN: int
@@ -99,6 +99,10 @@ class BaseADC(BaseExpression):
         Returns:
             Output vector.
         """
+        if np.iscomplexobj(vector):
+            if np.max(np.abs(vector.imag)) > 1e-11:
+                raise ValueError("ADC does not support complex vectors.")
+            vector = vector.real
         return self.PYSCF_ADC.matvec(self._adc_obj, self._imds, self._eris)(vector) * self.SIGN
 
     def diagonal(self) -> Array:

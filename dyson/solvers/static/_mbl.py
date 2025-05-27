@@ -114,7 +114,7 @@ class BaseMBL(StaticSolver):
                 assert error_moments is not None
 
                 error_decomp = max(error_sqrt, error_inv_sqrt)
-                if error_decomp > 1e-10 and self.hermitian:
+                if error_decomp > 1e-11 and self.hermitian:
                     warnings.warn(
                         f"Space contributing non-zero weight to the moments ({error_decomp}) was "
                         f"removed during iteration {iteration}. Allowing complex eigenvalues by "
@@ -122,7 +122,7 @@ class BaseMBL(StaticSolver):
                         UserWarning,
                         2,
                     )
-                elif error_decomp > 1e-10:
+                elif error_decomp > 1e-11:
                     warnings.warn(
                         f"Space contributing non-zero weight to the moments ({error_decomp}) was "
                         f"removed during iteration {iteration}. Since hermitian=False was set, "
