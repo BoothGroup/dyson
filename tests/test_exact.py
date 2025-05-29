@@ -31,7 +31,6 @@ def test_exact_solver(
 
     # Solve the Hamiltonian
     solver = exact_cache(mf, expression_cls)
-    solver.kernel()
 
     assert solver.result is not None
     assert solver.nphys == expression.nphys

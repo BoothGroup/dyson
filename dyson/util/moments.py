@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import warnings
 
 from dyson import numpy as np
+from dyson.util.linalg import matrix_power, einsum
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -12,12 +14,17 @@ if TYPE_CHECKING:
     from dyson.typing import Array
 
 
-def se_moments_to_gf_moments(static: Array, se_moments: Array) -> Array:
+def se_moments_to_gf_moments(
+    static: Array, se_moments: Array, overlap: Array | None = None, check_error: bool = True
+) -> Array:
     """Convert moments of the self-energy to those of the Green's function.
 
     Args:
         static: Static part of the self-energy.
         se_moments: Moments of the self-energy.
+        overlap: The overlap matrix (zeroth moment of the Green's function). If `None`, the zeroth
+            moment of the Green's function is assumed to be the identity matrix.
+        check_error: Whether to check the errors in the orthogonalisation of the moments.
 
     Returns:
         Moments of the Green's function.
@@ -27,12 +34,34 @@ def se_moments_to_gf_moments(static: Array, se_moments: Array) -> Array:
         to define the first :math:`m+2` moments of the Green's function.
     """
     nmom, nphys, _ = se_moments.shape
-    gf_moments = np.zeros((nmom + 2, nphys, nphys), dtype=se_moments.dtype)
+
+    # Orthogonalise the moments
+    if overlap is not None:
+        hermitian = np.allclose(overlap, overlap.T.conj())
+        orth, error_orth = matrix_power(
+            overlap, -0.5, hermitian=hermitian, return_error=check_error
+        )
+        unorth, error_unorth = matrix_power(
+            overlap, 0.5, hermitian=hermitian, return_error=check_error
+        )
+        error = None if not check_error else max(error_orth, error_unorth)
+        if check_error and error > 1e-10:
+            warnings.warn(
+                "Space contributing non-zero weight to the zeroth moments "
+                f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                UserWarning,
+                2,
+            )
+        static = orth @ static @ orth
+        se_moments = einsum("npq,ip,qj->nij", se_moments, orth, orth)
 
     # Get the powers of the static part
-    powers = [np.eye(nphys, dtype=se_moments.dtype)]
-    for i in range(1, nmom + 2):
+    powers = [np.eye(static.shape[-1], dtype=static.dtype), static]
+    for i in range(2, nmom + 2):
         powers.append(powers[i - 1] @ static)
+    gf_moments = np.zeros(
+        (nmom + 2, nphys, nphys), dtype=np.result_type(se_moments.dtype, powers[0].dtype)
+    )
 
     # Perform the recursion
     for i in range(nmom + 2):
@@ -42,18 +71,19 @@ def se_moments_to_gf_moments(static: Array, se_moments: Array) -> Array:
                 k = i - n - m - 2
                 gf_moments[i] += powers[n] @ se_moments[m] @ gf_moments[k]
 
+    # Unorthogonalise the moments
+    if overlap is not None:
+        gf_moments = einsum("npq,ip,qj->nij", gf_moments, unorth, unorth)
+
     return gf_moments
 
 
-def gf_moments_to_se_moments(
-    gf_moments: Array, allow_non_identity: bool = False
-) -> tuple[Array, Array]:
+def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tuple[Array, Array]:
     """Convert moments of the Green's function to those of the self-energy.
 
     Args:
         gf_moments: Moments of the Green's function.
-        allow_non_identity: If `True`, allow the zeroth moment of the Green's function to be
-            non-identity.
+        check_error: Whether to check the errors in the orthogonalisation of the moments.
 
     Returns:
         static: Static part of the self-energy.
@@ -62,19 +92,35 @@ def gf_moments_to_se_moments(
     Notes:
         The first :math:`m+2` moments of the Green's function are sufficient to define the first
         :math:`m` moments of the self-energy, along with the static part.
-
-    Raises:
-        ValueError: If the zeroth moment of the Green's function is not the identity matrix.
     """
     nmom, nphys, _ = gf_moments.shape
     if nmom < 2:
         raise ValueError(
             "Need at least 2 moments of the Green's function to compute those of the self-energy."
         )
-    if not allow_non_identity and not np.allclose(gf_moments[0], np.eye(nphys)):
-        raise ValueError("The first moment of the Green's function must be the identity.")
-    se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
+
+    # Orthogonalise the moments
+    if not np.allclose(gf_moments[0], np.eye(nphys)):
+        hermitian = np.allclose(gf_moments[0], gf_moments[0].T.conj())
+        orth, error_orth = matrix_power(
+            gf_moments[0], -0.5, hermitian=hermitian, return_error=check_error
+        )
+        unorth, error_unorth = matrix_power(
+            gf_moments[0], 0.5, hermitian=hermitian, return_error=check_error
+        )
+        error = None if not check_error else max(error_orth, error_unorth)
+        if check_error and error > 1e-10:
+            warnings.warn(
+                "Space contributing non-zero weight to the zeroth moments "
+                f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                UserWarning,
+                2,
+            )
+        gf_moments = einsum("npq,ip,qj->nij", gf_moments, orth, orth)
+
+    # Get the static part and the moments of the self-energy
     se_static = gf_moments[1]
+    se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
 
     # Invert the recurrence relations:
     #
@@ -98,6 +144,10 @@ def gf_moments_to_se_moments(
                 k = i - l - m
                 if m != i:
                     se_moments[i] -= powers[l] @ se_moments[m] @ gf_moments[k]
+
+    # Unorthogonalise the moments
+    se_static = unorth @ se_static @ unorth
+    se_moments = einsum("npq,ip,qj->nij", se_moments, unorth, unorth)
 
     return se_static, se_moments
 
@@ -144,80 +194,3 @@ def build_block_tridiagonal(
     )
 
     return matrix
-
-
-def matvec_to_gf_moments(
-    matvec: Callable[[Array], Array], nmom: int, bra: Array, ket: Array | None = None
-) -> Array:
-    """Build moments of a Green's function using the matrix-vector operation.
-
-    Args:
-        matvec: Matrix-vector product function.
-        nmom: Number of moments to compute.
-        bra: Bra vectors.
-        ket: Ket vectors, if `None` then use `bra`.
-
-    Returns:
-        Moments of the Green's function.
-
-    Notes:
-        This function is functionally identical to :method:`Expression.build_gf_moments`, but the
-        latter is optimised for :class:`Expression` objects.
-    """
-    nphys, nconf = bra.shape
-    moments = np.zeros((nmom, nphys, nphys), dtype=bra.dtype)
-    if ket is None:
-        ket = bra
-    ket = ket.copy()
-
-    # Build the moments
-    for n in range(nmom):
-        part = bra.conj() @ ket.T
-        if np.iscomplexobj(part) and not np.iscomplexobj(moments):
-            moments = moments.astype(np.complex128)
-        moments[n] = part
-        if n != (nmom - 1):
-            ket = np.array([matvec(vector) for vector in ket])
-
-    return moments
-
-
-def matvec_to_gf_moments_chebyshev(
-    matvec: Callable[[Array], Array],
-    nmom: int,
-    scaling: tuple[float, float],
-    bra: Array,
-    ket: Array | None = None,
-) -> Array:
-    """Build Chebyshev moments of a Green's function using the matrix-vector operation.
-
-    Args:
-        matvec: Matrix-vector product function.
-        nmom: Number of moments to compute.
-        scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
-            `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
-        bra: Bra vectors.
-        ket: Ket vectors, if `None` then use `bra`.
-
-    Returns:
-        Moments of the Green's function.
-
-    Notes:
-        This function is functionally identical to :method:`Expression.build_gf_chebyshev_moments`,
-        but the latter is optimised for :class:`Expression` objects.
-    """
-    nphys, nconf = bra.shape
-    moments = np.zeros((nmom, nphys, nphys), dtype=bra.dtype)
-    a, b = scaling
-    ket0 = ket.copy() if ket is not None else bra.copy()
-    ket1 = np.array([matvec(vector) - scaling[1] * vector for vector in ket0]) / scaling[0]
-
-    # Build the moments
-    moments[0] = bra @ ket0.T.conj()
-    for n in range(1, nmom):
-        moments[n] = bra @ ket1.T.conj()
-        if n != (nmom - 1):
-            ket2 = np.array([matvec(vector) - scaling[1] * vector for vector in ket1]) / scaling[0]
-            ket0, ket1 = ket1, ket2
-
-    return moments
