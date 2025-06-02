@@ -14,7 +14,7 @@ from .conftest import _get_central_result
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.expressions.expression import BaseExpression
+    from dyson.expressions.expression import ExpressionCollection
 
     from .conftest import ExactGetter, Helper
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def test_aufbau_vs_exact_solver(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: dict[str, type[BaseExpression]],
+    expression_method: ExpressionCollection,
     exact_cache: ExactGetter,
     method: str,
 ) -> None:
@@ -67,7 +67,7 @@ def test_aufbau_vs_exact_solver(
 def test_shift_vs_exact_solver(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: dict[str, type[BaseExpression]],
+    expression_method: ExpressionCollection,
     exact_cache: ExactGetter,
 ) -> None:
     """Test AuxiliaryShift compared to the exact solver."""

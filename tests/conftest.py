@@ -16,7 +16,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from typing import Callable, Hashable
 
-    from dyson.expressions.expression import BaseExpression
+    from dyson.expressions.expression import BaseExpression, ExpressionCollection
     from dyson.typing import Array
 
     ExactGetter = Callable[[scf.hf.RHF, type[BaseExpression]], Exact]
@@ -176,30 +176,30 @@ def exact_cache() -> ExactGetter:
 def _get_central_result(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: dict[str, type[BaseExpression]],
+    expression_method: ExpressionCollection,
     exact_cache: ExactGetter,
     allow_hermitian: bool = True,
 ) -> Spectral:
     """Get the central result for the given mean-field method."""
     if "dyson" in expression_method:
-        expression = expression_method["dyson"].from_mf(mf)
+        expression = expression_method.dyson.from_mf(mf)
         if expression.nconfig > 1024:
             pytest.skip("Skipping test for large Hamiltonian")
         if not expression.hermitian and not allow_hermitian:
             pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
-        exact = exact_cache(mf, expression_method["dyson"])
+        exact = exact_cache(mf, expression_method.dyson)
         assert exact.result is not None
         return exact.result
 
     # Combine hole and particle results
-    expression_h = expression_method["1h"].from_mf(mf)
-    expression_p = expression_method["1p"].from_mf(mf)
+    expression_h = expression_method.h.from_mf(mf)
+    expression_p = expression_method.p.from_mf(mf)
     if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
     if not expression_h.hermitian and not allow_hermitian:
         pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
-    exact_h = exact_cache(mf, expression_method["1h"])
-    exact_p = exact_cache(mf, expression_method["1p"])
+    exact_h = exact_cache(mf, expression_method.h)
+    exact_p = exact_cache(mf, expression_method.p)
     assert exact_h.result is not None
     assert exact_p.result is not None
     return Spectral.combine(exact_h.result, exact_p.result)

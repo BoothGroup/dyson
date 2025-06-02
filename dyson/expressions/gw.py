@@ -8,10 +8,9 @@ from pyscf import gw, lib
 
 from dyson import numpy as np
 from dyson import util
-from dyson.expressions.expression import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
-
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF
 
@@ -220,6 +219,4 @@ class TDAGW_Dyson(BaseGW_Dyson):
         return np.concatenate([diag_o1, diag_v1, diag_o2, diag_v2])
 
 
-TDAGW = {
-    "dyson": TDAGW_Dyson,
-}
+TDAGW = ExpressionCollection(None, None, TDAGW_Dyson, None, "TDA-GW")

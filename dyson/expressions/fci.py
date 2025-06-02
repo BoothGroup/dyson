@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from pyscf import ao2mo, fci
 
-from dyson.expressions.expression import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -237,7 +237,4 @@ class FCI_1p(BaseFCI):  # pylint: disable=invalid-name
         return self.nvir
 
 
-FCI = {
-    "1h": FCI_1h,
-    "1p": FCI_1p,
-}
+FCI = ExpressionCollection(FCI_1h, FCI_1p, None, None, "FCI")

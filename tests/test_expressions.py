@@ -89,8 +89,8 @@ def test_static(
 
 def test_hf(mf: scf.hf.RHF) -> None:
     """Test the HF expression."""
-    hf_h = HF["1h"].from_mf(mf)
-    hf_p = HF["1p"].from_mf(mf)
+    hf_h = HF.h.from_mf(mf)
+    hf_p = HF.p.from_mf(mf)
     hf_dyson = HF["dyson"].from_mf(mf)
     gf_h_moments = hf_h.build_gf_moments(2)
     gf_p_moments = hf_p.build_gf_moments(2)
@@ -112,7 +112,7 @@ def test_hf(mf: scf.hf.RHF) -> None:
 
 def test_ccsd(mf: scf.hf.RHF) -> None:
     """Test the CCSD expression."""
-    ccsd = CCSD["1h"].from_mf(mf)
+    ccsd = CCSD.h.from_mf(mf)
     gf_moments = ccsd.build_gf_moments(2)
 
     # Get the energy from the hole moments
@@ -127,7 +127,7 @@ def test_ccsd(mf: scf.hf.RHF) -> None:
 
 def test_fci(mf: scf.hf.RHF) -> None:
     """Test the FCI expression."""
-    fci = FCI["1h"].from_mf(mf)
+    fci = FCI.h.from_mf(mf)
     gf_moments = fci.build_gf_moments(2)
 
     # Get the energy from the hole moments
@@ -140,7 +140,7 @@ def test_fci(mf: scf.hf.RHF) -> None:
 
 def test_adc2(mf: scf.hf.RHF) -> None:
     """Test the ADC(2) expression."""
-    adc = ADC2["1h"].from_mf(mf)
+    adc = ADC2.h.from_mf(mf)
     gf_moments = adc.build_gf_moments(2)
 
     # Get the energy from the hole moments
@@ -153,7 +153,7 @@ def test_adc2(mf: scf.hf.RHF) -> None:
 
 def test_adc2x(mf: scf.hf.RHF) -> None:
     """Test the ADC(2)-x expression."""
-    adc = ADC2x["1h"].from_mf(mf)
+    adc = ADC2x.h.from_mf(mf)
     gf_moments = adc.build_gf_moments(2)
 
     # Get the energy from the hole moments

@@ -10,7 +10,7 @@ from pyscf import cc
 
 from dyson import numpy as np
 from dyson import util
-from dyson.expressions.expression import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
     from typing import Any
@@ -468,7 +468,4 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         return self.nvir * self.nvir * self.nocc
 
 
-CCSD = {
-    "1h": CCSD_1h,
-    "1p": CCSD_1p,
-}
+CCSD = ExpressionCollection(CCSD_1h, CCSD_1p, None, None, "CCSD")

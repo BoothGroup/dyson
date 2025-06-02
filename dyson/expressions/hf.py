@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
-from dyson.expressions.expression import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
     from pyscf.gto.mole import Mole
@@ -220,8 +220,4 @@ class HF_Dyson(BaseHF):  # pylint: disable=invalid-name
         return False
 
 
-HF = {
-    "1h": HF_1h,
-    "1p": HF_1p,
-    "dyson": HF_Dyson,
-}
+HF = ExpressionCollection(HF_1h, HF_1p, HF_Dyson, None, name="HF")

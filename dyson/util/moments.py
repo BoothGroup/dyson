@@ -9,7 +9,6 @@ from dyson import numpy as np
 from dyson.util.linalg import einsum, matrix_power
 
 if TYPE_CHECKING:
-
     from dyson.typing import Array
 
 

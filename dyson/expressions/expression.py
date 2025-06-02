@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from dyson import numpy as np
 from dyson import util
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from typing import Callable, ItemsView, KeysView, ValuesView
 
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF
@@ -366,3 +366,102 @@ class BaseExpression(ABC):
     def nvir(self) -> int:
         """Number of virtual orbitals."""
         return self.nphys - self.nocc
+
+
+class ExpressionCollection:
+    """Collection of expressions for different parts of the Green's function."""
+
+    def __init__(
+        self,
+        hole: type[BaseExpression] | None = None,
+        particle: type[BaseExpression] | None = None,
+        central: type[BaseExpression] | None = None,
+        neutral: type[BaseExpression] | None = None,
+        name: str | None = None,
+    ):
+        """Initialise the collection.
+
+        Args:
+            hole: Hole expression.
+            particle: Particle expression.
+            central: Central expression.
+            neutral: Neutral expression.
+            name: Name of the collection.
+        """
+        self._hole = hole
+        self._particle = particle
+        self._central = central
+        self._neutral = neutral
+        self.name = name
+
+    @property
+    def hole(self) -> type[BaseExpression]:
+        """Hole expression."""
+        if self._hole is None:
+            raise ValueError("Hole expression is not set.")
+        return self._hole
+
+    ip = o = h = cast(type[BaseExpression], hole)
+
+    @property
+    def particle(self) -> type[BaseExpression]:
+        """Particle expression."""
+        if self._particle is None:
+            raise ValueError("Particle expression is not set.")
+        return self._particle
+
+    ea = v = p = cast(type[BaseExpression], particle)
+
+    @property
+    def central(self) -> type[BaseExpression]:
+        """Central expression."""
+        if self._central is None:
+            raise ValueError("Central expression is not set.")
+        return self._central
+
+    dyson = cast(type[BaseExpression], central)
+
+    @property
+    def neutral(self) -> type[BaseExpression]:
+        """Neutral expression."""
+        if self._neutral is None:
+            raise ValueError("Neutral expression is not set.")
+        return self._neutral
+
+    ee = ph = cast(type[BaseExpression], neutral)
+
+    def __dict__(self) -> dict[str, type[BaseExpression]]:  # type: ignore[override]
+        """Get a dictionary representation of the collection."""
+        exps: dict[str, type[BaseExpression]] = {}
+        for key in ("hole", "particle", "central", "neutral"):
+            if key in self:
+                exps[key] = getattr(self, key)
+        return exps
+
+    def keys(self) -> KeysView[str]:
+        """Get the keys of the collection."""
+        return self.__dict__().keys()
+
+    def values(self) -> ValuesView[type[BaseExpression]]:
+        """Get the values of the collection."""
+        return self.__dict__().values()
+
+    def items(self) -> ItemsView[str, type[BaseExpression]]:
+        """Get an item view of the collection."""
+        return self.__dict__().items()
+
+    def __getitem__(self, key: str) -> type[BaseExpression]:
+        """Get an expression by its name."""
+        return getattr(self, key)
+
+    def __contains__(self, key: str) -> bool:
+        """Check if an expression exists by its name."""
+        try:
+            self[key]
+            return True
+        except ValueError:
+            return False
+
+    def __repr__(self) -> str:
+        """String representation of the collection."""
+        return f"ExpressionCollection({self.name})" if self.name else "ExpressionCollection"

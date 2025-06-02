@@ -9,7 +9,7 @@ from pyscf import adc
 
 from dyson import numpy as np
 from dyson import util
-from dyson.expressions.expression import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -242,11 +242,5 @@ class ADC2x_1p(BaseADC_1p):
         return self.nvir * self.nvir * self.nocc
 
 
-ADC2 = {
-    "1h": ADC2_1h,
-    "1p": ADC2_1p,
-}
-ADC2x = {
-    "1h": ADC2x_1h,
-    "1p": ADC2x_1p,
-}
+ADC2 = ExpressionCollection(ADC2_1h, ADC2_1p, None, None, "ADC(2)")
+ADC2x = ExpressionCollection(ADC2x_1h, ADC2x_1p, None, None, "ADC(2)-x")

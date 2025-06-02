@@ -14,7 +14,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.expressions.expression import BaseExpression
+    from dyson.expressions.expression import ExpressionCollection
 
     from .conftest import ExactGetter, Helper
 
@@ -23,15 +23,15 @@ if TYPE_CHECKING:
 def test_central_moments(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: dict[str, type[BaseExpression]],
+    expression_method: ExpressionCollection,
     max_cycle: int,
 ) -> None:
     """Test the recovery of the exact central moments from the MBLSE solver."""
     # Get the quantities required from the expression
-    if "1h" not in expression_method or "1p" not in expression_method:
+    if "h" not in expression_method or "p" not in expression_method:
         pytest.skip("Skipping test for Dyson only expression")
-    expression_h = expression_method["1h"].from_mf(mf)
-    expression_p = expression_method["1p"].from_mf(mf)
+    expression_h = expression_method.h.from_mf(mf)
+    expression_p = expression_method.p.from_mf(mf)
     nmom_gf = max_cycle * 2 + 4
     nmom_se = nmom_gf - 2
     gf_moments = expression_h.build_gf_moments(nmom_gf) + expression_p.build_gf_moments(nmom_gf)
@@ -58,16 +58,16 @@ def test_central_moments(
 def test_vs_exact_solver_central(
     helper: Helper,
     mf: scf.hf.RHF,
-    expression_method: dict[str, type[BaseExpression]],
+    expression_method: ExpressionCollection,
     exact_cache: ExactGetter,
     max_cycle: int,
     shared_static: bool,
 ) -> None:
     # Get the quantities required from the expressions
-    if "1h" not in expression_method or "1p" not in expression_method:
+    if "h" not in expression_method or "p" not in expression_method:
         pytest.skip("Skipping test for Dyson only expression")
-    expression_h = expression_method["1h"].from_mf(mf)
-    expression_p = expression_method["1p"].from_mf(mf)
+    expression_h = expression_method.h.from_mf(mf)
+    expression_p = expression_method.p.from_mf(mf)
     if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
     nmom_se = max_cycle * 2 + 2
@@ -76,8 +76,8 @@ def test_vs_exact_solver_central(
     hermitian = expression_h.hermitian and not (isinstance(expression_p, BaseFCI) and max_cycle > 1)
 
     # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_method["1h"])
-    exact_p = exact_cache(mf, expression_method["1p"])
+    exact_h = exact_cache(mf, expression_method.h)
+    exact_p = exact_cache(mf, expression_method.p)
     assert exact_h.result is not None
     assert exact_p.result is not None
     result_exact_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
