@@ -8,10 +8,10 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
-from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x, TDAGW
+from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 from dyson.lehmann import Lehmann
-from dyson.spectral import Spectral
 from dyson.solvers import Exact
+from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Callable, Hashable
@@ -187,7 +187,9 @@ def _get_central_result(
             pytest.skip("Skipping test for large Hamiltonian")
         if not expression.hermitian and not allow_hermitian:
             pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
-        return exact_cache(mf, expression_method["dyson"]).result
+        exact = exact_cache(mf, expression_method["dyson"])
+        assert exact.result is not None
+        return exact.result
 
     # Combine hole and particle results
     expression_h = expression_method["1h"].from_mf(mf)
@@ -198,4 +200,6 @@ def _get_central_result(
         pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
     exact_h = exact_cache(mf, expression_method["1h"])
     exact_p = exact_cache(mf, expression_method["1p"])
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     return Spectral.combine(exact_h.result, exact_p.result)

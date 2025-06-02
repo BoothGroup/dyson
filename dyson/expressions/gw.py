@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
-from pyscf import lib, gw
+from pyscf import gw, lib
 
 from dyson import numpy as np
 from dyson import util
 from dyson.expressions.expression import BaseExpression
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
 
     from pyscf.gto.mole import Mole
     from pyscf.scf.hf import RHF
@@ -201,14 +199,10 @@ class TDAGW_Dyson(BaseGW_Dyson):
         # Get the slices for each sector
         o1 = slice(None, self.nocc)
         v1 = slice(self.nocc, None)
-        o2 = slice(self.nocc + self.nvir, self.nocc + self.nvir + self.nocc * self.nocc * self.nvir)
-        v2 = slice(self.nocc + self.nvir + self.nocc * self.nocc * self.nvir, None)
 
         # Get the blocks of the ERIs
         Lia = self.eris[:, o1, v1]
         Lai = self.eris[:, v1, o1]
-        Lij = self.eris[:, o1, o1]
-        Lab = self.eris[:, v1, v1]
 
         # Get the energy denominators
         mo_energy = self.gw._scf.mo_energy if self.gw.mo_energy is None else self.gw.mo_energy

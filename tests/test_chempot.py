@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from dyson.solvers import AufbauPrinciple, AuxiliaryShift
-from dyson.spectral import Spectral
 
 from .conftest import _get_central_result
 

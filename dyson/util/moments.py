@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson.util.linalg import matrix_power, einsum
+from dyson.util.linalg import einsum, matrix_power
 
 if TYPE_CHECKING:
-    from typing import Callable
 
     from dyson.typing import Array
 
@@ -44,14 +43,16 @@ def se_moments_to_gf_moments(
         unorth, error_unorth = matrix_power(
             overlap, 0.5, hermitian=hermitian, return_error=check_error
         )
-        error = None if not check_error else max(error_orth, error_unorth)
-        if check_error and error > 1e-10:
-            warnings.warn(
-                "Space contributing non-zero weight to the zeroth moments "
-                f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
-                UserWarning,
-                2,
-            )
+        if check_error:
+            assert error_orth is not None and error_unorth is not None
+            error = max(error_orth, error_unorth)
+            if error > 1e-10:
+                warnings.warn(
+                    "Space contributing non-zero weight to the zeroth moments "
+                    f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                    UserWarning,
+                    2,
+                )
         static = orth @ static @ orth
         se_moments = einsum("npq,ip,qj->nij", se_moments, orth, orth)
 
@@ -109,14 +110,16 @@ def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tup
         unorth, error_unorth = matrix_power(
             gf_moments[0], 0.5, hermitian=hermitian, return_error=check_error
         )
-        error = None if not check_error else max(error_orth, error_unorth)
-        if check_error and error > 1e-10:
-            warnings.warn(
-                "Space contributing non-zero weight to the zeroth moments "
-                f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
-                UserWarning,
-                2,
-            )
+        if check_error:
+            assert error_orth is not None and error_unorth is not None
+            error = max(error_orth, error_unorth)
+            if error > 1e-10:
+                warnings.warn(
+                    "Space contributing non-zero weight to the zeroth moments "
+                    f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                    UserWarning,
+                    2,
+                )
         gf_moments = einsum("npq,ip,qj->nij", gf_moments, orth, orth)
 
     # Get the static part and the moments of the self-energy
