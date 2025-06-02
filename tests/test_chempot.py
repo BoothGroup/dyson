@@ -10,6 +10,8 @@ import pytest
 from dyson.solvers import AufbauPrinciple, AuxiliaryShift
 from dyson.spectral import Spectral
 
+from .conftest import _get_central_result
+
 if TYPE_CHECKING:
     from pyscf import scf
 
@@ -27,19 +29,9 @@ def test_aufbau_vs_exact_solver(
     method: str,
 ) -> None:
     """Test AufbauPrinciple compared to the exact solver."""
-    expression_h = expression_method["1h"].from_mf(mf)
-    expression_p = expression_method["1p"].from_mf(mf)
-    if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
-        pytest.skip("Skipping test for large Hamiltonian")
-    if not expression_h.hermitian and method != "global":
-        pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
-
-    # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_method["1h"])
-    exact_p = exact_cache(mf, expression_method["1p"])
-    assert exact_h.result is not None
-    assert exact_p.result is not None
-    result_exact = Spectral.combine(exact_h.result, exact_p.result)
+    result_exact = _get_central_result(
+        helper, mf, expression_method, exact_cache, allow_hermitian=method == "global"
+    )
 
     # Solve the Hamiltonian with AufbauPrinciple
     with pytest.raises(ValueError):
@@ -80,17 +72,9 @@ def test_shift_vs_exact_solver(
     exact_cache: ExactGetter,
 ) -> None:
     """Test AuxiliaryShift compared to the exact solver."""
-    expression_h = expression_method["1h"].from_mf(mf)
-    expression_p = expression_method["1p"].from_mf(mf)
-    if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
-        pytest.skip("Skipping test for large Hamiltonian")
-
-    # Solve the Hamiltonian exactly
-    exact_h = exact_cache(mf, expression_method["1h"])
-    exact_p = exact_cache(mf, expression_method["1p"])
-    assert exact_h.result is not None
-    assert exact_p.result is not None
-    result_exact = Spectral.combine(exact_h.result, exact_p.result)
+    result_exact = _get_central_result(
+        helper, mf, expression_method, exact_cache, allow_hermitian=True
+    )
 
     # Solve the Hamiltonian with AuxiliaryShift
     with pytest.raises(ValueError):

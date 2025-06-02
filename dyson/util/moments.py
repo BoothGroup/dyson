@@ -100,7 +100,8 @@ def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tup
         )
 
     # Orthogonalise the moments
-    if not np.allclose(gf_moments[0], np.eye(nphys)):
+    ident = np.allclose(gf_moments[0], np.eye(nphys))
+    if not ident:
         hermitian = np.allclose(gf_moments[0], gf_moments[0].T.conj())
         orth, error_orth = matrix_power(
             gf_moments[0], -0.5, hermitian=hermitian, return_error=check_error
@@ -146,8 +147,9 @@ def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tup
                     se_moments[i] -= powers[l] @ se_moments[m] @ gf_moments[k]
 
     # Unorthogonalise the moments
-    se_static = unorth @ se_static @ unorth
-    se_moments = einsum("npq,ip,qj->nij", se_moments, unorth, unorth)
+    if not ident:
+        se_static = unorth @ se_static @ unorth
+        se_moments = einsum("npq,ip,qj->nij", se_moments, unorth, unorth)
 
     return se_static, se_moments
 

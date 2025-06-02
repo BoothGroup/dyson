@@ -8,8 +8,9 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
-from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x
+from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x, TDAGW
 from dyson.lehmann import Lehmann
+from dyson.spectral import Spectral
 from dyson.solvers import Exact
 
 if TYPE_CHECKING:
@@ -25,6 +26,11 @@ MOL_CACHE = {
     "h2-631g": gto.M(
         atom="H 0 0 0; H 0 0 1.4",
         basis="6-31g",
+        verbose=0,
+    ),
+    "h2-ccpvdz": gto.M(
+        atom="H 0 0 0; H 0 0 0.75",
+        basis="cc-pvdz",
         verbose=0,
     ),
     "lih-631g": gto.M(
@@ -46,13 +52,14 @@ MOL_CACHE = {
 
 MF_CACHE = {
     "h2-631g": scf.RHF(MOL_CACHE["h2-631g"]).run(conv_tol=1e-12),
+    "h2-ccpvdz": scf.RHF(MOL_CACHE["h2-ccpvdz"]).run(conv_tol=1e-12),
     "lih-631g": scf.RHF(MOL_CACHE["lih-631g"]).run(conv_tol=1e-12),
     "h2o-sto3g": scf.RHF(MOL_CACHE["h2o-sto3g"]).run(conv_tol=1e-12),
     "he-ccpvdz": scf.RHF(MOL_CACHE["he-ccpvdz"]).run(conv_tol=1e-12),
 }
 
-METHODS = [HF, CCSD, FCI, ADC2, ADC2x]
-METHOD_NAMES = ["HF", "CCSD", "FCI", "ADC2", "ADC2x"]
+METHODS = [HF, CCSD, FCI, ADC2, ADC2x, TDAGW]
+METHOD_NAMES = ["HF", "CCSD", "FCI", "ADC2", "ADC2x", "TDAGW"]
 
 
 def pytest_generate_tests(metafunc):  # type: ignore
@@ -164,3 +171,31 @@ def get_exact(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Exact:
 def exact_cache() -> ExactGetter:
     """Fixture for a getter function for cached :class:`Exact` classes."""
     return get_exact
+
+
+def _get_central_result(
+    helper: Helper,
+    mf: scf.hf.RHF,
+    expression_method: dict[str, type[BaseExpression]],
+    exact_cache: ExactGetter,
+    allow_hermitian: bool = True,
+) -> Spectral:
+    """Get the central result for the given mean-field method."""
+    if "dyson" in expression_method:
+        expression = expression_method["dyson"].from_mf(mf)
+        if expression.nconfig > 1024:
+            pytest.skip("Skipping test for large Hamiltonian")
+        if not expression.hermitian and not allow_hermitian:
+            pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
+        return exact_cache(mf, expression_method["dyson"]).result
+
+    # Combine hole and particle results
+    expression_h = expression_method["1h"].from_mf(mf)
+    expression_p = expression_method["1p"].from_mf(mf)
+    if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
+        pytest.skip("Skipping test for large Hamiltonian")
+    if not expression_h.hermitian and not allow_hermitian:
+        pytest.skip("Skipping test for non-Hermitian Hamiltonian with negative weights")
+    exact_h = exact_cache(mf, expression_method["1h"])
+    exact_p = exact_cache(mf, expression_method["1p"])
+    return Spectral.combine(exact_h.result, exact_p.result)

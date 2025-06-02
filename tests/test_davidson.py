@@ -80,6 +80,8 @@ def test_vs_exact_solver_central(
 ) -> None:
     """Test the exact solver for central moments."""
     # Get the quantities required from the expressions
+    if "1h" not in expression_method or "1p" not in expression_method:
+        pytest.skip("Skipping test for Dyson only expression")
     expression_h = expression_method["1h"].from_mf(mf)
     expression_p = expression_method["1p"].from_mf(mf)
     if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:

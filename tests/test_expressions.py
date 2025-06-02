@@ -10,7 +10,7 @@ import pyscf
 import pytest
 
 from dyson import util
-from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x
+from dyson.expressions import ADC2, CCSD, FCI, HF, ADC2x, TDAGW
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -37,12 +37,9 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     diagonal = expression.diagonal()
     hamiltonian = expression.build_matrix()
 
-    if expression_cls not in ADC2x.values():
+    if expression_cls in ADC2.values():
+        # ADC(2)-x diagonal is set to ADC(2) diagonal in PySCF for better Davidson convergence
         assert np.allclose(np.diag(hamiltonian), diagonal)
-    else:
-        with pytest.raises(AssertionError):
-            # ADC(2)-x diagonal is set to ADC(2) diagonal in PySCF for better Davidson convergence
-            assert np.allclose(np.diag(hamiltonian), diagonal)
     assert hamiltonian.shape == expression.shape
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 
@@ -94,8 +91,10 @@ def test_hf(mf: scf.hf.RHF) -> None:
     """Test the HF expression."""
     hf_h = HF["1h"].from_mf(mf)
     hf_p = HF["1p"].from_mf(mf)
+    hf_dyson = HF["dyson"].from_mf(mf)
     gf_h_moments = hf_h.build_gf_moments(2)
     gf_p_moments = hf_p.build_gf_moments(2)
+    gf_dyson_moments = hf_dyson.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
@@ -108,6 +107,7 @@ def test_hf(mf: scf.hf.RHF) -> None:
     fock = gf_h_moments[1] + gf_p_moments[1]
 
     assert np.allclose(fock, fock_ref)
+    assert np.allclose(gf_dyson_moments[1], fock)
 
 
 def test_ccsd(mf: scf.hf.RHF) -> None:
@@ -164,3 +164,27 @@ def test_adc2x(mf: scf.hf.RHF) -> None:
     energy_ref = mf.energy_elec()[0] + adc_obj.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8
+
+
+def test_tdagw(mf: scf.hf.RHF, exact_cache: ExactGetter) -> None:
+    """Test the TDAGW expression."""
+    tdagw = TDAGW["dyson"].from_mf(mf)
+    dft = mf.to_rks()
+    dft.xc = "hf"
+
+    td = pyscf.tdscf.dTDA(dft)
+    td.nstates = np.sum(mf.mo_occ > 0) * np.sum(mf.mo_occ == 0)
+    td.kernel()
+    td.xy = np.array([(x, np.zeros_like(x)) for x, y in td.xy])
+    gw_obj = pyscf.gw.GW(dft, tdmf=td, freq_int="exact")
+    gw_obj.kernel()
+
+    # Get the IPs and EAs from the Exact solver
+    solver = exact_cache(mf, TDAGW["dyson"])
+    assert solver.result is not None
+    gf = solver.result.get_greens_function()
+    mo_energy = gf.as_perturbed_mo_energy()
+
+    # No diagonal approximation in TDAGW so large error
+    assert np.abs(mo_energy[tdagw.nocc - 1] - gw_obj.mo_energy[tdagw.nocc - 1]) < 1e-3
+    assert np.abs(mo_energy[tdagw.nocc] - gw_obj.mo_energy[tdagw.nocc]) < 1e-3

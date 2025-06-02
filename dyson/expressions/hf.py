@@ -179,7 +179,49 @@ class HF_1p(BaseHF):  # pylint: disable=invalid-name
         return self.nvir
 
 
+class HF_Dyson(BaseHF):  # pylint: disable=invalid-name
+    """HF expressions for the Dyson Green's function."""
+
+    def diagonal(self) -> Array:
+        """Get the diagonal of the Hamiltonian.
+
+        Returns:
+            Diagonal of the Hamiltonian.
+        """
+        return self.mo_energy
+
+    def get_state(self, orbital: int) -> Array:
+        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
+
+        This state vector is a generalisation of
+
+        .. math::
+            a_i^{\pm} \left| \Psi_0 \right>
+
+        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
+        particular expression.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            State vector.
+        """
+        return util.unit_vector(self.shape[0], orbital)
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc + self.nvir
+
+    @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return False
+
+
 HF = {
     "1h": HF_1h,
     "1p": HF_1p,
+    "dyson": HF_Dyson,
 }
