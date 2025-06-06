@@ -153,10 +153,7 @@ class DensityRelaxation(StaticSolver):
         self._self_energy = self_energy
         self._nelec = nelec
         self._overlap = overlap
-        for key, val in kwargs.items():
-            if key not in self._options:
-                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
-            setattr(self, key, val)
+        self.set_options(**kwargs)
 
     @classmethod
     def from_self_energy(

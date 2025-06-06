@@ -20,6 +20,17 @@ class BaseSolver(ABC):
 
     _options: set[str] = set()
 
+    def set_options(self, **kwargs: Any) -> None:
+        """Set options for the solver.
+
+        Args:
+            kwargs: Keyword arguments to set as options.
+        """
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            setattr(self, key, val)
+
     @abstractmethod
     def kernel(self) -> Any:
         """Run the solver."""

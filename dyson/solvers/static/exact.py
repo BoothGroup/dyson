@@ -48,10 +48,7 @@ class Exact(StaticSolver):
         self._matrix = matrix
         self._bra = bra
         self._ket = ket
-        for key, val in kwargs.items():
-            if key not in self._options:
-                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
-            setattr(self, key, val)
+        self.set_options(**kwargs)
 
     @classmethod
     def from_self_energy(

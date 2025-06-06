@@ -9,6 +9,8 @@ from dyson import util
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from dyson.grids.frequency import RealFrequencyGrid
     from dyson.typing import Array
 
@@ -31,15 +33,17 @@ class CPGF(DynamicSolver):
         [1] A. Ferreira, and E. R. Mucciolo, Phys. Rev. Lett. 115, 106601 (2015).
     """
 
+    trace: bool = False
+    include_real: bool = True
+    _options: set[str] = {"trace", "include_real"}
+
     def __init__(  # noqa: D417
         self,
         moments: Array,
         grid: RealFrequencyGrid,
         scaling: tuple[float, float],
-        eta: float = 1e-2,
-        trace: bool = False,
-        include_real: bool = True,
         max_cycle: int | None = None,
+        **kwargs: Any,
     ):
         """Initialise the solver.
 
@@ -55,9 +59,8 @@ class CPGF(DynamicSolver):
         self._moments = moments
         self._grid = grid
         self._scaling = scaling
-        self.trace = trace
-        self.include_real = include_real
         self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
+        self.set_options(**kwargs)
 
     def kernel(self, iteration: int | None = None) -> Array:
         """Run the solver.

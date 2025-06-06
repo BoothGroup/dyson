@@ -10,7 +10,7 @@ from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from typing import Callable, Any
 
     from dyson.grids.frequency import RealFrequencyGrid
     from dyson.typing import Array
@@ -28,7 +28,12 @@ class CorrectionVector(DynamicSolver):
         grid: Real frequency grid upon which to evaluate the Green's function.
     """
 
-    def __init__(
+    trace: bool = False
+    include_real: bool = True
+    conv_tol: float = 1e-8
+    _options: set[str] = {"trace", "include_real", "conv_tol"}
+
+    def __init__(  # noqa: D417
         self,
         matvec: Callable[[Array], Array],
         diagonal: Array,
@@ -36,9 +41,7 @@ class CorrectionVector(DynamicSolver):
         grid: RealFrequencyGrid,
         get_state_bra: Callable[[int], Array] | None = None,
         get_state_ket: Callable[[int], Array] | None = None,
-        trace: bool = False,
-        include_real: bool = True,
-        conv_tol: float = 1e-8,
+        **kwargs: Any,
     ):
         r"""Initialise the solver.
 
@@ -62,9 +65,7 @@ class CorrectionVector(DynamicSolver):
         self._grid = grid
         self._get_state_bra = get_state_bra
         self._get_state_ket = get_state_ket
-        self.trace = trace
-        self.include_real = include_real
-        self.conv_tol = conv_tol
+        self.set_options(**kwargs)
 
     def matvec_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
         r"""Perform the matrix-vector operation for the dynamic self-energy supermatrix.
