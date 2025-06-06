@@ -11,8 +11,10 @@ from dyson.solvers.solver import DynamicSolver
 if TYPE_CHECKING:
     from typing import Any
 
+    from dyson.expression.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
     from dyson.typing import Array
+    from dyson.lehmann import Lehmann
 
 
 def _infer_max_cycle(moments: Array) -> int:
@@ -61,6 +63,57 @@ class CPGF(DynamicSolver):
         self._scaling = scaling
         self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
         self.set_options(**kwargs)
+
+    @classmethod
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> CPGF:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        if "grid" not in kwargs:
+            raise ValueError("Missing required argument grid.")
+        max_cycle = kwargs.pop("max_cycle", 16)
+        energies, couplings = self_energy.diagonalise_matrix_with_projection(static, overlap=overlap)
+        emin = np.min(energies)
+        emax = np.max(energies)
+        scaling = ((emax - emin) / (2.0 - 1e-3), (emax + emin) / 2.0)
+        greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
+        moments = greens_function.chebyshev_moments(range(max_cycle + 1), scaling=scaling)
+        return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)
+
+    @classmethod
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> CPGF:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        if "grid" not in kwargs:
+            raise ValueError("Missing required argument grid.")
+        max_cycle = kwargs.pop("max_cycle", 16)
+        diag = expression.diagonal()
+        emin = np.min(diag)
+        emax = np.max(diag)
+        scaling = ((emax - emin) / (2.0 - 1e-3), (emax + emin) / 2.0)
+        moments = expression.build_gf_chebyshev_moments(max_cycle + 1, scaling=scaling)
+        return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)
 
     def kernel(self, iteration: int | None = None) -> Array:
         """Run the solver.

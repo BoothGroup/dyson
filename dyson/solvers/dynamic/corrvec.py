@@ -8,12 +8,15 @@ from scipy.sparse.linalg import LinearOperator, gcrotmk
 
 from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
+from dyson import util
 
 if TYPE_CHECKING:
     from typing import Callable, Any
 
+    from dyson.expressions.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
     from dyson.typing import Array
+    from dyson.lehmann import Lehmann
 
 # TODO: (m,k) for GCROTMK, more solvers, DIIS
 
@@ -66,6 +69,75 @@ class CorrectionVector(DynamicSolver):
         self._get_state_bra = get_state_bra
         self._get_state_ket = get_state_ket
         self.set_options(**kwargs)
+
+    @classmethod
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> CorrectionVector:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        if "grid" not in kwargs:
+            raise ValueError("Missing required argument grid.")
+        size = self_energy.nphys + self_energy.naux
+        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
+        if overlap is not None:
+            hermitian = self_energy.hermitian
+            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
+            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
+            bra = util.rotate_subspace(bra, orth.T.conj())
+            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
+            static = unorth @ static @ unorth
+            self_energy = self_energy.rotate_couplings(
+                unorth if hermitian else (unorth, unorth.T.conj())
+            )
+        return cls(
+            lambda vector: self_energy.matvec(static, vector),
+            self_energy.diagonal(static),
+            self_energy.nphys,
+            kwargs.pop("grid"),
+            bra.__getitem__,
+            ket.__getitem__,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> CorrectionVector:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        if "grid" not in kwargs:
+            raise ValueError("Missing required argument grid.")
+        diagonal = expression.diagonal()
+        matvec = expression.apply_hamiltonian
+        return cls(
+            matvec,
+            diagonal,
+            expression.nphys,
+            kwargs.pop("grid"),
+            expression.get_state_bra,
+            expression.get_state_ket,
+            hermitian=expression.hermitian,
+            **kwargs,
+        )
 
     def matvec_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
         r"""Perform the matrix-vector operation for the dynamic self-energy supermatrix.
