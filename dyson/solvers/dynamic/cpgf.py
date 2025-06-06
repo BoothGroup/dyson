@@ -9,7 +9,7 @@ from dyson import util
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Literal
 
     from dyson.expression.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
@@ -37,7 +37,8 @@ class CPGF(DynamicSolver):
 
     trace: bool = False
     include_real: bool = True
-    _options: set[str] = {"trace", "include_real"}
+    ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
+    _options: set[str] = {"trace", "include_real", "ordering"}
 
     def __init__(  # noqa: D417
         self,
@@ -54,9 +55,10 @@ class CPGF(DynamicSolver):
             grid: Real frequency grid upon which to evaluate the Green's function.
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
                 `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
+            max_cycle: Maximum number of iterations.
             trace: Whether to return only the trace.
             include_real: Whether to include the real part of the Green's function.
-            max_cycle: Maximum number of iterations.
+            ordering: Time ordering of the resolvent.
         """
         self._moments = moments
         self._grid = grid
@@ -144,12 +146,12 @@ class CPGF(DynamicSolver):
         greens_function = np.zeros(shape, dtype=complex)
         kernel = 1.0 / denominator
         for cycle in range(iteration + 1):
-            factor = -1.0j * (2.0 - int(cycle == 0)) / (self.scaling[0] * np.pi)
+            factor = 1.0j * (2.0 - int(cycle == 0)) / self.scaling[0]
             greens_function -= util.einsum("z,...->z...", kernel, moments[cycle]) * factor
             kernel *= numerator
 
         # FIXME: Where have I lost this?
-        greens_function = -greens_function.conj()
+        greens_function = greens_function.conj()
 
         return greens_function if self.include_real else greens_function.imag
 

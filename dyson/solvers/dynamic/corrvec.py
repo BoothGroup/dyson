@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+import itertools
 from typing import TYPE_CHECKING
 
-from scipy.sparse.linalg import LinearOperator, gcrotmk
+from scipy.sparse.linalg import LinearOperator, lgmres
 
 from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
 from dyson import util
+from dyson.grids.frequency import RealFrequencyGrid
 
 if TYPE_CHECKING:
-    from typing import Callable, Any
+    from typing import Callable, Any, Literal
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.grids.frequency import RealFrequencyGrid
     from dyson.typing import Array
     from dyson.lehmann import Lehmann
 
@@ -34,6 +35,7 @@ class CorrectionVector(DynamicSolver):
     trace: bool = False
     include_real: bool = True
     conv_tol: float = 1e-8
+    ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
     _options: set[str] = {"trace", "include_real", "conv_tol"}
 
     def __init__(  # noqa: D417
@@ -61,6 +63,7 @@ class CorrectionVector(DynamicSolver):
             trace: Whether to return only the trace.
             include_real: Whether to include the real part of the Green's function.
             conv_tol: Convergence tolerance for the solver.
+            ordering: Time ordering of the resolvent.
         """
         self._matvec = matvec
         self._diagonal = diagonal
@@ -135,7 +138,6 @@ class CorrectionVector(DynamicSolver):
             kwargs.pop("grid"),
             expression.get_state_bra,
             expression.get_state_ket,
-            hermitian=expression.hermitian,
             **kwargs,
         )
 
@@ -153,11 +155,12 @@ class CorrectionVector(DynamicSolver):
             The result of the matrix-vector operation.
         """
         # Cast the grid to the correct type
-        freq = RealFrequencyGrid(grid)
-        freq.eta = self.grid.eta
+        if not isinstance(grid, RealFrequencyGrid):
+            grid = RealFrequencyGrid((1,), buffer=grid, eta=self.grid.eta)
 
         # Perform the matrix-vector operation
-        result: Array = vector[None] / freq.resolvent(np.array(0.0), 0.0)
+        resolvent = grid.resolvent(np.array(0.0), -self.diagonal, ordering=self.ordering, invert=False)
+        result: Array = vector[None] * resolvent
         result -= self.matvec(vector.real)[None]
         if np.any(np.abs(vector.imag) > 1e-14):
             result -= self.matvec(vector.imag)[None] * 1.0j
@@ -181,11 +184,12 @@ class CorrectionVector(DynamicSolver):
             The inversion is approximated using the diagonal of the matrix.
         """
         # Cast the grid to the correct type
-        freq = RealFrequencyGrid(grid)
-        freq.eta = self.grid.eta
+        if not isinstance(grid, RealFrequencyGrid):
+            grid = RealFrequencyGrid((1,), buffer=grid, eta=self.grid.eta)
 
         # Perform the matrix-vector division
-        result = vector[None] * freq.resolvent(self.diagonal, 0.0)[:, None]
+        resolvent = grid.resolvent(self.diagonal, 0.0, ordering=self.ordering)
+        result = vector[None] * resolvent[:, None]
         result[np.isinf(result)] = np.nan  # or 0?
 
         return result
@@ -230,33 +234,42 @@ class CorrectionVector(DynamicSolver):
             (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys),
             dtype=complex,
         )
+        failed: set[int] = set()
         for i in range(self.nphys):
             ket = self.get_state_ket(i)
 
             # Loop over frequencies
             x: Array | None = None
-            for w in range(self.grid.size):
+            outer_v: list[tuple[Array, Array]] = []
+            for w in itertools.filterfalse(failed.__contains__, range(self.grid.size)):
                 shape = (self.diagonal.size, self.diagonal.size)
-                matvec = LinearOperator(shape, lambda w: self.matvec_dynamic(ket, w), dtype=complex)
-                matdiv = LinearOperator(shape, lambda w: self.matdiv_dynamic(ket, w), dtype=complex)
+                matvec = LinearOperator(shape, lambda v: self.matvec_dynamic(v, self.grid[w]), dtype=complex)
+                matdiv = LinearOperator(shape, lambda v: self.matdiv_dynamic(v, self.grid[w]), dtype=complex)
+
+                # Solve the linear system
                 if x is None:
                     x = matdiv @ ket
-                x, info = gcrotmk(
+                x, info = lgmres(
                     matvec,
                     ket,
                     x0=x,
                     M=matdiv,
                     atol=0.0,
                     rtol=self.conv_tol,
+                    outer_v=outer_v,
                 )
 
+                # Contract the Green's function
                 if info != 0:
                     greens_function[w] = np.nan
+                    failed.add(w)
                 elif not self.trace:
                     for j in range(self.nphys):
                         greens_function[w, i, j] = bras[j] @ x
                 else:
                     greens_function[w] += bras[i] @ x
+
+        #greens_function = -greens_function
 
         return greens_function if self.include_real else greens_function.imag
 

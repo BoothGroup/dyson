@@ -122,11 +122,29 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         """
         self._eta = value
 
+    @staticmethod
+    def _resolvent_signs(
+        energies: Array, ordering: Literal["time-ordered", "advanced", "retarded"]
+    ) -> Array:
+        """Get the signs for the resolvent based on the time ordering."""
+        if ordering == "time-ordered":
+            signs = np.where(energies >= 0, 1.0, -1.0)
+        elif ordering == "advanced":
+            signs = -np.ones_like(energies)
+        elif ordering == "retarded":
+            signs = np.ones_like(energies)
+        else:
+            raise ValueError(
+                f"Invalid ordering: {ordering}. Must be 'time-ordered', 'advanced', or 'retarded'."
+            )
+        return signs
+
     def resolvent(  # noqa: D417
         self,
         energies: Array,
         chempot: float,
         ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered",
+        invert: bool = True,
         **kwargs: Any,
     ) -> Array:
         r"""Get the resolvent of the grid.
@@ -143,31 +161,18 @@ class RealFrequencyGrid(BaseFrequencyGrid):
             energies: Energies of the poles.
             chempot: Chemical potential.
             ordering: Time ordering of the resolvent.
+            invert: Whether to apply the inversion in the resolvent formula.
 
         Returns:
             Resolvent of the grid.
         """
         if kwargs:
             raise TypeError(f"resolvent() got unexpected keyword argument: {next(iter(kwargs))}")
-
-        # Get the signs from the time ordering
-        if ordering == "time-ordered":
-            signs = np.sign(energies - chempot)
-        elif ordering == "advanced":
-            signs = -np.ones_like(energies - chempot)
-        elif ordering == "retarded":
-            signs = np.ones_like(energies - chempot)
-        else:
-            raise ValueError(
-                f"Invalid ordering: {ordering}. Must be 'time-ordered', 'advanced', or 'retarded'."
-            )
-
-        # Calculate the resolvent
+        signs = self._resolvent_signs(energies - chempot, ordering)
         grid = np.expand_dims(self, axis=tuple(range(1, energies.ndim + 1)))
         energies = np.expand_dims(energies, axis=0)
-        resolvent = 1.0 / (grid + (signs * 1.0j * self.eta - energies))
-
-        return resolvent
+        denominator = grid + (signs * 1.0j * self.eta - energies)
+        return 1.0 / denominator if invert else denominator
 
     @classmethod
     def from_uniform(
@@ -261,6 +266,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         self,
         energies: Array,
         chempot: float,
+        invert: bool = True,
         **kwargs: Any,
     ) -> Array:
         r"""Get the resolvent of the grid.
@@ -275,19 +281,17 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         Args:
             energies: Energies of the poles.
             chempot: Chemical potential.
+            invert: Whether to apply the inversion in the resolvent formula.
 
         Returns:
             Resolvent of the grid.
         """
         if kwargs:
             raise TypeError(f"resolvent() got unexpected keyword argument: {next(iter(kwargs))}")
-
-        # Calculate the resolvent
         grid = np.expand_dims(self, axis=tuple(range(1, energies.ndim + 1)))
         energies = np.expand_dims(energies, axis=0)
-        resolvent = 1.0 / (1.0j * grid - energies)
-
-        return resolvent
+        denominator = 1.0j * grid - energies
+        return 1.0 / denominator if invert else denominator
 
     @classmethod
     def from_uniform(cls, num: int, beta: float | None = None) -> ImaginaryFrequencyGrid:
