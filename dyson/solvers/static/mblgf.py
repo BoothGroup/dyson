@@ -114,19 +114,26 @@ class MBLGF(BaseMBL):
         self._off_diagonal_lower: dict[int, Array] = {}
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> MBLGF:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> MBLGF:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
             Solver instance.
         """
         max_cycle = kwargs.get("max_cycle", 0)
-        energies, couplings = self_energy.diagonalise_matrix_with_projection(static)
+        energies, couplings = self_energy.diagonalise_matrix_with_projection(static, overlap=overlap)
         greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
         moments = greens_function.moments(range(2 * max_cycle + 2))
         return cls(moments, hermitian=greens_function.hermitian, **kwargs)

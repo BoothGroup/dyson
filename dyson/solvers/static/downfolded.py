@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import scipy.linalg
+
 from dyson import numpy as np
 from dyson import util
 from dyson.grids.frequency import RealFrequencyGrid
@@ -49,6 +51,7 @@ class Downfolded(StaticSolver):
         self,
         static: Array,
         function: Callable[[float], Array],
+        overlap: Array | None = None,
         **kwargs: Any,
     ):
         """Initialise the solver.
@@ -57,6 +60,7 @@ class Downfolded(StaticSolver):
             static: The static part of the self-energy.
             function: The function to return the downfolded self-energy at a given frequency, the
                 only argument.
+            overlap: Overlap matrix for the physical space.
             guess: Initial guess for the eigenvalue.
             max_cycle: Maximum number of iterations.
             conv_tol: Convergence tolerance for the eigenvalue.
@@ -64,18 +68,26 @@ class Downfolded(StaticSolver):
         """
         self._static = static
         self._function = function
+        self._overlap = overlap
         for key, val in kwargs.items():
             if key not in self._options:
                 raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
             setattr(self, key, val)
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Downfolded:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> Downfolded:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
@@ -93,6 +105,7 @@ class Downfolded(StaticSolver):
         return cls(
             static,
             _function,
+            overlap=overlap,
             hermitian=self_energy.hermitian,
             **kwargs,
         )
@@ -126,7 +139,7 @@ class Downfolded(StaticSolver):
         for cycle in range(1, self.max_cycle + 1):
             # Update the root
             matrix = self.static + self.function(root)
-            roots = np.linalg.eigvals(matrix)
+            roots = scipy.linalg.eigvals(matrix, b=self.overlap)
             root_prev = root
             root = roots[np.argmin(np.abs(roots - self.guess))]
 
@@ -138,9 +151,9 @@ class Downfolded(StaticSolver):
         # Get final eigenvalues and eigenvectors
         matrix = self.static + self.function(root)
         if self.hermitian:
-            eigvals, eigvecs = util.eig(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs = util.eig(matrix, hermitian=self.hermitian, overlap=self.overlap)
         else:
-            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian)
+            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian, overlap=self.overlap)
             eigvecs = np.array(eigvecs_tuple)
 
         # Store the results
@@ -158,6 +171,11 @@ class Downfolded(StaticSolver):
     def function(self) -> Callable[[float], Array]:
         """Get the function to return the downfolded self-energy at a given frequency."""
         return self._function
+
+    @property
+    def overlap(self) -> Array | None:
+        """Get the overlap matrix for the physical space."""
+        return self._overlap
 
     @property
     def nphys(self) -> int:

@@ -117,7 +117,13 @@ class Davidson(StaticSolver):
             setattr(self, key, val)
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Davidson:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> Davidson:
         """Create a solver from a self-energy.
 
         Args:
@@ -131,8 +137,7 @@ class Davidson(StaticSolver):
         """
         size = self_energy.nphys + self_energy.naux
         bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if "overlap" in kwargs:
-            overlap = kwargs.pop("overlap")
+        if overlap is not None:
             hermitian = self_energy.hermitian
             orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
             unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
@@ -211,22 +216,25 @@ class Davidson(StaticSolver):
             )
             eigvecs = np.array(eigvecs).T
         else:
-            converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
-                lambda vectors: [self.matvec(vector) for vector in vectors],
-                self.get_guesses(),
-                self.diagonal,
-                pick=_pick_real_eigenvalues,
-                tol=self.conv_tol,
-                tol_residual=self.conv_tol_residual,
-                max_cycle=self.max_cycle,
-                max_space=self.max_space,
-                nroots=self.nroots,
-                left=True,
-                verbose=0,
-            )
+            with util.catch_warnings(UserWarning) as w:
+                converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
+                    lambda vectors: [self.matvec(vector) for vector in vectors],
+                    self.get_guesses(),
+                    self.diagonal,
+                    pick=_pick_real_eigenvalues,
+                    tol=self.conv_tol,
+                    tol_residual=self.conv_tol_residual,
+                    max_cycle=self.max_cycle,
+                    max_space=self.max_space,
+                    nroots=self.nroots,
+                    left=True,
+                    verbose=0,
+                )
+
             left = np.array(left).T
             right = np.array(right).T
             eigvecs = np.array([left, right])
+
         eigvals = np.array(eigvals)
         converged = np.array(converged)
 

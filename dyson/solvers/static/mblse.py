@@ -79,6 +79,7 @@ class MBLSE(BaseMBL):
         self,
         static: Array,
         moments: Array,
+        overlap: Array | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialise the solver.
@@ -86,6 +87,7 @@ class MBLSE(BaseMBL):
         Args:
             static: Static part of the self-energy.
             moments: Moments of the self-energy.
+            overlap: Overlap matrix for the physical space.
             max_cycle: Maximum number of cycles.
             hermitian: Whether the self-energy is hermitian.
             force_orthogonality: Whether to force orthogonality of the recursion coefficients.
@@ -93,6 +95,7 @@ class MBLSE(BaseMBL):
         """
         self._static = static
         self._moments = moments
+        self._overlap = overlap
         self.max_cycle = kwargs["max_cycle"] if "max_cycle" in kwargs else _infer_max_cycle(moments)
         for key, val in kwargs.items():
             if key not in self._options:
@@ -109,12 +112,19 @@ class MBLSE(BaseMBL):
         self._off_diagonal: dict[int, Array] = {}
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> MBLSE:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> MBLSE:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
@@ -122,7 +132,7 @@ class MBLSE(BaseMBL):
         """
         max_cycle = kwargs.get("max_cycle", 0)
         moments = self_energy.moments(range(2 * max_cycle + 2))
-        return cls(static, moments, hermitian=self_energy.hermitian, **kwargs)
+        return cls(static, moments, hermitian=self_energy.hermitian, overlap=overlap, **kwargs)
 
     @classmethod
     def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> MBLSE:
@@ -340,12 +350,17 @@ class MBLSE(BaseMBL):
                 ]
             )
 
-        return Spectral.from_self_energy(self.static, Lehmann(energies, couplings))
+        return Spectral.from_self_energy(self.static, Lehmann(energies, couplings), overlap=self.overlap)
 
     @property
     def static(self) -> Array:
         """Get the static part of the self-energy."""
         return self._static
+
+    @property
+    def overlap(self) -> Array | None:
+        """Get the overlap matrix for the physical space."""
+        return self._overlap
 
     @property
     def coefficients(self) -> BaseRecursionCoefficients:

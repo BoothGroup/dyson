@@ -27,12 +27,19 @@ class BaseSolver(ABC):
 
     @classmethod
     @abstractmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> BaseSolver:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> BaseSolver:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:

@@ -77,9 +77,12 @@ def search_aufbau_global(
     lumo = i + 1
 
     # Find the chemical potential
-    if homo < 0 or lumo >= energies.size:
-        raise ValueError("Failed to identify HOMO and LUMO")
-    chempot = 0.5 * (energies[homo] + energies[lumo]).real
+    if homo == -1:
+        chempot = energies[lumo].real - 1e-4
+    elif lumo == energies.size:
+        chempot = energies[homo].real + 1e-4
+    else:
+        chempot = 0.5 * (energies[homo] + energies[lumo]).real
 
     return chempot, error
 
@@ -117,12 +120,15 @@ def search_aufbau_direct(
     else:
         homo = i
         error = nelec - sum_j
+    lumo = homo + 1
 
     # Find the chemical potential
-    lumo = homo + 1
-    if homo < 0 or lumo >= energies.size:
-        raise ValueError("Failed to identify HOMO and LUMO")
-    chempot = 0.5 * (energies[homo] + energies[lumo]).real
+    if homo == -1:
+        chempot = energies[lumo].real - 1e-4
+    elif lumo == energies.size:
+        chempot = energies[homo].real + 1e-4
+    else:
+        chempot = 0.5 * (energies[homo] + energies[lumo]).real
 
     return chempot, error
 
@@ -170,12 +176,15 @@ def search_aufbau_bisect(
     else:
         homo = high
         error = nelec - sum_j
+    lumo = homo + 1
 
     # Find the chemical potential
-    lumo = homo + 1
-    if homo < 0 or lumo >= energies.size:
-        raise ValueError("Failed to identify HOMO and LUMO")
-    chempot = 0.5 * (energies[homo] + energies[lumo]).real
+    if homo == -1:
+        chempot = energies[lumo].real - 1e-4
+    elif lumo == energies.size:
+        chempot = energies[homo].real + 1e-4
+    else:
+        chempot = 0.5 * (energies[homo] + energies[lumo]).real
 
     return chempot, error
 
@@ -192,6 +201,7 @@ class ChemicalPotentialSolver(StaticSolver):
     _static: Array
     _self_energy: Lehmann
     _nelec: int
+    _overlap: Array | None
 
     error: float | None = None
     chempot: float | None = None
@@ -211,6 +221,11 @@ class ChemicalPotentialSolver(StaticSolver):
     def nelec(self) -> int:
         """Get the target number of electrons."""
         return self._nelec
+
+    @property
+    def overlap(self) -> Array | None:
+        """Get the overlap matrix, if available."""
+        return self._overlap
 
     @property
     def nphys(self) -> int:
@@ -237,6 +252,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         static: Array,
         self_energy: Lehmann,
         nelec: int,
+        overlap: Array | None = None,
         **kwargs: Any,
     ):
         """Initialise the solver.
@@ -245,6 +261,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             static: Static part of the self-energy.
             self_energy: Self-energy.
             nelec: Target number of electrons.
+            overlap: Overlap matrix for the physical space.
             occupancy: Occupancy of each state, typically 2 for a restricted reference and 1
                 otherwise.
             solver: Solver to use for the self-energy.
@@ -253,6 +270,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         self._static = static
         self._self_energy = self_energy
         self._nelec = nelec
+        self._overlap = overlap
         for key, val in kwargs.items():
             if key not in self._options:
                 raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
@@ -260,13 +278,18 @@ class AufbauPrinciple(ChemicalPotentialSolver):
 
     @classmethod
     def from_self_energy(
-        cls, static: Array, self_energy: Lehmann, **kwargs: Any
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
     ) -> AufbauPrinciple:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
@@ -280,7 +303,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             raise ValueError("Missing required argument nelec.")
         kwargs = kwargs.copy()
         nelec = kwargs.pop("nelec")
-        return cls(static, self_energy, nelec, **kwargs)
+        return cls(static, self_energy, nelec, overlap=overlap, **kwargs)
 
     @classmethod
     def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> AufbauPrinciple:
@@ -304,7 +327,7 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
         # Solve the self-energy
-        solver = self.solver.from_self_energy(self.static, self.self_energy)
+        solver = self.solver.from_self_energy(self.static, self.self_energy, overlap=self.overlap)
         result = solver.kernel()
         greens_function = result.get_greens_function()
 
@@ -351,6 +374,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         static: Array,
         self_energy: Lehmann,
         nelec: int,
+        overlap: Array | None = None,
         **kwargs: Any,
     ):
         """Initialise the solver.
@@ -359,6 +383,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             static: Static part of the self-energy.
             self_energy: Self-energy.
             nelec: Target number of electrons.
+            overlap: Overlap matrix for the physical space.
             occupancy: Occupancy of each state, typically 2 for a restricted reference and 1
                 otherwise.
             solver: Solver to use for the self-energy and chemical potential search.
@@ -369,18 +394,26 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         self._static = static
         self._self_energy = self_energy
         self._nelec = nelec
+        self._overlap = overlap
         for key, val in kwargs.items():
             if key not in self._options:
                 raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
             setattr(self, key, val)
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> AuxiliaryShift:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> AuxiliaryShift:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
@@ -393,7 +426,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         if "nelec" not in kwargs:
             raise ValueError("Missing required argument nelec.")
         nelec = kwargs.pop("nelec")
-        return cls(static, self_energy, nelec, **kwargs)
+        return cls(static, self_energy, nelec, overlap=overlap, **kwargs)
 
     @classmethod
     def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> AuxiliaryShift:
@@ -420,7 +453,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             The error in the number of electrons.
         """
         with shift_energies(self.self_energy, np.ravel(shift)[0]):
-            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
+            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
             solver.kernel()
         assert solver.error is not None
         return solver.error**2
@@ -435,7 +468,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             The error in the number of electrons, and the gradient of the error.
         """
         with shift_energies(self.self_energy, np.ravel(shift)[0]):
-            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec)
+            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
             solver.kernel()
         assert solver.error is not None
         assert solver.result is not None
@@ -467,19 +500,20 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         Returns:
             The :class:`OptimizeResult` object from the minimizer.
         """
-        return scipy.optimize.minimize(
-            self.gradient,
-            x0=self.guess,
-            method="TNC",
-            jac=True,
-            options=dict(
-                maxfun=self.max_cycle,
-                ftol=self.conv_tol**2,
-                xtol=0.0,
-                gtol=0.0,
-            ),
-            callback=self._callback,
-        )
+        with util.catch_warnings(np.exceptions.ComplexWarning):
+            return scipy.optimize.minimize(
+                self.gradient,
+                x0=self.guess,
+                method="TNC",
+                jac=True,
+                options=dict(
+                    maxfun=self.max_cycle,
+                    ftol=self.conv_tol**2,
+                    xtol=0.0,
+                    gtol=0.0,
+                ),
+                callback=self._callback,
+            )
 
     def kernel(self) -> Spectral:
         """Run the solver.
@@ -499,7 +533,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         )
 
         # Solve the self-energy
-        solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec)
+        solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec, overlap=self.overlap)
         result = solver.kernel()
 
         # Set the results

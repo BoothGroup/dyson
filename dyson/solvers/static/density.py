@@ -126,6 +126,7 @@ class DensityRelaxation(StaticSolver):
         get_static: StaticFunction,
         self_energy: Lehmann,
         nelec: int,
+        overlap: Array | None = None,
         **kwargs: Any,
     ):
         """Initialise the solver.
@@ -135,6 +136,7 @@ class DensityRelaxation(StaticSolver):
                 given density matrix.
             self_energy: Self-energy.
             nelec: Target number of electrons.
+            overlap: Overlap matrix for the physical space.
             occupancy: Occupancy of each state, typically 2 for a restricted reference and 1
                 otherwise.
             solver_outer: Solver to use for the self-energy and chemical potential search in the
@@ -150,6 +152,7 @@ class DensityRelaxation(StaticSolver):
         self._get_static = get_static
         self._self_energy = self_energy
         self._nelec = nelec
+        self._overlap = overlap
         for key, val in kwargs.items():
             if key not in self._options:
                 raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
@@ -157,13 +160,18 @@ class DensityRelaxation(StaticSolver):
 
     @classmethod
     def from_self_energy(
-        cls, static: Array, self_energy: Lehmann, **kwargs: Any
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
     ) -> DensityRelaxation:
         """Create a solver from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
             kwargs: Additional keyword arguments for the solver.
 
         Returns:
@@ -180,7 +188,7 @@ class DensityRelaxation(StaticSolver):
         kwargs = kwargs.copy()
         nelec = kwargs.pop("nelec")
         get_static = kwargs.pop("get_static")
-        return cls(get_static, self_energy, nelec, **kwargs)
+        return cls(get_static, self_energy, nelec, overlap=overlap, **kwargs)
 
     @classmethod
     def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> DensityRelaxation:
@@ -211,7 +219,7 @@ class DensityRelaxation(StaticSolver):
         converged = False
         for cycle_outer in range(1, self.max_cycle_outer + 1):
             # Solve the self-energy
-            solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec)
+            solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
             result = solver_outer.kernel()
 
             # Initialise DIIS for the inner loop
@@ -224,7 +232,7 @@ class DensityRelaxation(StaticSolver):
             for cycle_inner in range(1, self.max_cycle_inner + 1):
                 # Solve the self-energy
                 solver_inner = self.solver_inner.from_self_energy(
-                    static, self_energy, nelec=self.nelec
+                    static, self_energy, nelec=self.nelec, overlap=self.overlap
                 )
                 result = solver_inner.kernel()
 
@@ -270,6 +278,11 @@ class DensityRelaxation(StaticSolver):
     def nelec(self) -> int:
         """Get the target number of electrons."""
         return self._nelec
+
+    @property
+    def overlap(self) -> Array | None:
+        """Get the overlap matrix for the physical space."""
+        return self._overlap
 
     @property
     def nphys(self) -> int:

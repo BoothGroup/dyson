@@ -30,10 +30,6 @@ Below is a table summarising the inputs expected by each solver, first for stati
                           and the target number of electrons.                                      |
     | DensityRelaxation | Lehmann representation of the dynamic self-energy, function returning
                           the Fock matrix at a given density, and the target number of electrons.  |
-    | SelfConsistent    | Function returning the Lehmann representation of the dynamic self-energy
-                          for a given Lehmann representation of the dynamic Green's function,
-                          function returning the Fock matrix at a given density, and the target
-                          number of electrons.                                                     |
     +-------------------+--------------------------------------------------------------------------+
 
 For dynamic solvers, all solvers require the grid parameters, along with:
@@ -44,7 +40,6 @@ For dynamic solvers, all solvers require the grid parameters, along with:
     | CorrectionVector  | Matrix-vector operation and diagonal of the supermatrix of the static
                           and dynamic self-energy.                                                 |
     | CPGF              | Chebyshev polynomial moments of the dynamic Green's function.            |
-    | KPMGF             | Chebyshev polynomial moments of the dynamic Green's function.            |
     +-------------------+--------------------------------------------------------------------------+
 
 For a full accounting of the inputs and their types, please see the documentation for each solver.
@@ -55,6 +50,7 @@ __version__ = "0.0.0"
 
 import numpy
 
+from dyson.printing import console, quiet
 from dyson.lehmann import Lehmann
 from dyson.spectral import Spectral
 from dyson.solvers import (
@@ -66,5 +62,7 @@ from dyson.solvers import (
     AufbauPrinciple,
     AuxiliaryShift,
     DensityRelaxation,
+    CorrectionVector,
+    CPGF,
 )
 from dyson.expressions import HF, CCSD, FCI, ADC2, ADC2x, TDAGW

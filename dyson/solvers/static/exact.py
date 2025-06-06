@@ -54,7 +54,13 @@ class Exact(StaticSolver):
             setattr(self, key, val)
 
     @classmethod
-    def from_self_energy(cls, static: Array, self_energy: Lehmann, **kwargs: Any) -> Exact:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> Exact:
         """Create a solver from a self-energy.
 
         Args:
@@ -68,8 +74,7 @@ class Exact(StaticSolver):
         """
         size = self_energy.nphys + self_energy.naux
         bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if "overlap" in kwargs:
-            overlap = kwargs.pop("overlap")
+        if overlap is not None:
             hermitian = self_energy.hermitian
             orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
             unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]

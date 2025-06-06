@@ -71,7 +71,7 @@ class Spectral:
 
     @classmethod
     def from_matrix(
-        self, matrix: Array, nphys: int, hermitian: bool = True, chempot: float | None = None
+        cls, matrix: Array, nphys: int, hermitian: bool = True, chempot: float | None = None
     ) -> Spectral:
         """Create a spectrum from a matrix.
 
@@ -90,23 +90,28 @@ class Spectral:
         else:
             eigvals, (left, right) = util.eig_lr(matrix, hermitian=False)
             eigvecs = np.array([left, right])
-        return self(eigvals, eigvecs, nphys, chempot=chempot)
+        return cls(eigvals, eigvecs, nphys, chempot=chempot)
 
     @classmethod
-    def from_self_energy(self, static: Array, self_energy: Lehmann) -> Spectral:
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+    ) -> Spectral:
         """Create a spectrum from a self-energy.
 
         Args:
             static: Static part of the self-energy.
             self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
 
         Returns:
             Spectrum object.
         """
-        return self.from_matrix(
-            self_energy.matrix(static),
+        return cls(
+            *self_energy.diagonalise_matrix(static, overlap=overlap),
             self_energy.nphys,
-            hermitian=self_energy.hermitian,
             chempot=self_energy.chempot,
         )
 
