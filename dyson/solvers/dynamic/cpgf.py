@@ -66,6 +66,9 @@ class CPGF(DynamicSolver):
         self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
         self.set_options(**kwargs)
 
+        if self.ordering == "time-ordered":
+            raise NotImplementedError("ordering='time-ordered' is not implemented for CPGF.")
+
     @classmethod
     def from_self_energy(
         cls,
@@ -150,8 +153,8 @@ class CPGF(DynamicSolver):
             greens_function -= util.einsum("z,...->z...", kernel, moments[cycle]) * factor
             kernel *= numerator
 
-        # FIXME: Where have I lost this?
-        greens_function = greens_function.conj()
+        if self.ordering == "advanced":
+            greens_function = greens_function.conj()
 
         return greens_function if self.include_real else greens_function.imag
 

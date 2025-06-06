@@ -36,7 +36,7 @@ class CorrectionVector(DynamicSolver):
     include_real: bool = True
     conv_tol: float = 1e-8
     ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
-    _options: set[str] = {"trace", "include_real", "conv_tol"}
+    _options: set[str] = {"trace", "include_real", "conv_tol", "ordering"}
 
     def __init__(  # noqa: D417
         self,
