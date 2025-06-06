@@ -29,6 +29,7 @@ classifiers = [
 dependencies = [
 	"numpy>=1.19.0",
     "pyscf>=2.0.0",
+    "rich>=11.0.0",
 ]
 dynamic = [
 	"version",
