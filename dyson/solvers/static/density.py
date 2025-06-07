@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from pyscf import lib
 
 from dyson import numpy as np
+from dyson import printing, console, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
@@ -108,6 +109,7 @@ class DensityRelaxation(StaticSolver):
     max_cycle_outer: int = 20
     max_cycle_inner: int = 50
     conv_tol: float = 1e-8
+    favour_rdm: bool = True
     _options: set[str] = {
         "occupancy",
         "solver_outer",
@@ -117,6 +119,7 @@ class DensityRelaxation(StaticSolver):
         "max_cycle_outer",
         "max_cycle_inner",
         "conv_tol",
+        "favour_rdm",
     }
 
     converged: bool | None = None
@@ -148,12 +151,50 @@ class DensityRelaxation(StaticSolver):
             max_cycle_outer: Maximum number of outer iterations.
             max_cycle_inner: Maximum number of inner iterations.
             conv_tol: Convergence tolerance in the density matrix.
+            favour_rdm: Whether to favour the density matrix over the number of electrons in the
+                non-commuting solutions.
         """
         self._get_static = get_static
         self._self_energy = self_energy
         self._nelec = nelec
         self._overlap = overlap
         self.set_options(**kwargs)
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if not callable(self.get_static):
+            raise TypeError("get_static must be a callable function.")
+        if self.overlap is not None and (
+            self.overlap.ndim != 2 or self.overlap.shape[0] != self.overlap.shape[1]
+        ):
+            raise ValueError("overlap must be a square matrix or None.")
+        if self.overlap is not None and self.overlap.shape[0] != self.self_energy.nphys:
+            raise ValueError(
+                "overlap must have the same number of physical states as the self-energy."
+            )
+
+        # Print the input information
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Number of auxiliary states: [input]{self.self_energy.naux}[/input]")
+        console.print(f"Target number of electrons: [input]{self.nelec}[/input]")
+        if self.overlap is not None:
+            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            console.print(f"Overlap condition number: {cond}")
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+        cpt = printing.format_float(self.result.chempot)
+        nelec = np.trace(self.result.get_greens_function().occupied().moment(0)) * self.occupancy
+        err = printing.format_float(self.nelec - nelec, threshold=1e-3, precision=4, scientific=True)
+        console.print(f"Chemical potential: [output]{cpt}[/output]")
+        console.print(f"Error in number of electrons: [output]{err}[/output]")
 
     @classmethod
     def from_self_energy(
@@ -208,6 +249,14 @@ class DensityRelaxation(StaticSolver):
         Returns:
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
+        # Get the table
+        table = printing.ConvergencePrinter(
+            ("Shift",),
+            ("Error", "Gradient", "Change in RDM",),
+            (self.solver_outer.conv_tol, self.solver_outer.conv_tol_grad, self.conv_tol,),
+        )
+
+        # Get the initial parameters
         self_energy = self.self_energy
         nocc = self.nelec // self.occupancy
         rdm1 = np.diag(np.arange(self.nphys) < nocc).astype(self_energy.dtype) * self.occupancy
@@ -215,9 +264,12 @@ class DensityRelaxation(StaticSolver):
 
         converged = False
         for cycle_outer in range(1, self.max_cycle_outer + 1):
-            # Solve the self-energy
-            solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
-            result = solver_outer.kernel()
+            if self.favour_rdm:
+                # Solve the self-energy
+                with printing.quiet:
+                    solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
+                    result = solver_outer.kernel()
+                    self_energy = result.get_self_energy()
 
             # Initialise DIIS for the inner loop
             diis = lib.diis.DIIS()
@@ -228,10 +280,12 @@ class DensityRelaxation(StaticSolver):
 
             for cycle_inner in range(1, self.max_cycle_inner + 1):
                 # Solve the self-energy
-                solver_inner = self.solver_inner.from_self_energy(
-                    static, self_energy, nelec=self.nelec, overlap=self.overlap
-                )
-                result = solver_inner.kernel()
+                with printing.quiet:
+                    solver_inner = self.solver_inner.from_self_energy(
+                        static, self_energy, nelec=self.nelec, overlap=self.overlap
+                    )
+                    result = solver_inner.kernel()
+                    self_energy = result.get_self_energy()
 
                 # Get the density matrix
                 greens_function = result.get_greens_function()
@@ -250,10 +304,24 @@ class DensityRelaxation(StaticSolver):
                 if error < self.conv_tol:
                     break
 
+            if not self.favour_rdm:
+                # Solve the self-energy
+                with printing.quiet:
+                    solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
+                    result = solver_outer.kernel()
+                    self_energy = result.get_self_energy()
+
             # Check for convergence
-            if error < self.conv_tol and solver_outer.converged:
-                converged = True
+            converged = error < self.conv_tol and solver_outer.converged
+            table.add_row(
+                cycle_outer,
+                (solver_outer.shift,),
+                (solver_outer.error, solver_outer.gradient(solver_outer.shift)[1], error),
+            )
+            if converged:
                 break
+
+        table.print()
 
         # Set the results
         self.converged = converged

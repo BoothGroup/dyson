@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
 from typing import TYPE_CHECKING
 
 import scipy.optimize
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, printing, console
 from dyson.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.exact import Exact
@@ -207,6 +208,30 @@ class ChemicalPotentialSolver(StaticSolver):
     chempot: float | None = None
     converged: bool | None = None
 
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.static.ndim != 2 or self.static.shape[0] != self.static.shape[1]:
+            raise ValueError("static must be a square matrix.")
+        if self.self_energy.nphys != self.static.shape[0]:
+            raise ValueError(
+                "self_energy must have the same number of physical degrees of freedom as static."
+            )
+        if self.overlap is not None and (
+            self.overlap.ndim != 2 or self.overlap.shape[0] != self.overlap.shape[1]
+        ):
+            raise ValueError("overlap must be a square matrix or None.")
+        if self.overlap is not None and self.overlap.shape != self.static.shape:
+            raise ValueError("overlap must have the same shape as static.")
+
+        # Print the input information
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Number of auxiliary states: [input]{self.self_energy.naux}[/input]")
+        console.print(f"Target number of electrons: [input]{self.nelec}[/input]")
+        if self.overlap is not None:
+            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            console.print(f"Overlap condition number: {cond}")
+
     @property
     def static(self) -> Array:
         """Get the static part of the self-energy."""
@@ -273,6 +298,20 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         self._overlap = overlap
         self.set_options(**kwargs)
 
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print("")
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+        cpt = printing.format_float(self.chempot)
+        err = printing.format_float(self.error, threshold=1e-3, precision=4, scientific=True)
+        console.print(f"Chemical potential: [output]{cpt}[/output]")
+        console.print(f"Error in number of electrons: [output]{err}[/output]")
+
     @classmethod
     def from_self_energy(
         cls,
@@ -324,8 +363,9 @@ class AufbauPrinciple(ChemicalPotentialSolver):
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
         # Solve the self-energy
-        solver = self.solver.from_self_energy(self.static, self.self_energy, overlap=self.overlap)
-        result = solver.kernel()
+        with printing.quiet:
+            solver = self.solver.from_self_energy(self.static, self.self_energy, overlap=self.overlap)
+            result = solver.kernel()
         greens_function = result.get_greens_function()
 
         # Get the chemical potential and error
@@ -355,14 +395,19 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         static: Static part of the self-energy.
         self_energy: Self-energy.
         nelec: Target number of electrons.
+
+    Notes:
+        Convergence is met when either of the thresholds `conv_tol` or `conv_tol_grad` are met,
+        rather than both, due to constraints of the :meth:`scipy.optimize.minimize` method.
     """
 
     occupancy: float = 2.0
     solver: type[AufbauPrinciple] = AufbauPrinciple
     max_cycle: int = 200
     conv_tol: float = 1e-8
+    conv_tol_grad: float = 1e-11
     guess: float = 0.0
-    _options: set[str] = {"occupancy", "solver", "max_cycle", "conv_tol", "guess"}
+    _options: set[str] = {"occupancy", "solver", "max_cycle", "conv_tol", "conv_tol_grad", "guess"}
 
     shift: float | None = None
 
@@ -386,16 +431,29 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             solver: Solver to use for the self-energy and chemical potential search.
             max_cycle: Maximum number of iterations.
             conv_tol: Convergence tolerance for the number of electrons.
+            conv_tol_grad: Convergence tolerance for the gradient of the objective function.
             guess: Initial guess for the chemical potential.
         """
         self._static = static
         self._self_energy = self_energy
         self._nelec = nelec
         self._overlap = overlap
-        for key, val in kwargs.items():
-            if key not in self._options:
-                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
-            setattr(self, key, val)
+        self.set_options(**kwargs)
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+        cpt = printing.format_float(self.chempot)
+        err = printing.format_float(self.error, threshold=1e-3, precision=4, scientific=True)
+        shift = printing.format_float(self.shift, precision=4, scientific=True)
+        console.print(f"Chemical potential: [output]{cpt}[/output]")
+        console.print(f"Auxiliary shift: [output]{shift}[/output]")
+        console.print(f"Error in number of electrons: [output]{err}[/output]")
 
     @classmethod
     def from_self_energy(
@@ -449,12 +507,14 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         Returns:
             The error in the number of electrons.
         """
-        with shift_energies(self.self_energy, np.ravel(shift)[0]):
-            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
-            solver.kernel()
+        with printing.quiet:
+            with shift_energies(self.self_energy, np.ravel(shift)[0]):
+                solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
+                solver.kernel()
         assert solver.error is not None
         return solver.error**2
 
+    @functools.lru_cache(maxsize=16)
     def gradient(self, shift: float) -> tuple[float, Array]:
         """Gradient of the objective function.
 
@@ -464,9 +524,10 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         Returns:
             The error in the number of electrons, and the gradient of the error.
         """
-        with shift_energies(self.self_energy, np.ravel(shift)[0]):
-            solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
-            solver.kernel()
+        with printing.quiet:
+            with shift_energies(self.self_energy, np.ravel(shift)[0]):
+                solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
+                solver.kernel()
         assert solver.error is not None
         assert solver.result is not None
         eigvals = solver.result.eigvals
@@ -483,34 +544,44 @@ class AuxiliaryShift(ChemicalPotentialSolver):
 
         return solver.error**2, grad
 
-    def _callback(self, shift: float) -> None:
-        """Callback function for the minimizer.
-
-        Args:
-            shift: Shift to apply to the self-energy.
-        """
-        pass
-
     def _minimize(self) -> scipy.optimize.OptimizeResult:
         """Minimise the objective function.
 
         Returns:
             The :class:`OptimizeResult` object from the minimizer.
         """
+        # Get the table and callback function
+        table = printing.ConvergencePrinter(
+            ("Shift",), ("Error", "Gradient"), (self.conv_tol, self.conv_tol_grad)
+        )
+        cycle = 1
+
+        def _callback(xk: Array) -> None:
+            """Callback function for the minimizer."""
+            nonlocal cycle
+            error, grad = self.gradient(np.ravel(xk)[0])
+            error = np.sqrt(error)
+            table.add_row(cycle, (np.ravel(xk)[0],), (error, grad))
+            cycle += 1
+
         with util.catch_warnings(np.exceptions.ComplexWarning):
-            return scipy.optimize.minimize(
-                self.gradient,
+            opt = scipy.optimize.minimize(
+                lambda x: self.gradient(np.ravel(x)[0]),
                 x0=self.guess,
                 method="TNC",
                 jac=True,
                 options=dict(
                     maxfun=self.max_cycle,
-                    ftol=self.conv_tol**2,
                     xtol=0.0,
-                    gtol=0.0,
+                    ftol=self.conv_tol**2,
+                    gtol=self.conv_tol_grad,
                 ),
-                callback=self._callback,
+                callback=_callback,
             )
+
+        table.print()
+
+        return opt
 
     def kernel(self) -> Spectral:
         """Run the solver.
@@ -530,14 +601,15 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         )
 
         # Solve the self-energy
-        solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec, overlap=self.overlap)
-        result = solver.kernel()
+        with printing.quiet:
+            solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec, overlap=self.overlap)
+            result = solver.kernel()
 
         # Set the results
         self.result = result
         self.chempot = solver.chempot
         self.error = solver.error
         self.converged = opt.success
-        self.shift = opt.x
+        self.shift = np.ravel(opt.x)[0]
 
         return result

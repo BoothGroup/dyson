@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -49,6 +49,32 @@ class Exact(StaticSolver):
         self._bra = bra
         self._ket = ket
         self.set_options(**kwargs)
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.matrix.ndim != 2 or self.matrix.shape[0] != self.matrix.shape[1]:
+            raise ValueError("matrix must be a square matrix.")
+        if self.bra.ndim != 2 or self.bra.shape[1] != self.matrix.shape[0]:
+            raise ValueError("bra must be a 2D array with the same number of columns as matrix.")
+        if self.ket is not None and (self.ket.ndim != 2 or self.ket.shape[1] != self.matrix.shape[0]):
+            raise ValueError("ket must be a 2D array with the same number of columns as matrix.")
+        if self.ket is not None and self.ket.shape[0] != self.bra.shape[0]:
+            raise ValueError("ket must have the same number of rows as bra.")
+
+        # Print the input information
+        console.print(f"Matrix shape: [input]{self.matrix.shape}[/input]")
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print("")
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
 
     @classmethod
     def from_self_energy(

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import scipy.linalg
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
@@ -71,6 +71,39 @@ class Downfolded(StaticSolver):
         self._overlap = overlap
         self.set_options(**kwargs)
 
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.static.ndim != 2 or self.static.shape[0] != self.static.shape[1]:
+            raise ValueError("static must be a square matrix.")
+        if not callable(self.function):
+            raise ValueError("function must be a callable that takes a single float argument.")
+        if self.overlap is not None and (
+            self.overlap.ndim != 2 or self.overlap.shape[0] != self.overlap.shape[1]
+        ):
+            raise ValueError("overlap must be a square matrix or None.")
+        if self.overlap is not None and self.overlap.shape != self.static.shape:
+            raise ValueError("overlap must have the same shape as static.")
+
+        # Print the input information
+        console.print(f"Matrix shape: [input]{self.static.shape}[/input]")
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        if self.overlap is not None:
+            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            console.print(f"Overlap condition number: {cond}")
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        ebest = printing.format_float(
+            self.result.eigvals[np.argmin(np.abs(self.result.eigvals - self.guess))]
+        )
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+
     @classmethod
     def from_self_energy(
         cls,
@@ -128,6 +161,9 @@ class Downfolded(StaticSolver):
         Returns:
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
+        # Get the table
+        table = printing.ConvergencePrinter(("Best root",), ("Change",), (self.conv_tol,))
+
         # Initialise the guess
         root = self.guess
         root_prev = 0.0
@@ -141,9 +177,12 @@ class Downfolded(StaticSolver):
             root = roots[np.argmin(np.abs(roots - self.guess))]
 
             # Check for convergence
-            if np.abs(root - root_prev) < self.conv_tol:
-                converged = True
+            converged = np.abs(root - root_prev) < self.conv_tol
+            table.add_row(cycle, (root,), (root - root_prev,))
+            if converged:
                 break
+
+        table.print()
 
         # Get final eigenvalues and eigenvectors
         matrix = self.static + self.function(root)

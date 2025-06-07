@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pyscf import lib
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -113,6 +113,37 @@ class Davidson(StaticSolver):
         self._ket = ket if ket is not None else bra
         self.set_options(**kwargs)
 
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.diagonal.ndim != 1:
+            raise ValueError("diagonal must be a 1D array.")
+        if self.bra.ndim != 2 or self.bra.shape[1] != self.diagonal.size:
+            raise ValueError("bra must be a 2D array with the same number of columns as diagonal.")
+        if self.ket is not None and (self.ket.ndim != 2 or self.ket.shape[1] != self.diagonal.size):
+            raise ValueError("ket must be a 2D array with the same number of columns as diagonal.")
+        if self.ket is not None and self.ket.shape[0] != self.bra.shape[0]:
+            raise ValueError("ket must have the same number of rows as bra.")
+        if not callable(self.matvec):
+            raise ValueError("matvec must be a callable function.")
+
+        # Print the input information
+        console.print(f"Matrix shape: [input]{(self.diagonal.size, self.diagonal.size)}[/input]")
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+        rating = "good" if np.all(self.converged) else "okay" if np.any(self.converged) else "bad"
+        console.print(
+            f"Converged [{rating}]{np.sum(self.converged)} of {self.nroots}[/{rating}] roots."
+        )
+
     @classmethod
     def from_self_energy(
         cls,
@@ -197,6 +228,17 @@ class Davidson(StaticSolver):
         Returns:
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
+        # Get the table callback function
+        table = printing.ConvergencePrinter(
+            ("Smallest root",), ("Change", "Residual"), (self.conv_tol, self.conv_tol_residual)
+        )
+
+        def _callback(env: dict[str, Any]) -> None:
+            """Callback function for the Davidson algorithm."""
+            root = env["e"][np.argmin(np.abs(env["e"]))]
+            table.add_row(env["icyc"] + 1, (root,), (np.max(np.abs(env["de"])), np.max(env["dx_norm"])))
+            del env
+
         # Call the Davidson function
         if self.hermitian:
             converged, eigvals, eigvecs = lib.linalg_helper.davidson1(
@@ -209,9 +251,13 @@ class Davidson(StaticSolver):
                 max_cycle=self.max_cycle,
                 max_space=self.max_space,
                 nroots=self.nroots,
+                callback=_callback,
                 verbose=0,
             )
+
+            eigvals = np.array(eigvals)
             eigvecs = np.array(eigvecs).T
+
         else:
             with util.catch_warnings(UserWarning) as w:
                 converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
@@ -225,15 +271,17 @@ class Davidson(StaticSolver):
                     max_space=self.max_space,
                     nroots=self.nroots,
                     left=True,
+                    callback=_callback,
                     verbose=0,
                 )
 
+            eigvals = np.array(eigvals)
             left = np.array(left).T
             right = np.array(right).T
             eigvecs = np.array([left, right])
 
-        eigvals = np.array(eigvals)
-        converged = np.array(converged)
+        # TODO: How to print the final iteration?
+        table.print()
 
         # Sort the eigenvalues
         mask = np.argsort(eigvals)

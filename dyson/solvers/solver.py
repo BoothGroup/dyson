@@ -5,8 +5,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from rich.table import Table
+from rich import box
+
 from dyson.lehmann import Lehmann
 from dyson.typing import Array
+from dyson import console, printing
 
 if TYPE_CHECKING:
     from typing import Any
@@ -19,6 +23,63 @@ class BaseSolver(ABC):
     """Base class for Dyson equation solvers."""
 
     _options: set[str] = set()
+
+    def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
+        """Initialise a subclass of :class:`BaseSolver`."""
+
+        def wrap_init(init: Any) -> Any:
+            """Wrapper to call __post_init__ after __init__."""
+            def wrapped_init(self: BaseSolver, *args: Any, **kwargs: Any) -> None:
+                init(self, *args, **kwargs)
+                if init.__name__ == "__init__":
+                    self.__log_init__()
+                    self.__post_init__()
+
+            return wrapped_init
+
+        def wrap_kernel(kernel: Any) -> Any:
+            """Wrapper to call __post_kernel__ after kernel."""
+            def wrapped_kernel(self: BaseSolver, *args: Any, **kwargs: Any) -> Any:
+                result = kernel(self, *args, **kwargs)
+                if kernel.__name__ == "kernel":
+                    self.__post_kernel__()
+                return result
+
+            return wrapped_kernel
+
+        cls.__init__ = wrap_init(cls.__init__)
+        cls.kernel = wrap_kernel(cls.kernel)
+
+    def __log_init__(self) -> None:
+        """Hook called after :meth:`__init__` for logging purposes."""
+        printing.init_console()
+        console.print("")
+
+        # Print the solver name
+        console.print(f"[method]{self.__class__.__name__}[/method]")
+
+        # Print the options table
+        table = Table(box=box.SIMPLE)
+        table.add_column("Option")
+        table.add_column("Value", style="input")
+        for key in sorted(self._options):
+            if not hasattr(self, key):
+                raise ValueError(f"Option {key} not set in {self.__class__.__name__}")
+            value = getattr(self, key)
+            if hasattr(value, "__name__"):
+                name = value.__name__
+            else:
+                name = str(value)
+            table.add_row(key, name)
+        console.print(table)
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        pass
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        pass
 
     def set_options(self, **kwargs: Any) -> None:
         """Set options for the solver.
