@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rich.progress import Progress
 import scipy.linalg
 
 from dyson import numpy as np
@@ -163,6 +164,8 @@ class Downfolded(StaticSolver):
         """
         # Get the table
         table = printing.ConvergencePrinter(("Best root",), ("Change",), (self.conv_tol,))
+        progress = printing.IterationsPrinter(self.max_cycle)
+        progress.start()
 
         # Initialise the guess
         root = self.guess
@@ -179,9 +182,11 @@ class Downfolded(StaticSolver):
             # Check for convergence
             converged = np.abs(root - root_prev) < self.conv_tol
             table.add_row(cycle, (root,), (root - root_prev,))
+            progress.update(cycle)
             if converged:
                 break
 
+        progress.stop()
         table.print()
 
         # Get final eigenvalues and eigenvectors

@@ -6,6 +6,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from pyscf import lib
+from rich.progress import Progress
 
 from dyson import numpy as np
 from dyson import util, console, printing
@@ -232,11 +233,14 @@ class Davidson(StaticSolver):
         table = printing.ConvergencePrinter(
             ("Smallest root",), ("Change", "Residual"), (self.conv_tol, self.conv_tol_residual)
         )
+        progress = printing.IterationsPrinter(self.max_cycle)
+        progress.start()
 
         def _callback(env: dict[str, Any]) -> None:
             """Callback function for the Davidson algorithm."""
             root = env["e"][np.argmin(np.abs(env["e"]))]
             table.add_row(env["icyc"] + 1, (root,), (np.max(np.abs(env["de"])), np.max(env["dx_norm"])))
+            progress.update(env["icyc"] + 1)
             del env
 
         # Call the Davidson function
@@ -281,6 +285,7 @@ class Davidson(StaticSolver):
             eigvecs = np.array([left, right])
 
         # TODO: How to print the final iteration?
+        progress.stop()
         table.print()
 
         # Sort the eigenvalues

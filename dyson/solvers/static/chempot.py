@@ -6,6 +6,7 @@ import functools
 import warnings
 from typing import TYPE_CHECKING
 
+from rich.progress import Progress
 import scipy.optimize
 
 from dyson import numpy as np
@@ -554,6 +555,8 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         table = printing.ConvergencePrinter(
             ("Shift",), ("Error", "Gradient"), (self.conv_tol, self.conv_tol_grad)
         )
+        progress = printing.IterationsPrinter(self.max_cycle)
+        progress.start()
         cycle = 1
 
         def _callback(xk: Array) -> None:
@@ -562,6 +565,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             error, grad = self.gradient(np.ravel(xk)[0])
             error = np.sqrt(error)
             table.add_row(cycle, (np.ravel(xk)[0],), (error, grad))
+            progress.update(cycle)
             cycle += 1
 
         with util.catch_warnings(np.exceptions.ComplexWarning):
@@ -579,6 +583,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
                 callback=_callback,
             )
 
+        progress.stop()
         table.print()
 
         return opt

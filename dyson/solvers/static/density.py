@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pyscf import lib
+from rich.progress import Progress
 
 from dyson import numpy as np
 from dyson import printing, console, util
@@ -255,6 +256,8 @@ class DensityRelaxation(StaticSolver):
             ("Error", "Gradient", "Change in RDM",),
             (self.solver_outer.conv_tol, self.solver_outer.conv_tol_grad, self.conv_tol,),
         )
+        progress = printing.IterationsPrinter(self.max_cycle_outer)
+        progress.start()
 
         # Get the initial parameters
         self_energy = self.self_energy
@@ -318,9 +321,11 @@ class DensityRelaxation(StaticSolver):
                 (solver_outer.shift,),
                 (solver_outer.error, solver_outer.gradient(solver_outer.shift)[1], error),
             )
+            progress.update(cycle_outer)
             if converged:
                 break
 
+        progress.stop()
         table.print()
 
         # Set the results

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.theme import Theme
 from rich.table import Table
+from rich.progress import Progress
 from rich import box
 
 from dyson import __version__
@@ -210,3 +211,57 @@ class ConvergencePrinter:
     def thresholds(self) -> tuple[float, ...]:
         """Get the thresholds."""
         return self._thresholds
+
+
+class IterationsPrinter:
+    """Progress bar for iterations."""
+
+    def __init__(self, max_cycle: int, console: Console = console):
+        """Initialise the object."""
+        self._max_cycle = max_cycle
+        self._console = console
+        self._progress = Progress(transient=True)
+        self._task: int | None = None
+
+    def start(self) -> None:
+        """Start the progress bar."""
+        if self.console.quiet:
+            return
+        self.progress.start()
+        self._task = self.progress.add_task(f"Iteration 0 / {self.max_cycle}", total=self.max_cycle)
+
+    def update(self, cycle: int) -> None:
+        """Update the progress bar for the given cycle."""
+        if self.console.quiet:
+            return
+        if self.task is None:
+            raise RuntimeError("Progress bar has not been started. Call start() first.")
+        self.progress.update(self.task, advance=1, description=f"Iteration {cycle} / {self.max_cycle}")
+
+    def stop(self) -> None:
+        """Stop the progress bar."""
+        if self.console.quiet:
+            return
+        if self.task is None:
+            raise RuntimeError("Progress bar has not been started. Call start() first.")
+        self.progress.stop()
+
+    @property
+    def max_cycle(self) -> int:
+        """Get the maximum number of cycles."""
+        return self._max_cycle
+
+    @property
+    def console(self) -> Console:
+        """Get the console."""
+        return self._console
+
+    @property
+    def progress(self) -> Progress:
+        """Get the progress bar."""
+        return self._progress
+
+    @property
+    def task(self) -> int | None:
+        """Get the current task."""
+        return self._task
