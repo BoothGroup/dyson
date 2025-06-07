@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
@@ -86,6 +86,23 @@ class BaseMBL(StaticSolver):
     calculate_errors: bool = True
     _options: set[str] = {"max_cycle", "hermitian", "force_orthogonality", "calculate_errors"}
 
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        emin = printing.format_float(self.result.eigvals.min())
+        emax = printing.format_float(self.result.eigvals.max())
+        console.print(
+            f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
+            f"[output]{emax}[/output]."
+        )
+        if self.calculate_errors:
+            error = printing.format_float(
+                self.moment_error(iteration=self.max_cycle),
+                threshold=1e-10,
+                scientific=True,
+                precision=4,
+            )
+            console.print(f"Error in the moments: {error}")
+
     @abstractmethod
     def solve(self, iteration: int | None = None) -> Spectral:
         """Solve the eigenvalue problem at a given iteration.
@@ -104,33 +121,23 @@ class BaseMBL(StaticSolver):
         Returns:
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
+        # Get the table
+        table = printing.ConvergencePrinter(
+            (), ("Error in moments", "Error in sqrt", "Error in inv. sqrt"), (1e-10, 1e-10, 1e-10)
+        )
+        progress = printing.IterationsPrinter(self.max_cycle)
+        progress.start()
+
         # Run the solver
         for iteration in range(self.max_cycle + 1):  # TODO: check
             error_sqrt, error_inv_sqrt, error_moments = self.recurrence_iteration(iteration)
+            if not self.calculate_errors:
+                error_sqrt = error_inv_sqrt = error_moments = np.nan
+            table.add_row(iteration, (), (error_moments, error_sqrt, error_inv_sqrt))
+            progress.update(iteration)
 
-            if self.calculate_errors:
-                assert error_sqrt is not None
-                assert error_inv_sqrt is not None
-                assert error_moments is not None
-
-                error_decomp = max(error_sqrt, error_inv_sqrt)
-                if error_decomp > 1e-11 and self.hermitian:
-                    warnings.warn(
-                        f"Space contributing non-zero weight to the moments ({error_decomp}) was "
-                        f"removed during iteration {iteration}. Allowing complex eigenvalues by "
-                        "setting hermitian=False may help resolve this.",
-                        UserWarning,
-                        2,
-                    )
-                elif error_decomp > 1e-11:
-                    warnings.warn(
-                        f"Space contributing non-zero weight to the moments ({error_decomp}) was "
-                        f"removed during iteration {iteration}. Since hermitian=False was set, "
-                        "this likely indicates singularities which may indicate convergence of the "
-                        "moments.",
-                        UserWarning,
-                        2,
-                    )
+        progress.stop()
+        table.print()
 
         # Diagonalise the compressed self-energy
         self.result = self.solve(iteration=self.max_cycle)

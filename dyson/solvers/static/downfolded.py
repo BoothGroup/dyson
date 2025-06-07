@@ -97,9 +97,6 @@ class Downfolded(StaticSolver):
         """Hook called after :meth:`kernel`."""
         emin = printing.format_float(self.result.eigvals.min())
         emax = printing.format_float(self.result.eigvals.max())
-        ebest = printing.format_float(
-            self.result.eigvals[np.argmin(np.abs(self.result.eigvals - self.guess))]
-        )
         console.print(
             f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
             f"[output]{emax}[/output]."

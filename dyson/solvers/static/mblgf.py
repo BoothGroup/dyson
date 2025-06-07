@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 from dyson.spectral import Spectral
 
@@ -109,6 +109,21 @@ class MBLGF(BaseMBL):
         self._on_diagonal: dict[int, Array] = {}
         self._off_diagonal_upper: dict[int, Array] = {}
         self._off_diagonal_lower: dict[int, Array] = {}
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.moments.ndim != 3 or self.moments.shape[1] != self.moments.shape[2]:
+            raise ValueError(
+                "moments must be a 3D array with the second and third dimensions equal."
+            )
+        if _infer_max_cycle(self.moments) < self.max_cycle:
+            raise ValueError("not enough moments provided for the specified max_cycle.")
+
+        # Print the input information
+        cond = printing.format_float(np.linalg.cond(self.moments[0]), threshold=1e10, scientific=True, precision=4)
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Overlap condition number: {cond}")
 
     @classmethod
     def from_self_energy(

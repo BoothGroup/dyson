@@ -229,7 +229,7 @@ class Davidson(StaticSolver):
         Returns:
             The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
-        # Get the table callback function
+        # Get the table and callback function
         table = printing.ConvergencePrinter(
             ("Smallest root",), ("Change", "Residual"), (self.conv_tol, self.conv_tol_residual)
         )
