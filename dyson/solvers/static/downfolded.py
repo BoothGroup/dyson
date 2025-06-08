@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rich.progress import Progress
 import scipy.linalg
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
@@ -90,7 +89,9 @@ class Downfolded(StaticSolver):
         console.print(f"Matrix shape: [input]{self.static.shape}[/input]")
         console.print(f"Number of physical states: [input]{self.nphys}[/input]")
         if self.overlap is not None:
-            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            cond = printing.format_float(
+                np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4
+            )
             console.print(f"Overlap condition number: {cond}")
 
     def __post_kernel__(self) -> None:
@@ -191,7 +192,9 @@ class Downfolded(StaticSolver):
         if self.hermitian:
             eigvals, eigvecs = util.eig(matrix, hermitian=self.hermitian, overlap=self.overlap)
         else:
-            eigvals, eigvecs_tuple = util.eig_lr(matrix, hermitian=self.hermitian, overlap=self.overlap)
+            eigvals, eigvecs_tuple = util.eig_lr(
+                matrix, hermitian=self.hermitian, overlap=self.overlap
+            )
             eigvecs = np.array(eigvecs_tuple)
 
         # Store the results

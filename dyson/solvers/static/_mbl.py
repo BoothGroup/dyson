@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import functools
-import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:

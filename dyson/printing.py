@@ -7,11 +7,11 @@ import os
 import subprocess
 from typing import TYPE_CHECKING
 
-from rich.console import Console
-from rich.theme import Theme
-from rich.table import Table
-from rich.progress import Progress
 from rich import box
+from rich.console import Console
+from rich.progress import Progress
+from rich.table import Table
+from rich.theme import Theme
 
 from dyson import __version__
 
@@ -51,14 +51,12 @@ HEADER = r"""     _
 
 def init_console() -> None:
     """Initialise the console with a header."""
-
     if globals().get("_DYSON_LOG_INITIALISED", False):
         return
 
     # Print header
-    header_size = max([len(line) for line in HEADER.split("\n")])
     header_with_version = "[header]" + HEADER + "[/header]"
-    header_with_version %= (" " * (18 - len(__version__)) + "[input]" + __version__ + "[/input]")
+    header_with_version %= " " * (18 - len(__version__)) + "[input]" + __version__ + "[/input]"
     console.print(header_with_version)
 
     # Print versions of dependencies and ebcc
@@ -157,7 +155,7 @@ def format_float(
     Returns:
         str: The formatted string.
     """
-    if value.imag < (1e-1 ** precision):
+    if value.imag < (1e-1**precision):
         value = value.real
     out = f"{value:.{precision}g}" if scientific else f"{value:.{precision}f}"
     if threshold is not None:
@@ -216,10 +214,11 @@ class ConvergencePrinter:
 class IterationsPrinter:
     """Progress bar for iterations."""
 
-    def __init__(self, max_cycle: int, console: Console = console):
+    def __init__(self, max_cycle: int, console: Console = console, description: str = "Iteration"):
         """Initialise the object."""
         self._max_cycle = max_cycle
         self._console = console
+        self._description = description
         self._progress = Progress(transient=True)
         self._task: int | None = None
 
@@ -228,7 +227,7 @@ class IterationsPrinter:
         if self.console.quiet:
             return
         self.progress.start()
-        self._task = self.progress.add_task(f"Iteration 0 / {self.max_cycle}", total=self.max_cycle)
+        self._task = self.progress.add_task(f"{self.description} 0 / {self.max_cycle}", total=self.max_cycle)
 
     def update(self, cycle: int) -> None:
         """Update the progress bar for the given cycle."""
@@ -236,7 +235,9 @@ class IterationsPrinter:
             return
         if self.task is None:
             raise RuntimeError("Progress bar has not been started. Call start() first.")
-        self.progress.update(self.task, advance=1, description=f"Iteration {cycle} / {self.max_cycle}")
+        self.progress.update(
+            self.task, advance=1, description=f"{self.description} {cycle} / {self.max_cycle}"
+        )
 
     def stop(self) -> None:
         """Stop the progress bar."""
@@ -255,6 +256,11 @@ class IterationsPrinter:
     def console(self) -> Console:
         """Get the console."""
         return self._console
+
+    @property
+    def description(self) -> str:
+        """Get the description of the progress bar."""
+        return self._description
 
     @property
     def progress(self) -> Progress:

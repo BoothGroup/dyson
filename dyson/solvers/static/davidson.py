@@ -6,10 +6,9 @@ import warnings
 from typing import TYPE_CHECKING
 
 from pyscf import lib
-from rich.progress import Progress
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -239,7 +238,9 @@ class Davidson(StaticSolver):
         def _callback(env: dict[str, Any]) -> None:
             """Callback function for the Davidson algorithm."""
             root = env["e"][np.argmin(np.abs(env["e"]))]
-            table.add_row(env["icyc"] + 1, (root,), (np.max(np.abs(env["de"])), np.max(env["dx_norm"])))
+            table.add_row(
+                env["icyc"] + 1, (root,), (np.max(np.abs(env["de"])), np.max(env["dx_norm"]))
+            )
             progress.update(env["icyc"] + 1)
             del env
 
@@ -263,7 +264,7 @@ class Davidson(StaticSolver):
             eigvecs = np.array(eigvecs).T
 
         else:
-            with util.catch_warnings(UserWarning) as w:
+            with util.catch_warnings(UserWarning):
                 converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
                     lambda vectors: [self.matvec(vector) for vector in vectors],
                     self.get_guesses(),

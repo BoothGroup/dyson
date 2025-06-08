@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, console, printing
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
@@ -13,8 +13,8 @@ if TYPE_CHECKING:
 
     from dyson.expression.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
-    from dyson.typing import Array
     from dyson.lehmann import Lehmann
+    from dyson.typing import Array
 
 
 def _infer_max_cycle(moments: Array) -> int:
@@ -66,8 +66,25 @@ class CPGF(DynamicSolver):
         self.max_cycle = max_cycle if max_cycle is not None else _infer_max_cycle(moments)
         self.set_options(**kwargs)
 
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.moments.ndim != 3 or self.moments.shape[1] != self.moments.shape[2]:
+            raise ValueError(
+                "moments must be a 3D array with the second and third dimensions equal."
+            )
+        if _infer_max_cycle(self.moments) < self.max_cycle:
+            raise ValueError("not enough moments provided for the specified max_cycle.")
         if self.ordering == "time-ordered":
             raise NotImplementedError("ordering='time-ordered' is not implemented for CPGF.")
+
+        # Print the input information
+        cond = printing.format_float(
+            np.linalg.cond(self.moments[0]), threshold=1e10, scientific=True, precision=4
+        )
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
+        console.print(f"Overlap condition number: {cond}")
 
     @classmethod
     def from_self_energy(
@@ -91,7 +108,9 @@ class CPGF(DynamicSolver):
         if "grid" not in kwargs:
             raise ValueError("Missing required argument grid.")
         max_cycle = kwargs.pop("max_cycle", 16)
-        energies, couplings = self_energy.diagonalise_matrix_with_projection(static, overlap=overlap)
+        energies, couplings = self_energy.diagonalise_matrix_with_projection(
+            static, overlap=overlap
+        )
         emin = np.min(energies)
         emax = np.max(energies)
         scaling = ((emax - emin) / (2.0 - 1e-3), (emax + emin) / 2.0)
@@ -132,6 +151,10 @@ class CPGF(DynamicSolver):
         if iteration is None:
             iteration = self.max_cycle
 
+        # Get the printing helpers
+        progress = printing.IterationsPrinter(iteration + 1, description="Polynomial order")
+        progress.start()
+
         # Get the moments -- allow input to already be traced
         moments = util.as_trace(self.moments[: iteration + 1], 3).astype(complex)
 
@@ -143,18 +166,23 @@ class CPGF(DynamicSolver):
         # Initialise factors
         numerator = shifted_grid - 1j * np.sqrt(1 - shifted_grid**2)
         denominator = np.sqrt(1 - shifted_grid**2)
+        kernel = 1.0 / denominator
 
         # Iteratively compute the Green's function
         shape = (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys)
-        greens_function = np.zeros(shape, dtype=complex)
-        kernel = 1.0 / denominator
-        for cycle in range(iteration + 1):
-            factor = 1.0j * (2.0 - int(cycle == 0)) / self.scaling[0]
-            greens_function -= util.einsum("z,...->z...", kernel, moments[cycle]) * factor
+        greens_function = util.einsum("z,...->z...", kernel, moments[0])
+        for cycle in range(1, iteration + 1):
+            progress.update(cycle)
             kernel *= numerator
+            greens_function += util.einsum("z,...->z...", kernel, moments[cycle]) * 2
 
+        # Apply factors
+        greens_function /= self.scaling[0]
+        greens_function *= -1.0j
         if self.ordering == "advanced":
             greens_function = greens_function.conj()
+
+        progress.stop()
 
         return greens_function if self.include_real else greens_function.imag
 

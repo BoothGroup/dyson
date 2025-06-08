@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 from dyson.spectral import Spectral
 
@@ -121,8 +121,11 @@ class MBLGF(BaseMBL):
             raise ValueError("not enough moments provided for the specified max_cycle.")
 
         # Print the input information
-        cond = printing.format_float(np.linalg.cond(self.moments[0]), threshold=1e10, scientific=True, precision=4)
+        cond = printing.format_float(
+            np.linalg.cond(self.moments[0]), threshold=1e10, scientific=True, precision=4
+        )
         console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
         console.print(f"Overlap condition number: {cond}")
 
     @classmethod
@@ -145,7 +148,9 @@ class MBLGF(BaseMBL):
             Solver instance.
         """
         max_cycle = kwargs.get("max_cycle", 0)
-        energies, couplings = self_energy.diagonalise_matrix_with_projection(static, overlap=overlap)
+        energies, couplings = self_energy.diagonalise_matrix_with_projection(
+            static, overlap=overlap
+        )
         greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
         moments = greens_function.moments(range(2 * max_cycle + 2))
         return cls(moments, hermitian=greens_function.hermitian, **kwargs)

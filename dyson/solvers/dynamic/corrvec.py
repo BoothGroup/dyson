@@ -8,18 +8,18 @@ from typing import TYPE_CHECKING
 from scipy.sparse.linalg import LinearOperator, lgmres
 
 from dyson import numpy as np
-from dyson.solvers.solver import DynamicSolver
-from dyson import util
+from dyson import util, console, printing
 from dyson.grids.frequency import RealFrequencyGrid
+from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Callable, Any, Literal
+    from typing import Any, Callable, Literal
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.typing import Array
     from dyson.lehmann import Lehmann
+    from dyson.typing import Array
 
-# TODO: (m,k) for GCROTMK, more solvers, DIIS
+#TODO: Can we use DIIS?
 
 
 class CorrectionVector(DynamicSolver):
@@ -72,6 +72,18 @@ class CorrectionVector(DynamicSolver):
         self._get_state_bra = get_state_bra
         self._get_state_ket = get_state_ket
         self.set_options(**kwargs)
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.diagonal.ndim != 1:
+            raise ValueError("diagonal must be a 1D array.")
+        if not callable(self.matvec):
+            raise ValueError("matvec must be a callable function.")
+
+        # Print the input information
+        console.print(f"Matrix shape: [input]{(self.diagonal.size, self.diagonal.size)}[/input]")
+        console.print(f"Number of physical states: [input]{self.nphys}[/input]")
 
     @classmethod
     def from_self_energy(
@@ -154,17 +166,13 @@ class CorrectionVector(DynamicSolver):
         Returns:
             The result of the matrix-vector operation.
         """
-        # Cast the grid to the correct type
-        if not isinstance(grid, RealFrequencyGrid):
-            grid = RealFrequencyGrid((1,), buffer=grid, eta=self.grid.eta)
-
-        # Perform the matrix-vector operation
-        resolvent = grid.resolvent(np.array(0.0), -self.diagonal, ordering=self.ordering, invert=False)
+        resolvent = grid.resolvent(
+            np.array(0.0), -self.diagonal, ordering=self.ordering, invert=False
+        )
         result: Array = vector[None] * resolvent
         result -= self.matvec(vector.real)[None]
         if np.any(np.abs(vector.imag) > 1e-14):
             result -= self.matvec(vector.imag)[None] * 1.0j
-
         return result
 
     def matdiv_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
@@ -183,15 +191,9 @@ class CorrectionVector(DynamicSolver):
         Notes:
             The inversion is approximated using the diagonal of the matrix.
         """
-        # Cast the grid to the correct type
-        if not isinstance(grid, RealFrequencyGrid):
-            grid = RealFrequencyGrid((1,), buffer=grid, eta=self.grid.eta)
-
-        # Perform the matrix-vector division
         resolvent = grid.resolvent(self.diagonal, 0.0, ordering=self.ordering)
         result = vector[None] * resolvent[:, None]
         result[np.isinf(result)] = np.nan  # or 0?
-
         return result
 
     def get_state_bra(self, orbital: int) -> Array:
@@ -226,14 +228,16 @@ class CorrectionVector(DynamicSolver):
         Returns:
             The Green's function on the real frequency grid.
         """
+        # Get the printing helpers
+        progress = printing.IterationsPrinter(self.nphys * self.grid.size, description="Frequency")
+        progress.start()
+
         # Precompute bra vectors  # TODO: Optional
         bras = list(map(self.get_state_bra, range(self.nphys)))
 
         # Loop over ket vectors
-        greens_function = np.zeros(
-            (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys),
-            dtype=complex,
-        )
+        shape = (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys)
+        greens_function = np.zeros(shape, dtype=complex)
         failed: set[int] = set()
         for i in range(self.nphys):
             ket = self.get_state_ket(i)
@@ -241,21 +245,27 @@ class CorrectionVector(DynamicSolver):
             # Loop over frequencies
             x: Array | None = None
             outer_v: list[tuple[Array, Array]] = []
-            for w in itertools.filterfalse(failed.__contains__, range(self.grid.size)):
+            for w in range(self.grid.size):
+                progress.update(i * self.grid.size + w + 1)
+                if w in failed:
+                    continue
+
                 shape = (self.diagonal.size, self.diagonal.size)
-                matvec = LinearOperator(shape, lambda v: self.matvec_dynamic(v, self.grid[w]), dtype=complex)
-                matdiv = LinearOperator(shape, lambda v: self.matdiv_dynamic(v, self.grid[w]), dtype=complex)
+                matvec = LinearOperator(
+                    shape, lambda v: self.matvec_dynamic(v, self.grid[[w]]), dtype=complex
+                )
+                matdiv = LinearOperator(
+                    shape, lambda v: self.matdiv_dynamic(v, self.grid[[w]]), dtype=complex
+                )
 
                 # Solve the linear system
-                if x is None:
-                    x = matdiv @ ket
                 x, info = lgmres(
                     matvec,
                     ket,
                     x0=x,
                     M=matdiv,
-                    atol=0.0,
-                    rtol=self.conv_tol,
+                    rtol=0.0,
+                    atol=self.conv_tol,
                     outer_v=outer_v,
                 )
 
@@ -269,7 +279,13 @@ class CorrectionVector(DynamicSolver):
                 else:
                     greens_function[w] += bras[i] @ x
 
-        #greens_function = -greens_function
+        progress.stop()
+        rating = printing.rate_error(len(failed) / self.grid.size, 1e-100, 1e-2)
+        console.print("")
+        console.print(
+            f"Converged [output]{self.grid.size - len(failed)} of {self.grid.size}[/output] "
+            f"frequencies ([{rating}]{len(failed) / self.grid.size:.2%}[/{rating}])."
+        )
 
         return greens_function if self.include_real else greens_function.imag
 

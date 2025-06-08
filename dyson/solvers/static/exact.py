@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.spectral import Spectral
@@ -57,7 +57,9 @@ class Exact(StaticSolver):
             raise ValueError("matrix must be a square matrix.")
         if self.bra.ndim != 2 or self.bra.shape[1] != self.matrix.shape[0]:
             raise ValueError("bra must be a 2D array with the same number of columns as matrix.")
-        if self.ket is not None and (self.ket.ndim != 2 or self.ket.shape[1] != self.matrix.shape[0]):
+        if self.ket is not None and (
+            self.ket.ndim != 2 or self.ket.shape[1] != self.matrix.shape[0]
+        ):
             raise ValueError("ket must be a 2D array with the same number of columns as matrix.")
         if self.ket is not None and self.ket.shape[0] != self.bra.shape[0]:
             raise ValueError("ket must have the same number of rows as bra.")

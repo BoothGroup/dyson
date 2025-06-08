@@ -5,12 +5,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from rich.table import Table
 from rich import box
+from rich.table import Table
 
+from dyson import console, printing
 from dyson.lehmann import Lehmann
 from dyson.typing import Array
-from dyson import console, printing
 
 if TYPE_CHECKING:
     from typing import Any
@@ -29,6 +29,7 @@ class BaseSolver(ABC):
 
         def wrap_init(init: Any) -> Any:
             """Wrapper to call __post_init__ after __init__."""
+
             def wrapped_init(self: BaseSolver, *args: Any, **kwargs: Any) -> None:
                 init(self, *args, **kwargs)
                 if init.__name__ == "__init__":
@@ -39,6 +40,7 @@ class BaseSolver(ABC):
 
         def wrap_kernel(kernel: Any) -> Any:
             """Wrapper to call __post_kernel__ after kernel."""
+
             def wrapped_kernel(self: BaseSolver, *args: Any, **kwargs: Any) -> Any:
                 result = kernel(self, *args, **kwargs)
                 if kernel.__name__ == "kernel":

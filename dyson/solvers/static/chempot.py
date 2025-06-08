@@ -6,11 +6,10 @@ import functools
 import warnings
 from typing import TYPE_CHECKING
 
-from rich.progress import Progress
 import scipy.optimize
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, printing, console
 from dyson.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.exact import Exact
@@ -230,7 +229,9 @@ class ChemicalPotentialSolver(StaticSolver):
         console.print(f"Number of auxiliary states: [input]{self.self_energy.naux}[/input]")
         console.print(f"Target number of electrons: [input]{self.nelec}[/input]")
         if self.overlap is not None:
-            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            cond = printing.format_float(
+                np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4
+            )
             console.print(f"Overlap condition number: {cond}")
 
     @property
@@ -365,7 +366,9 @@ class AufbauPrinciple(ChemicalPotentialSolver):
         """
         # Solve the self-energy
         with printing.quiet:
-            solver = self.solver.from_self_energy(self.static, self.self_energy, overlap=self.overlap)
+            solver = self.solver.from_self_energy(
+                self.static, self.self_energy, overlap=self.overlap
+            )
             result = solver.kernel()
         greens_function = result.get_greens_function()
 
@@ -510,7 +513,9 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         """
         with printing.quiet:
             with shift_energies(self.self_energy, np.ravel(shift)[0]):
-                solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
+                solver = self.solver.from_self_energy(
+                    self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap
+                )
                 solver.kernel()
         assert solver.error is not None
         return solver.error**2
@@ -527,7 +532,9 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         """
         with printing.quiet:
             with shift_energies(self.self_energy, np.ravel(shift)[0]):
-                solver = self.solver.from_self_energy(self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap)
+                solver = self.solver.from_self_energy(
+                    self.static, self.self_energy, nelec=self.nelec, overlap=self.overlap
+                )
                 solver.kernel()
         assert solver.error is not None
         assert solver.result is not None
@@ -607,7 +614,9 @@ class AuxiliaryShift(ChemicalPotentialSolver):
 
         # Solve the self-energy
         with printing.quiet:
-            solver = self.solver.from_self_energy(self.static, self_energy, nelec=self.nelec, overlap=self.overlap)
+            solver = self.solver.from_self_energy(
+                self.static, self_energy, nelec=self.nelec, overlap=self.overlap
+            )
             result = solver.kernel()
 
         # Set the results

@@ -5,10 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pyscf import lib
-from rich.progress import Progress
 
+from dyson import console, printing
 from dyson import numpy as np
-from dyson import printing, console, util
 from dyson.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
@@ -180,7 +179,9 @@ class DensityRelaxation(StaticSolver):
         console.print(f"Number of auxiliary states: [input]{self.self_energy.naux}[/input]")
         console.print(f"Target number of electrons: [input]{self.nelec}[/input]")
         if self.overlap is not None:
-            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            cond = printing.format_float(
+                np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4
+            )
             console.print(f"Overlap condition number: {cond}")
 
     def __post_kernel__(self) -> None:
@@ -193,7 +194,9 @@ class DensityRelaxation(StaticSolver):
         )
         cpt = printing.format_float(self.result.chempot)
         nelec = np.trace(self.result.get_greens_function().occupied().moment(0)) * self.occupancy
-        err = printing.format_float(self.nelec - nelec, threshold=1e-3, precision=4, scientific=True)
+        err = printing.format_float(
+            self.nelec - nelec, threshold=1e-3, precision=4, scientific=True
+        )
         console.print(f"Chemical potential: [output]{cpt}[/output]")
         console.print(f"Error in number of electrons: [output]{err}[/output]")
 
@@ -253,8 +256,16 @@ class DensityRelaxation(StaticSolver):
         # Get the table
         table = printing.ConvergencePrinter(
             ("Shift",),
-            ("Error", "Gradient", "Change in RDM",),
-            (self.solver_outer.conv_tol, self.solver_outer.conv_tol_grad, self.conv_tol,),
+            (
+                "Error",
+                "Gradient",
+                "Change in RDM",
+            ),
+            (
+                self.solver_outer.conv_tol,
+                self.solver_outer.conv_tol_grad,
+                self.conv_tol,
+            ),
         )
         progress = printing.IterationsPrinter(self.max_cycle_outer)
         progress.start()
@@ -270,7 +281,9 @@ class DensityRelaxation(StaticSolver):
             if self.favour_rdm:
                 # Solve the self-energy
                 with printing.quiet:
-                    solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
+                    solver_outer = self.solver_outer.from_self_energy(
+                        static, self_energy, nelec=self.nelec, overlap=self.overlap
+                    )
                     result = solver_outer.kernel()
                     self_energy = result.get_self_energy()
 
@@ -310,7 +323,9 @@ class DensityRelaxation(StaticSolver):
             if not self.favour_rdm:
                 # Solve the self-energy
                 with printing.quiet:
-                    solver_outer = self.solver_outer.from_self_energy(static, self_energy, nelec=self.nelec, overlap=self.overlap)
+                    solver_outer = self.solver_outer.from_self_energy(
+                        static, self_energy, nelec=self.nelec, overlap=self.overlap
+                    )
                     result = solver_outer.kernel()
                     self_energy = result.get_self_energy()
 

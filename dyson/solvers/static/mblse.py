@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.lehmann import Lehmann
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 from dyson.spectral import Spectral
@@ -126,8 +126,11 @@ class MBLSE(BaseMBL):
 
         # Print the input information
         console.print(f"Number of physical states: [input]{self.nphys}[/input]")
+        console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
         if self.overlap is not None:
-            cond = printing.format_float(np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4)
+            cond = printing.format_float(
+                np.linalg.cond(self.overlap), threshold=1e10, scientific=True, precision=4
+            )
             console.print(f"Overlap condition number: {cond}")
 
     @classmethod
@@ -369,7 +372,9 @@ class MBLSE(BaseMBL):
                 ]
             )
 
-        return Spectral.from_self_energy(self.static, Lehmann(energies, couplings), overlap=self.overlap)
+        return Spectral.from_self_energy(
+            self.static, Lehmann(energies, couplings), overlap=self.overlap
+        )
 
     @property
     def static(self) -> Array:
