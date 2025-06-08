@@ -7,7 +7,8 @@ Dyson equation solvers in :mod:`dyson` are general solvers that a variety of inp
 self-energies or existing Green's functions, and solve the Dyson equation in some fashion to
 obtain either
 
-    a) a static Lehmann representation of the self-energy and Green's function, or
+    a) a static spectral representation that can be projected into a static representation of the
+         Green's function or self-energy, or
     b) a dynamic Green's function.
 
 Below is a table summarising the inputs expected by each solver, first for static solvers:
