@@ -49,8 +49,8 @@ class BaseSolver(ABC):
 
             return wrapped_kernel
 
-        cls.__init__ = wrap_init(cls.__init__)
-        cls.kernel = wrap_kernel(cls.kernel)
+        cls.__init__ = wrap_init(cls.__init__)  # type: ignore[method-assign]
+        cls.kernel = wrap_kernel(cls.kernel)  # type: ignore[method-assign]
 
     def __log_init__(self) -> None:
         """Hook called after :meth:`__init__` for logging purposes."""

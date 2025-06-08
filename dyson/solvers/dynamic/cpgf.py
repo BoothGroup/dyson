@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
     from typing import Any, Literal
 
-    from dyson.expression.expression import BaseExpression
+    from dyson.expressions.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
     from dyson.lehmann import Lehmann
     from dyson.typing import Array
@@ -169,7 +169,6 @@ class CPGF(DynamicSolver):
         kernel = 1.0 / denominator
 
         # Iteratively compute the Green's function
-        shape = (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys)
         greens_function = util.einsum("z,...->z...", kernel, moments[0])
         for cycle in range(1, iteration + 1):
             progress.update(cycle)

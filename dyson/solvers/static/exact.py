@@ -70,6 +70,7 @@ class Exact(StaticSolver):
 
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""
+        assert self.result is not None
         emin = printing.format_float(self.result.eigvals.min())
         emax = printing.format_float(self.result.eigvals.max())
         console.print("")

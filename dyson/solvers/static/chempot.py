@@ -302,6 +302,9 @@ class AufbauPrinciple(ChemicalPotentialSolver):
 
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""
+        assert self.result is not None
+        assert self.chempot is not None
+        assert self.error is not None
         emin = printing.format_float(self.result.eigvals.min())
         emax = printing.format_float(self.result.eigvals.max())
         console.print("")
@@ -446,6 +449,10 @@ class AuxiliaryShift(ChemicalPotentialSolver):
 
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""
+        assert self.result is not None
+        assert self.chempot is not None
+        assert self.error is not None
+        assert self.shift is not None
         emin = printing.format_float(self.result.eigvals.min())
         emax = printing.format_float(self.result.eigvals.max())
         console.print(
@@ -571,7 +578,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
             nonlocal cycle
             error, grad = self.gradient(np.ravel(xk)[0])
             error = np.sqrt(error)
-            table.add_row(cycle, (np.ravel(xk)[0],), (error, grad))
+            table.add_row(cycle, (np.ravel(xk)[0],), (error, np.ravel(grad)[0]))
             progress.update(cycle)
             cycle += 1
 

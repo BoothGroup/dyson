@@ -186,18 +186,20 @@ class DensityRelaxation(StaticSolver):
 
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""
+        assert self.result is not None
         emin = printing.format_float(self.result.eigvals.min())
         emax = printing.format_float(self.result.eigvals.max())
         console.print(
             f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "
             f"[output]{emax}[/output]."
         )
-        cpt = printing.format_float(self.result.chempot)
         nelec = np.trace(self.result.get_greens_function().occupied().moment(0)) * self.occupancy
+        if self.result.chempot is not None:
+            cpt = printing.format_float(self.result.chempot)
+            console.print(f"Chemical potential: [output]{cpt}[/output]")
         err = printing.format_float(
             self.nelec - nelec, threshold=1e-3, precision=4, scientific=True
         )
-        console.print(f"Chemical potential: [output]{cpt}[/output]")
         console.print(f"Error in number of electrons: [output]{err}[/output]")
 
     @classmethod
@@ -316,7 +318,7 @@ class DensityRelaxation(StaticSolver):
                     pass
 
                 # Check for convergence
-                error = np.linalg.norm(rdm1 - rdm1_prev, ord=np.inf)
+                error = np.max(np.abs(rdm1 - rdm1_prev))
                 if error < self.conv_tol:
                     break
 
@@ -330,12 +332,9 @@ class DensityRelaxation(StaticSolver):
                     self_energy = result.get_self_energy()
 
             # Check for convergence
-            converged = error < self.conv_tol and solver_outer.converged
-            table.add_row(
-                cycle_outer,
-                (solver_outer.shift,),
-                (solver_outer.error, solver_outer.gradient(solver_outer.shift)[1], error),
-            )
+            converged = bool(error < self.conv_tol and solver_outer.converged)
+            grad = np.ravel(solver_outer.gradient(solver_outer.shift)[1])[0]
+            table.add_row(cycle_outer, (solver_outer.shift,), (solver_outer.error, grad, error))
             progress.update(cycle_outer)
             if converged:
                 break

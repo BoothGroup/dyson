@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import warnings
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Iterator
+    from warnings import WarningMessage
 
 
 @contextmanager
-def catch_warnings(warning_type: type[Warning] = Warning) -> list[Warning]:
+def catch_warnings(warning_type: type[Warning] = Warning) -> Iterator[list[WarningMessage]]:
     """Context manager to catch warnings.
 
     Returns:

@@ -18,6 +18,8 @@ from dyson import __version__
 if TYPE_CHECKING:
     from typing import Any, Literal
 
+    from rich.progress import TaskID
+
 
 theme = Theme(
     {
@@ -60,7 +62,7 @@ def init_console() -> None:
     console.print(header_with_version)
 
     # Print versions of dependencies and ebcc
-    def get_git_hash(directory):
+    def get_git_hash(directory: str) -> str:
         git_directory = os.path.join(directory, ".git")
         cmd = ["git", "--git-dir=%s" % git_directory, "rev-parse", "--short", "HEAD"]
         try:
@@ -73,7 +75,10 @@ def init_console() -> None:
 
     for name in ["numpy", "pyscf", "dyson"]:
         module = importlib.import_module(name)
-        git_hash = get_git_hash(os.path.join(os.path.dirname(module.__file__), ".."))
+        if module.__file__ is None:
+            git_hash = "N/A"
+        else:
+            git_hash = get_git_hash(os.path.join(os.path.dirname(module.__file__), ".."))
         console.print(f"{name}:")
         console.print(f" > Version:  [input]{module.__version__}[/]")
         console.print(f" > Git hash: [input]{git_hash}[/]")
@@ -139,7 +144,7 @@ def rate_error(
 
 
 def format_float(
-    value: float | complex,
+    value: float | complex | None,
     precision: int = 10,
     scientific: bool = False,
     threshold: float | None = None,
@@ -155,6 +160,8 @@ def format_float(
     Returns:
         str: The formatted string.
     """
+    if value is None:
+        return "N/A"
     if value.imag < (1e-1**precision):
         value = value.real
     out = f"{value:.{precision}g}" if scientific else f"{value:.{precision}f}"
@@ -188,8 +195,8 @@ class ConvergencePrinter:
     def add_row(
         self,
         cycle: int,
-        quantities: tuple[float, ...],
-        quantity_errors: tuple[float, ...],
+        quantities: tuple[float | None, ...],
+        quantity_errors: tuple[float | None, ...],
     ) -> None:
         """Add a row to the table."""
         self._table.add_row(
@@ -220,14 +227,16 @@ class IterationsPrinter:
         self._console = console
         self._description = description
         self._progress = Progress(transient=True)
-        self._task: int | None = None
+        self._task: TaskID | None = None
 
     def start(self) -> None:
         """Start the progress bar."""
         if self.console.quiet:
             return
         self.progress.start()
-        self._task = self.progress.add_task(f"{self.description} 0 / {self.max_cycle}", total=self.max_cycle)
+        self._task = self.progress.add_task(
+            f"{self.description} 0 / {self.max_cycle}", total=self.max_cycle
+        )
 
     def update(self, cycle: int) -> None:
         """Update the progress bar for the given cycle."""
@@ -268,6 +277,6 @@ class IterationsPrinter:
         return self._progress
 
     @property
-    def task(self) -> int | None:
+    def task(self) -> TaskID | None:
         """Get the current task."""
         return self._task

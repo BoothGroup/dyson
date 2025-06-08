@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import itertools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from scipy.sparse.linalg import LinearOperator, lgmres
 
+from dyson import console, printing, util
 from dyson import numpy as np
-from dyson import util, console, printing
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.solvers.solver import DynamicSolver
 
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from dyson.lehmann import Lehmann
     from dyson.typing import Array
 
-#TODO: Can we use DIIS?
+# TODO: Can we use DIIS?
 
 
 class CorrectionVector(DynamicSolver):
@@ -153,7 +152,7 @@ class CorrectionVector(DynamicSolver):
             **kwargs,
         )
 
-    def matvec_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
+    def matvec_dynamic(self, vector: Array, grid_index: int) -> Array:
         r"""Perform the matrix-vector operation for the dynamic self-energy supermatrix.
 
         .. math::
@@ -161,11 +160,12 @@ class CorrectionVector(DynamicSolver):
 
         Args:
             vector: The vector to operate on.
-            grid: The real frequency grid.
+            grid_index: Index of the real frequency grid.
 
         Returns:
             The result of the matrix-vector operation.
         """
+        grid = cast(RealFrequencyGrid, self.grid[[grid_index]])
         resolvent = grid.resolvent(
             np.array(0.0), -self.diagonal, ordering=self.ordering, invert=False
         )
@@ -175,7 +175,7 @@ class CorrectionVector(DynamicSolver):
             result -= self.matvec(vector.imag)[None] * 1.0j
         return result
 
-    def matdiv_dynamic(self, vector: Array, grid: RealFrequencyGrid) -> Array:
+    def matdiv_dynamic(self, vector: Array, grid_index: int) -> Array:
         r"""Approximately perform a matrix-vector division for the dynamic self-energy supermatrix.
 
         .. math::
@@ -183,7 +183,7 @@ class CorrectionVector(DynamicSolver):
 
         Args:
             vector: The vector to operate on.
-            grid: The real frequency grid.
+            grid_index: Index of the real frequency grid.
 
         Returns:
             The result of the matrix-vector division.
@@ -191,6 +191,7 @@ class CorrectionVector(DynamicSolver):
         Notes:
             The inversion is approximated using the diagonal of the matrix.
         """
+        grid = cast(RealFrequencyGrid, self.grid[[grid_index]])
         resolvent = grid.resolvent(self.diagonal, 0.0, ordering=self.ordering)
         result = vector[None] * resolvent[:, None]
         result[np.isinf(result)] = np.nan  # or 0?
@@ -250,12 +251,12 @@ class CorrectionVector(DynamicSolver):
                 if w in failed:
                     continue
 
-                shape = (self.diagonal.size, self.diagonal.size)
+                linop_shape = (self.diagonal.size, self.diagonal.size)
                 matvec = LinearOperator(
-                    shape, lambda v: self.matvec_dynamic(v, self.grid[[w]]), dtype=complex
+                    linop_shape, lambda v: self.matvec_dynamic(v, w), dtype=complex
                 )
                 matdiv = LinearOperator(
-                    shape, lambda v: self.matdiv_dynamic(v, self.grid[[w]]), dtype=complex
+                    linop_shape, lambda v: self.matdiv_dynamic(v, w), dtype=complex
                 )
 
                 # Solve the linear system

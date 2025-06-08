@@ -60,7 +60,9 @@ class BaseFrequencyGrid(BaseGrid):
         return "frequency"
 
     @abstractmethod
-    def resolvent(self, energies: Array, chempot: float, **kwargs: Any) -> Array:  # noqa: D417
+    def resolvent(  # noqa: D417
+        self, energies: Array, chempot: float | Array, **kwargs: Any
+    ) -> Array:
         """Get the resolvent of the grid.
 
         Args:
@@ -142,7 +144,7 @@ class RealFrequencyGrid(BaseFrequencyGrid):
     def resolvent(  # noqa: D417
         self,
         energies: Array,
-        chempot: float,
+        chempot: float | Array,
         ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered",
         invert: bool = True,
         **kwargs: Any,
@@ -265,7 +267,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
     def resolvent(  # noqa: D417
         self,
         energies: Array,
-        chempot: float,
+        chempot: float | Array,
         invert: bool = True,
         **kwargs: Any,
     ) -> Array:
