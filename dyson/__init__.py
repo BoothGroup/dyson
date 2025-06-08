@@ -49,7 +49,7 @@ For a full accounting of the inputs and their types, please see the documentatio
 
 __version__ = "0.0.0"
 
-import numpy
+from dyson._backend import numpy, scipy, set_backend
 
 from dyson.printing import console, quiet
 from dyson.lehmann import Lehmann
