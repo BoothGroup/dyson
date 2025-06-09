@@ -82,8 +82,13 @@ class CPGF(DynamicSolver):
         cond = printing.format_float(
             np.linalg.cond(self.moments[0]), threshold=1e10, scientific=True, precision=4
         )
+        scaling = (
+            printing.format_float(self.scaling[0]),
+            printing.format_float(self.scaling[1]),
+        )
         console.print(f"Number of physical states: [input]{self.nphys}[/input]")
         console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
+        console.print(f"Scaling parameters: [input]({scaling[0]}, {scaling[1]})[/input]")
         console.print(f"Overlap condition number: {cond}")
 
     @classmethod
@@ -111,9 +116,7 @@ class CPGF(DynamicSolver):
         energies, couplings = self_energy.diagonalise_matrix_with_projection(
             static, overlap=overlap
         )
-        emin = np.min(energies)
-        emax = np.max(energies)
-        scaling = ((emax - emin) / (2.0 - 1e-3), (emax + emin) / 2.0)
+        scaling = util.get_chebyshev_scaling_parameters(energies.min(), energies.max())
         greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
         moments = greens_function.chebyshev_moments(range(max_cycle + 1), scaling=scaling)
         return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)

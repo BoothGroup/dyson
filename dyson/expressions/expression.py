@@ -275,12 +275,7 @@ class BaseExpression(ABC):
             # Approximate the energy scale of the spectrum using the diagonal -- can also use an
             # iterative eigensolver to better approximate this
             diag = self.diagonal()
-            emin = diag.min()
-            emax = diag.max()
-            scaling = (
-                (emax - emin) / (2.0 - 1e-3),
-                (emax + emin) / 2.0,
-            )
+            scaling = util.get_chebyshev_scaling_parameters(diag.min(), diag.max())
 
         # Get the appropriate functions
         if left:

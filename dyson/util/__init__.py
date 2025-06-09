@@ -22,6 +22,7 @@ from dyson.util.moments import (
     se_moments_to_gf_moments,
     gf_moments_to_se_moments,
     build_block_tridiagonal,
+    get_chebyshev_scaling_parameters,
 )
 from dyson.util.energy import gf_moments_galitskii_migdal
 from dyson.util.misc import catch_warnings

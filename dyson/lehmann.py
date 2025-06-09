@@ -359,11 +359,8 @@ class Lehmann:
             The Chebyshev polynomial moment(s) of the Lehmann representation.
         """
         if scaling is None:
-            emin = self.energies.min()
-            emax = self.energies.max()
-            scaling = (
-                (emax - emin) / (2.0 - 1e-3),
-                (emax + emin) / 2.0,
+            scaling = util.get_chebyshev_scaling_parameters(
+                self.energies.min(), self.energies.max()
             )
         squeeze = False
         if isinstance(order, int):

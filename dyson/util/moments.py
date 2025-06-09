@@ -198,3 +198,22 @@ def build_block_tridiagonal(
     )
 
     return matrix
+
+
+def get_chebyshev_scaling_parameters(
+    min_value: float, max_value: float, epsilon: float = 1e-3
+) -> tuple[float, float]:
+    """Get the Chebyshev scaling parameters.
+
+    Args:
+        min_value: Minimum value of the range.
+        max_value: Maximum value of the range.
+        epsilon: Small value to avoid division by zero.
+
+    Returns:
+        A tuple containing the scaling factor and the shift.
+    """
+    return (
+        (max_value - min_value) / (2.0 - epsilon),
+        (max_value + min_value) / 2.0,
+    )
