@@ -29,12 +29,10 @@ class BaseRecursionCoefficients(ABC):
         nphys: int,
         hermitian: bool = True,
         force_orthogonality: bool = True,
-        dtype: str = "float64",
     ):
         """Initialise the recursion coefficients."""
         self._nphys = nphys
-        self._dtype = dtype
-        self._zero = np.zeros((nphys, nphys), dtype=dtype)
+        self._zero = np.zeros((nphys, nphys))
         self._data: dict[tuple[int, ...], Array] = {}
         self.hermitian = hermitian
         self.force_orthogonality = force_orthogonality
@@ -47,7 +45,9 @@ class BaseRecursionCoefficients(ABC):
     @property
     def dtype(self) -> str:
         """Get the data type of the recursion coefficients."""
-        return self._dtype
+        if any([np.iscomplexobj(v) for v in self._data.values()]):
+            return "complex128"
+        return "float64"
 
     @abstractmethod
     def __getitem__(self, key: tuple[int, ...]) -> Array:

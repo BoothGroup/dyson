@@ -81,7 +81,7 @@ def test_vs_exact_solver_central(
     exact_p = exact_cache(mf, expression_method.p)
     assert exact_h.result is not None
     assert exact_p.result is not None
-    result_exact_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
+    result_exact_ph = Spectral.combine(exact_h.result, exact_p.result)
 
     # Get the self-energy and Green's function from the exact solver
     static_exact = result_exact_ph.get_static_self_energy()
@@ -97,7 +97,7 @@ def test_vs_exact_solver_central(
     mblgf_p.kernel()
     assert mblgf_h.result is not None
     assert mblgf_p.result is not None
-    result_ph = Spectral.combine(mblgf_h.result, mblgf_p.result, shared_static=False)
+    result_ph = Spectral.combine(mblgf_h.result, mblgf_p.result)
 
     assert helper.have_equal_moments(
         mblgf_h.result.get_self_energy(), exact_h.result.get_self_energy(), nmom_gf - 2

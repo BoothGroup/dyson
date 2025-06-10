@@ -35,11 +35,12 @@ class BaseGrid(Array, ABC):
         return obj
 
     @abstractmethod
-    def evaluate_lehmann(self, lehmann: Lehmann) -> Array:
+    def evaluate_lehmann(self, lehmann: Lehmann, trace: bool = False) -> Array:
         """Evaluate a Lehmann representation on the grid.
 
         Args:
             lehmann: Lehmann representation to evaluate.
+            trace: Whether to directly compute the trace of the realisation.
 
         Returns:
             Lehmann representation, realised on the grid.

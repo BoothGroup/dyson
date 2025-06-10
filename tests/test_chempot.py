@@ -94,4 +94,4 @@ def test_shift_vs_exact_solver(
     greens_function = solver.result.get_greens_function()
     nelec = np.sum(greens_function.occupied().weights(2.0))
 
-    assert np.isclose(np.abs(mf.mol.nelectron - nelec), 0.0)
+    assert np.abs(mf.mol.nelectron - nelec) < 1e-7

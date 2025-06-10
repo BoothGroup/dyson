@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.progress import Progress
 from rich.table import Table
 from rich.theme import Theme
+from rich.errors import LiveError
 
 from dyson import __version__
 
@@ -226,6 +227,7 @@ class IterationsPrinter:
         self._max_cycle = max_cycle
         self._console = console
         self._description = description
+        self._ignore = False
         self._progress = Progress(transient=True)
         self._task: TaskID | None = None
 
@@ -233,14 +235,20 @@ class IterationsPrinter:
         """Start the progress bar."""
         if self.console.quiet:
             return
-        self.progress.start()
+        self._ignore = False
+        try:
+            self.progress.start()
+        except LiveError:
+            # If there is already a live print, don't start a progress bar
+            self._ignore = True
+            return
         self._task = self.progress.add_task(
             f"{self.description} 0 / {self.max_cycle}", total=self.max_cycle
         )
 
     def update(self, cycle: int) -> None:
         """Update the progress bar for the given cycle."""
-        if self.console.quiet:
+        if self.console.quiet or self._ignore:
             return
         if self.task is None:
             raise RuntimeError("Progress bar has not been started. Call start() first.")
@@ -250,7 +258,7 @@ class IterationsPrinter:
 
     def stop(self) -> None:
         """Stop the progress bar."""
-        if self.console.quiet:
+        if self.console.quiet or self._ignore:
             return
         if self.task is None:
             raise RuntimeError("Progress bar has not been started. Call start() first.")

@@ -54,14 +54,12 @@ def test_central_moments(
 
 
 @pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])
-@pytest.mark.parametrize("shared_static", [True, False])
 def test_vs_exact_solver_central(
     helper: Helper,
     mf: scf.hf.RHF,
     expression_method: ExpressionCollection,
     exact_cache: ExactGetter,
     max_cycle: int,
-    shared_static: bool,
 ) -> None:
     # Get the quantities required from the expressions
     if "h" not in expression_method or "p" not in expression_method:
@@ -80,7 +78,7 @@ def test_vs_exact_solver_central(
     exact_p = exact_cache(mf, expression_method.p)
     assert exact_h.result is not None
     assert exact_p.result is not None
-    result_exact_ph = Spectral.combine(exact_h.result, exact_p.result, shared_static=False)
+    result_exact_ph = Spectral.combine(exact_h.result, exact_p.result)
 
     # Get the self-energy and Green's function from the exact solver
     static_exact = result_exact_ph.get_static_self_energy()
@@ -90,21 +88,25 @@ def test_vs_exact_solver_central(
     static_p_exact = exact_p.result.get_static_self_energy()
     se_h_moments_exact = exact_h.result.get_self_energy().moments(range(nmom_se))
     se_p_moments_exact = exact_p.result.get_self_energy().moments(range(nmom_se))
+    overlap_h = exact_h.result.get_overlap()
+    overlap_p = exact_p.result.get_overlap()
 
     # Solve the Hamiltonian with MBLSE
     mblse_h = MBLSE(
-        static_h_exact if not shared_static else static_exact,
+        static_h_exact,
         se_h_moments_exact,
+        overlap=overlap_h,
         hermitian=hermitian,
     )
     result_h = mblse_h.kernel()
     mblse_p = MBLSE(
-        static_p_exact if not shared_static else static_exact,
+        static_p_exact,
         se_p_moments_exact,
+        overlap=overlap_p,
         hermitian=hermitian,
     )
     result_p = mblse_p.kernel()
-    result_ph = Spectral.combine(result_h, result_p, shared_static=shared_static)
+    result_ph = Spectral.combine(result_h, result_p)
 
     # Recover the self-energy and Green's function from the MBLSE solver
     static = result_ph.get_static_self_energy()

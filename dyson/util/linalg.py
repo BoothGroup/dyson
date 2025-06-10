@@ -100,6 +100,10 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
     else:
         eigvals, eigvecs = scipy.linalg.eig(matrix, b=overlap)
 
+    # See if we can remove the imaginary part of the eigenvalues
+    if not hermitian and np.all(eigvals.imag == 0.0):
+        eigvals = eigvals.real
+
     # Sort the eigenvalues and eigenvectors
     idx = np.argsort(eigvals)
     eigvals = eigvals[idx]
@@ -130,6 +134,10 @@ def eig_lr(
             matrix, left=True, right=True, b=overlap
         )
         eigvecs_left, eigvecs_right = biorthonormalise(eigvecs_left, eigvecs_right)
+
+    # See if we can remove the imaginary part of the eigenvalues
+    if not hermitian and np.all(eigvals.imag == 0.0):
+        eigvals = eigvals.real
 
     # Sort the eigenvalues and eigenvectors
     idx = np.argsort(eigvals)
@@ -214,7 +222,8 @@ def matrix_power(
         if np.abs(power) < 1:
             mask &= eigvals > 0
     else:
-        power: complex = power + 0.0j  # type: ignore[no-redef]
+        if np.any(eigvals < 0):
+            power: complex = power + 0.0j  # type: ignore[no-redef]
 
     # Contract the eigenvalues and eigenvectors
     matrix_power: Array = (right[:, mask] * eigvals[mask][None] ** power) @ left[:, mask].T.conj()
@@ -273,7 +282,7 @@ def as_trace(matrix: Array, ndim: int, axis1: int = -2, axis2: int = -1) -> Arra
     """
     if matrix.ndim == ndim:
         return matrix
-    elif (matrix.ndim + 2) == ndim:
+    elif matrix.ndim > ndim:
         return np.trace(matrix, axis1=axis1, axis2=axis2)
     else:
         raise ValueError(f"Matrix has invalid shape {matrix.shape} for trace.")

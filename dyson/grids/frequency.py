@@ -39,7 +39,7 @@ class BaseFrequencyGrid(BaseGrid):
 
         Args:
             lehmann: Lehmann representation to evaluate.
-            trace: Return only the trace of the evaluated Lehmann representation.
+            trace: Whether to directly compute the trace of the realisation.
             kwargs: Additional keyword arguments for the resolvent.
 
         Returns:

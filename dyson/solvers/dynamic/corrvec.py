@@ -285,7 +285,7 @@ class CorrectionVector(DynamicSolver):
         console.print("")
         console.print(
             f"Converged [output]{self.grid.size - len(failed)} of {self.grid.size}[/output] "
-            f"frequencies ([{rating}]{len(failed) / self.grid.size:.2%}[/{rating}])."
+            f"frequencies ([{rating}]{1 - len(failed) / self.grid.size:.2%}[/{rating}])."
         )
 
         return greens_function if self.include_real else greens_function.imag

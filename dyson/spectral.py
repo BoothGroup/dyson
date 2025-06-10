@@ -188,6 +188,16 @@ class Spectral:
         """
         return self.eigvals, self.eigvecs[..., : self.nphys, :]
 
+    def get_overlap(self) -> Array:
+        """Get the overlap matrix in the physical space.
+
+        Returns:
+            Overlap matrix.
+        """
+        _, orbitals = self.get_dyson_orbitals()
+        left, right = util.unpack_vectors(orbitals)
+        return util.einsum("pk,qk->pq", right, left.conj())
+
     def get_self_energy(self, chempot: float | None = None) -> Lehmann:
         """Get the Lehmann representation of the self-energy.
 
@@ -219,33 +229,28 @@ class Spectral:
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)
 
     @classmethod
-    def combine(
-        cls,
-        *args: Spectral,
-        shared_static: bool = False,
-        chempot: float | None = None,
-    ) -> Spectral:
+    def combine(cls, *args: Spectral, chempot: float | None = None) -> Spectral:
         """Combine multiple spectral representations.
 
         Args:
             args: Spectral representations to combine.
-            shared_static: Whether the static part of the self-energy is shared between each
-                decomposition. If `True`, the the static part from a single solver is used for the
-                results, otherwise the static parts are summed.
             chempot: Chemical potential to be used in the Lehmann representations of the self-energy
                 and Green's function.
 
         Returns:
             Combined spectral representation.
         """
-        # TODO: If not shared_static, just concatenate the eigenvectors
+        # TODO: just concatenate the eigenvectors...?
         if len(set(arg.nphys for arg in args)) != 1:
             raise ValueError(
                 "All Spectral objects must have the same number of physical degrees of freedom."
             )
         nphys = args[0].nphys
-        statics = [arg.get_static_self_energy() for arg in args]
-        static_equal = all(util.scaled_error(statics[0], part) < 1e-10 for part in statics[1:])
+
+        # Sum the overlap and static self-energy matrices -- double counting is not an issue
+        # with shared static parts because the overlap matrix accounts for the separation
+        static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
+        overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
 
         # Check the chemical potentials
         if chempot is None:
@@ -273,29 +278,11 @@ class Spectral:
                 right = np.concatenate([right, right_i], axis=1)
         couplings = np.array([left, right]) if not args[0].hermitian else left
 
-        # Check if the static parts are the same
-        if shared_static:
-            if not static_equal:
-                warnings.warn(
-                    "shared_static is True, but the static parts of the self-energy do not appear "
-                    "to be the same for each solver. This may lead to unexpected behaviour.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            static = statics[0]
-        else:
-            if static_equal:
-                warnings.warn(
-                    "shared_static is False, but the static parts of the self-energy appear to be "
-                    "the same for each solver. Please ensure this is not double counting.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-            static = sum(statics, np.zeros_like(statics[0]))
-
         # Solve the eigenvalue problem
         self_energy = Lehmann(energies, couplings)
-        result = cls(*self_energy.diagonalise_matrix(static), nphys, chempot=chempot)  # TODO orth
+        result = cls(
+            *self_energy.diagonalise_matrix(static, overlap=overlap), nphys, chempot=chempot
+        )
 
         return result
 
@@ -330,3 +317,17 @@ class Spectral:
     def hermitian(self) -> bool:
         """Check if the spectrum is Hermitian."""
         return self.eigvecs.ndim == 2
+
+    def __eq__(self, other: object) -> bool:
+        """Check if two Lehmann representations are equal."""
+        if not isinstance(other, Spectral):
+            return NotImplemented
+        if other.nphys != self.nphys:
+            return False
+        if other.neig != self.neig:
+            return False
+        if other.hermitian != self.hermitian:
+            return False
+        if other.chempot != self.chempot:
+            return False
+        return np.allclose(other.eigvals, self.eigvals) and np.allclose(other.eigvecs, self.eigvecs)

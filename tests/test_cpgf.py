@@ -46,9 +46,9 @@ def test_vs_exact_solver(
     cpgf = CPGF.from_self_energy(
         exact.result.get_static_self_energy(),
         exact.result.get_self_energy(),
-        overlap=exact.result.get_greens_function().moment(0),
+        overlap=exact.result.get_overlap(),
         grid=grid,
-        max_cycle=512,
+        max_cycle=2048,  # Converge fully for all systems
         ordering="advanced",
     )
     gf = cpgf.kernel()

@@ -149,15 +149,7 @@ def get_exact(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Exact:
     key = (mf.__class__, mf.mol.dumps(), expression_cls)
     if key not in _EXACT_CACHE:
         expression = expression_cls.from_mf(mf)
-        hamiltonian = expression.build_matrix()
-        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-        ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
-        exact = Exact(
-            hamiltonian,
-            bra=bra,
-            ket=ket if not expression.hermitian else None,
-            hermitian=expression.hermitian,
-        )
+        exact = Exact.from_expression(expression)
         exact.kernel()
         _EXACT_CACHE[key] = exact
 

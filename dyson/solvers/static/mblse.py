@@ -51,7 +51,7 @@ class RecursionCoefficients(BaseRecursionCoefficients):
         """
         i, j, order = key
         if order == 0 and self.force_orthogonality:
-            value = np.eye(self.nphys, dtype=self.dtype)
+            value = np.eye(self.nphys)
         if self.hermitian and i == j:
             value = 0.5 * util.hermi_sum(value)
         if i < j and self.hermitian:
@@ -102,7 +102,6 @@ class MBLSE(BaseMBL):
         self._coefficients = self.Coefficients(
             self.nphys,
             hermitian=self.hermitian,
-            dtype=np.result_type(static.dtype, moments.dtype).name,
             force_orthogonality=self.force_orthogonality,
         )
         self._on_diagonal: dict[int, Array] = {}
@@ -224,9 +223,10 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
+        dtype = coefficients.dtype
 
         # Find the squre of the off-diagonal block
-        off_diagonal_squared = coefficients[i, i, 2].copy()
+        off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)
         off_diagonal_squared -= util.hermi_sum(coefficients[i, i - 1, 1] @ off_diagonal[i - 1])
         off_diagonal_squared -= coefficients[i, i, 1] @ coefficients[i, i, 1]
         if iteration > 1:
@@ -242,15 +242,18 @@ class MBLSE(BaseMBL):
             off_diagonal_squared, -0.5, hermitian=self.hermitian, return_error=self.calculate_errors
         )
 
+        # Update the dtype
+        dtype = np.result_type(dtype, off_diagonal_inv.dtype)
+
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
-            residual = coefficients[i, i, n + 1].copy()
+            residual = coefficients[i, i, n + 1].astype(dtype, copy=True)
             residual -= off_diagonal[i - 1].T.conj() @ coefficients[i - 1, i, n]
             residual -= on_diagonal[i] @ coefficients[i, i, n]
             coefficients[i + 1, i, n] = off_diagonal_inv @ residual
 
             # Diagonal recursion
-            residual = coefficients[i, i, n + 2].copy()
+            residual = coefficients[i, i, n + 2].astype(dtype, copy=True)
             residual -= util.hermi_sum(coefficients[i, i - 1, n + 1] @ off_diagonal[i - 1])
             residual -= util.hermi_sum(coefficients[i, i, n + 1] @ on_diagonal[i])
             residual += util.hermi_sum(
@@ -280,9 +283,10 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
+        dtype = coefficients.dtype
 
         # Find the squre of the off-diagonal block
-        off_diagonal_squared = coefficients[i, i, 2].copy()
+        off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)
         off_diagonal_squared -= coefficients[i, i, 1] @ coefficients[i, i, 1]
         off_diagonal_squared -= coefficients[i, i - 1, 1] @ off_diagonal[i - 1]
         off_diagonal_squared -= off_diagonal[i - 1] @ coefficients[i, i - 1, 1]
@@ -299,21 +303,24 @@ class MBLSE(BaseMBL):
             off_diagonal_squared, -0.5, hermitian=self.hermitian, return_error=self.calculate_errors
         )
 
+        # Update the dtype
+        dtype = np.result_type(dtype, off_diagonal_inv.dtype)
+
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
-            residual = coefficients[i, i, n + 1].copy()
+            residual = coefficients[i, i, n + 1].astype(dtype, copy=True)
             residual -= off_diagonal[i - 1] @ coefficients[i - 1, i, n]
             residual -= on_diagonal[i] @ coefficients[i, i, n]
             coefficients[i + 1, i, n] = off_diagonal_inv @ residual
 
             # Vertical recursion
-            residual = coefficients[i, i, n + 1].copy()
+            residual = coefficients[i, i, n + 1].astype(dtype, copy=True)
             residual -= coefficients[i, i - 1, n] @ off_diagonal[i - 1]
             residual -= coefficients[i, i, n] @ on_diagonal[i]
             coefficients[i, i + 1, n] = residual @ off_diagonal_inv
 
             # Diagonal recursion
-            residual = coefficients[i, i, n + 2].copy()
+            residual = coefficients[i, i, n + 2].astype(dtype, copy=True)
             residual -= coefficients[i, i - 1, n + 1] @ off_diagonal[i - 1]
             residual -= coefficients[i, i, n + 1] @ on_diagonal[i]
             residual -= off_diagonal[i - 1] @ coefficients[i - 1, i, n + 1]

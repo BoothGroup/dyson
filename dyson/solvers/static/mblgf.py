@@ -35,7 +35,7 @@ class RecursionCoefficients(BaseRecursionCoefficients):
         """
         i, j = key
         if i == j == 1:
-            return np.eye(self.nphys, dtype=self.dtype)
+            return np.eye(self.nphys)
         if i < 1 or j < 1 or i < j:
             return self._zero
         return self._data[i, j]
@@ -87,7 +87,6 @@ class MBLGF(BaseMBL):
                 self.Coefficients(
                     self.nphys,
                     hermitian=self.hermitian,
-                    dtype=moments.dtype.name,
                     force_orthogonality=self.force_orthogonality,
                 ),
             ) * 2
@@ -96,13 +95,11 @@ class MBLGF(BaseMBL):
                 self.Coefficients(
                     self.nphys,
                     hermitian=self.hermitian,
-                    dtype=moments.dtype.name,
                     force_orthogonality=self.force_orthogonality,
                 ),
                 self.Coefficients(
                     self.nphys,
                     hermitian=self.hermitian,
-                    dtype=moments.dtype.name,
                     force_orthogonality=self.force_orthogonality,
                 ),
             )
@@ -197,8 +194,9 @@ class MBLGF(BaseMBL):
             )
 
         # Initialise the blocks
-        self.off_diagonal_upper[-1] = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
-        self.off_diagonal_lower[-1] = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
+        dtype = np.result_type(self.coefficients[0].dtype, self.coefficients[1].dtype)
+        self.off_diagonal_upper[-1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
+        self.off_diagonal_lower[-1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
         self.on_diagonal[0] = self.orthogonalised_moment(1)
         error_sqrt = 0.0
 
@@ -217,9 +215,13 @@ class MBLGF(BaseMBL):
         coefficients = self.coefficients[0]
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal_upper
+        dtype = np.result_type(
+            coefficients.dtype,
+            *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+        )
 
         # Find the squre of the off-diagonal block
-        off_diagonal_squared = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
+        off_diagonal_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 1):
                 off_diagonal_squared += (
@@ -241,15 +243,18 @@ class MBLGF(BaseMBL):
             off_diagonal_squared, -0.5, hermitian=self.hermitian, return_error=self.calculate_errors
         )
 
+        # Update the dtype
+        dtype = np.result_type(dtype, off_diagonal_inv.dtype)
+
         for j in range(i + 2):
             # Horizontal recursion
-            residual = coefficients[i + 1, j].copy()
+            residual = coefficients[i + 1, j].astype(dtype, copy=True)
             residual -= coefficients[i + 1, j + 1] @ on_diagonal[i]
             residual -= coefficients[i, j + 1] @ off_diagonal[i - 1]
             coefficients[i + 2, j + 1] = residual @ off_diagonal_inv
 
         # Calculate the on-diagonal block
-        on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=self.moments.dtype)
+        on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 2):
                 on_diagonal[i + 1] += (
@@ -274,9 +279,13 @@ class MBLGF(BaseMBL):
         on_diagonal = self.on_diagonal
         off_diagonal_upper = self.off_diagonal_upper
         off_diagonal_lower = self.off_diagonal_lower
+        dtype = np.result_type(
+            coefficients[0].dtype,
+            coefficients[1].dtype,
+            *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+        )
 
         # Find the square of the off-diagonal blocks
-        dtype = np.result_type(self.moments.dtype, self.on_diagonal[0].dtype)
         off_diagonal_upper_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         off_diagonal_lower_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
@@ -332,6 +341,9 @@ class MBLGF(BaseMBL):
         if self.calculate_errors:
             assert error_inv_sqrt_upper is not None and error_inv_sqrt_lower is not None
             error_inv_sqrt = np.sqrt(error_inv_sqrt_upper**2 + error_inv_sqrt_lower**2)
+
+        # Update the dtype
+        dtype = np.result_type(dtype, off_diagonal_upper_inv.dtype, off_diagonal_lower_inv.dtype)
 
         for j in range(i + 2):
             # Horizontal recursion

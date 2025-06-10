@@ -412,7 +412,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
     solver: type[AufbauPrinciple] = AufbauPrinciple
     max_cycle: int = 200
     conv_tol: float = 1e-8
-    conv_tol_grad: float = 1e-11
+    conv_tol_grad: float = 0.0
     guess: float = 0.0
     _options: set[str] = {"occupancy", "solver", "max_cycle", "conv_tol", "conv_tol_grad", "guess"}
 

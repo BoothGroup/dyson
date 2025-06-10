@@ -570,6 +570,12 @@ class Lehmann:
             physical = orth @ physical @ orth
             lehmann = lehmann.rotate_couplings(orth if self.hermitian else (orth, orth.T.conj()))
 
+        # Get the chemical potential
+        if chempot is True:
+            chempot = self.chempot
+        else:
+            chempot = float(chempot)
+
         # Diagonalise the supermatrix
         matrix = lehmann.matrix(physical, chempot=chempot)
         if self.hermitian:
@@ -804,3 +810,19 @@ class Lehmann:
             )
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
+
+    def __eq__(self, other: object) -> bool:
+        """Check if two spectral representations are equal."""
+        if not isinstance(other, Lehmann):
+            return NotImplemented
+        if other.nphys != self.nphys:
+            return False
+        if other.naux != self.naux:
+            return False
+        if other.hermitian != self.hermitian:
+            return False
+        if other.chempot != self.chempot:
+            return False
+        return np.allclose(other.energies, self.energies) and (
+            np.allclose(other.couplings, self.couplings)
+        )
