@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 
 from rich import box
 from rich.console import Console
+from rich.errors import LiveError
 from rich.progress import Progress
 from rich.table import Table
 from rich.theme import Theme
-from rich.errors import LiveError
 
 from dyson import __version__
 

@@ -99,62 +99,99 @@ class BaseExpression(ABC):
         return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)])
 
     @abstractmethod
-    def get_state(self, orbital: int) -> Array:
-        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_vector(self, orbital: int) -> Array:
+        r"""Obtain the vector corresponding to a fermionic operator acting on the ground state.
 
-        This state vector is a generalisation of
+        This vector is a generalisation of
 
         .. math::
-            a_i^{\pm} \left| \Psi_0 \right>
+            f_i^{\pm} \left| \Psi_0 \right>
 
-        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
-        particular expression.
+        where :math:`f_i^{\pm}` is the fermionic creation or annihilation operator, or a product
+        thereof, depending on the particular expression and what Green's function it corresponds to.
 
-        The state vector can be used to find the action of the singles and higher-order
-        configurations in the Hamiltonian on the physical space, required to compute Green's
-        functions.
+        The vector defines the excitaiton manifold probed by the Green's function corresponding to
+        the expression.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            State vector.
+            Excitation vector.
         """
         pass
 
-    def get_state_bra(self, orbital: int) -> Array:
-        r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_bra(self, orbital: int) -> Array:
+        r"""Obtain the bra vector corresponding to a fermionic operator acting on the ground state.
 
-        The bra vector is the state vector corresponding to the bra state, which may or may not be
-        the same as the ket state vector.
-
-        Args:
-            orbital: Orbital index.
-
-        Returns:
-            Bra vector.
-
-        See Also:
-            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
-        """
-        return self.get_state(orbital)
-
-    def get_state_ket(self, orbital: int) -> Array:
-        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
-
-        The ket vector is the state vector corresponding to the ket state, which may or may not be
-        the same as the bra state vector.
+        The bra vector is the excitation vector corresponding to the bra state, which may or may not
+        be the same as the ket state vector.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            Ket vector.
+            Bra excitation vector.
 
         See Also:
-            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
         """
-        return self.get_state(orbital)
+        return self.get_excitation_vector(orbital)
+
+    def get_excitation_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermionic operator acting on the ground state.
+
+        The ket vector is the excitation vector corresponding to the ket state, which may or may not
+        be the same as the bra state vector.
+
+        Args:
+            orbital: Orbital index.
+
+        Returns:
+            Ket excitation vector.
+
+        See Also:
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
+        """
+        return self.get_excitation_vector(orbital)
+
+    def get_excitation_vectors(self) -> list[Array]:
+        """Get the excitation vectors for all orbitals.
+
+        Returns:
+            List of excitation vectors for all orbitals.
+
+        See Also:
+            :func:`get_excitation_vector`: Function to get the excitation vector for a single
+            orbital.
+        """
+        return [self.get_excitation_vector(i) for i in range(self.nphys)]
+
+    def get_excitation_bras(self) -> list[Array]:
+        """Get the bra excitation vectors for all orbitals.
+
+        Returns:
+            List of bra excitation vectors for all orbitals.
+
+        See Also:
+            :func:`get_excitation_bra`: Function to get the bra excitation vector for a single
+            orbital.
+        """
+        return [self.get_excitation_bra(i) for i in range(self.nphys)]
+
+    def get_excitation_kets(self) -> list[Array]:
+        """Get the ket excitation vectors for all orbitals.
+
+        Returns:
+            List of ket excitation vectors for all orbitals.
+
+        See Also:
+            :func:`get_excitation_ket`: Function to get the ket excitation vector for a single
+            orbital.
+        """
+        return [self.get_excitation_ket(i) for i in range(self.nphys)]
 
     def _build_gf_moments(
         self,
@@ -226,12 +263,12 @@ class BaseExpression(ABC):
         """
         # Get the appropriate functions
         if left:
-            get_bra = self.get_state_ket
-            get_ket = self.get_state_bra
+            get_bra = self.get_excitation_ket
+            get_ket = self.get_excitation_bra
             apply_hamiltonian = self.apply_hamiltonian_left
         else:
-            get_bra = self.get_state_bra
-            get_ket = self.get_state_ket
+            get_bra = self.get_excitation_bra
+            get_ket = self.get_excitation_ket
             apply_hamiltonian = self.apply_hamiltonian_right
 
         return self._build_gf_moments(
@@ -279,12 +316,12 @@ class BaseExpression(ABC):
 
         # Get the appropriate functions
         if left:
-            get_bra = self.get_state_ket
-            get_ket = self.get_state_bra
+            get_bra = self.get_excitation_ket
+            get_ket = self.get_excitation_bra
             apply_hamiltonian = self.apply_hamiltonian_left
         else:
-            get_bra = self.get_state_bra
-            get_ket = self.get_state_ket
+            get_bra = self.get_excitation_bra
+            get_ket = self.get_excitation_ket
             apply_hamiltonian = self.apply_hamiltonian_right
 
         def _apply_hamiltonian_poly(vector: Array, vector_prev: Array, n: int) -> Array:

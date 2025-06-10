@@ -147,8 +147,8 @@ class CorrectionVector(DynamicSolver):
             diagonal,
             expression.nphys,
             kwargs.pop("grid"),
-            expression.get_state_bra,
-            expression.get_state_ket,
+            expression.get_excitation_bra,
+            expression.get_excitation_ket,
             **kwargs,
         )
 

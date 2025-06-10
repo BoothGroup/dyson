@@ -10,8 +10,8 @@ import pyscf
 import pytest
 
 from dyson import util
-from dyson.solvers import Exact, Davidson
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
+from dyson.solvers import Davidson, Exact
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -56,8 +56,8 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
     # Construct the moments
     moments = np.zeros((2, expression.nphys, expression.nphys))
     for i, j in itertools.product(range(expression.nphys), repeat=2):
-        bra = expression.get_state_bra(j)
-        ket = expression.get_state_ket(i)
+        bra = expression.get_excitation_bra(j)
+        ket = expression.get_excitation_ket(i)
         moments[0, i, j] += bra.conj() @ ket
         moments[1, i, j] += np.einsum("j,i,ij->", bra.conj(), ket, hamiltonian)
 
@@ -115,6 +115,8 @@ def test_hf(mf: scf.hf.RHF) -> None:
     exact_h.kernel()
     exact_p = Exact.from_expression(hf_p)
     exact_p.kernel()
+    assert exact_h.result is not None
+    assert exact_p.result is not None
     result = exact_h.result.combine(exact_p.result)
 
     assert np.allclose(result.get_greens_function().as_perturbed_mo_energy(), mf.mo_energy)
@@ -141,6 +143,7 @@ def test_ccsd(mf: scf.hf.RHF) -> None:
     davidson.kernel()
     ip_ref, _ = pyscf_ccsd.ipccsd(nroots=3)
 
+    assert davidson.result is not None
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM
@@ -189,6 +192,7 @@ def test_adc2(mf: scf.hf.RHF) -> None:
     davidson.kernel()
     ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
 
+    assert davidson.result is not None
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM
@@ -217,6 +221,7 @@ def test_adc2x(mf: scf.hf.RHF) -> None:
     davidson.kernel()
     ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
 
+    assert davidson.result is not None
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM

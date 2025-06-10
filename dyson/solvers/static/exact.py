@@ -22,8 +22,8 @@ class Exact(StaticSolver):
 
     Args:
         matrix: The self-energy supermatrix.
-        bra: The bra state vector mapping the supermatrix to the physical space.
-        ket: The ket state vector mapping the supermatrix to the physical space.
+        bra: The bra excitation vector mapping the supermatrix to the physical space.
+        ket: The ket excitation vector mapping the supermatrix to the physical space.
     """
 
     hermitian: bool = True
@@ -40,9 +40,9 @@ class Exact(StaticSolver):
 
         Args:
             matrix: The self-energy supermatrix.
-            bra: The bra state vector mapping the supermatrix to the physical space.
-            ket: The ket state vector mapping the supermatrix to the physical space. If `None`, use
-                the same vectors as `bra`.
+            bra: The bra excitation vector mapping the supermatrix to the physical space.
+            ket: The ket excitation vector mapping the supermatrix to the physical space. If `None`,
+                use the same vectors as `bra`.
             hermitian: Whether the matrix is hermitian.
         """
         self._matrix = matrix
@@ -130,12 +130,8 @@ class Exact(StaticSolver):
             Solver instance.
         """
         matrix = expression.build_matrix()
-        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-        ket = (
-            np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
-            if not expression.hermitian
-            else None
-        )
+        bra = np.array(expression.get_excitation_bras())
+        ket = np.array(expression.get_excitation_kets()) if not expression.hermitian else None
         return cls(matrix, bra, ket, hermitian=expression.hermitian, **kwargs)
 
     def kernel(self) -> Spectral:

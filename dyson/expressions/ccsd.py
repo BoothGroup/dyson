@@ -242,17 +242,17 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """
         return -self.PYSCF_EOM.ipccsd_diag(self, imds=self._imds)
 
-    def get_state_bra(self, orbital: int) -> Array:
-        r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_bra(self, orbital: int) -> Array:
+        r"""Obtain the bra vector corresponding to a fermionic operator acting on the ground state.
 
-        The bra vector is the state vector corresponding to the bra state, which may or may not be
-        the same as the ket state vector.
+        The bra vector is the excitation vector corresponding to the bra state, which may or may not
+        be the same as the ket state vector.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            Bra vector.
+            Bra excitation vector.
 
         Notes:
             This is actually considered the ket vector in most contexts, with the :math:`\Lambda`
@@ -261,7 +261,8 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             construction of moments.
 
         See Also:
-            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
         """
         r1: Array
         r2: Array
@@ -276,17 +277,17 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         return self.amplitudes_to_vector(r1, r2)
 
-    def get_state_ket(self, orbital: int) -> Array:
-        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermionic operator acting on the ground state.
 
-        The ket vector is the state vector corresponding to the ket state, which may or may not be
-        the same as the bra state vector.
+        The ket vector is the excitation vector corresponding to the ket state, which may or may not
+        be the same as the bra state vector.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            Ket vector.
+            Ket excitation vector.
 
         Notes:
             This is actually considered the bra vector in most contexts, with the :math:`\Lambda`
@@ -295,7 +296,8 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             construction of moments.
 
         See Also:
-            :func:`get_state`: Function to get the state vector when the bra and ket are the same.
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
         """
         if orbital < self.nocc:
             r1 = np.eye(self.nocc)[orbital]
@@ -318,8 +320,8 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         return self.amplitudes_to_vector(r1, r2)
 
-    get_state = get_state_ket
-    get_state.__doc__ = BaseCCSD.get_state.__doc__
+    get_excitation_vector = get_excitation_ket
+    get_excitation_vector.__doc__ = BaseCCSD.get_excitation_vector.__doc__
 
     @property
     def nsingle(self) -> int:
@@ -396,17 +398,21 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.eaccsd_diag(self, imds=self._imds)
 
-    def get_state_bra(self, orbital: int) -> Array:
-        r"""Obtain the bra vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_bra(self, orbital: int) -> Array:
+        r"""Obtain the bra vector corresponding to a fermionic operator acting on the ground state.
 
-        The bra vector is the state vector corresponding to the bra state, which may or may not be
-        the same as the ket state vector.
+        The bra vector is the excitation vector corresponding to the bra state, which may or may not
+        be the same as the ket state vector.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            Bra vector.
+            Bra excitation vector.
+
+        See Also:
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
         """
         if orbital < self.nocc:
             r1 = -self.l1[orbital]
@@ -429,17 +435,21 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
 
         return self.amplitudes_to_vector(r1, r2)
 
-    def get_state_ket(self, orbital: int) -> Array:
-        r"""Obtain the ket vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_ket(self, orbital: int) -> Array:
+        r"""Obtain the ket vector corresponding to a fermionic operator acting on the ground state.
 
-        The ket vector is the state vector corresponding to the ket state, which may or may not be
-        the same as the bra state vector.
+        The ket vector is the excitation vector corresponding to the ket state, which may or may not
+        be the same as the bra state vector.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            Ket vector.
+            Ket excitation vector.
+
+        See Also:
+            :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
+            ket are the same.
         """
         r1: Array
         r2: Array
@@ -454,8 +464,8 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
 
         return -self.amplitudes_to_vector(r1, r2)
 
-    get_state = get_state_ket
-    get_state.__doc__ = BaseCCSD.get_state.__doc__
+    get_excitation_vector = get_excitation_ket
+    get_excitation_vector.__doc__ = BaseCCSD.get_excitation_vector.__doc__
 
     @property
     def nsingle(self) -> int:

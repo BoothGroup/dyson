@@ -7,15 +7,13 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from dyson.lehmann import Lehmann
-from dyson.solvers import CorrectionVector
-from dyson.spectral import Spectral
 from dyson.grids import RealFrequencyGrid
+from dyson.solvers import CorrectionVector
 
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.expressions.expression import BaseExpression, ExpressionCollection
+    from dyson.expressions.expression import BaseExpression
 
     from .conftest import ExactGetter, Helper
 
@@ -45,8 +43,8 @@ def test_vs_exact_solver(
         expression.diagonal(),
         expression.nphys,
         grid,
-        expression.get_state_bra,
-        expression.get_state_ket,
+        expression.get_excitation_bra,
+        expression.get_excitation_ket,
     )
     gf = corrvec.kernel()
 

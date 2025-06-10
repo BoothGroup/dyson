@@ -14,6 +14,7 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from pyscf import scf
 
+    from dyson.typing import Array
     from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
     from .conftest import ExactGetter, Helper
@@ -31,8 +32,8 @@ def test_vs_exact_solver(
         pytest.skip("Skipping test for large Hamiltonian")
     if expression.nsingle == (expression.nocc + expression.nvir):
         pytest.skip("Skipping test for central Hamiltonian")
-    bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-    ket = np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
+    bra: Array = np.array(expression.get_excitation_bras())
+    ket: Array = np.array(expression.get_excitation_kets())
 
     # Solve the Hamiltonian exactly
     exact = exact_cache(mf, expression_cls)
@@ -87,14 +88,14 @@ def test_vs_exact_solver_central(
     if expression_h.nconfig > 1024 or expression_p.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
     diagonal = [expression_h.diagonal(), expression_p.diagonal()]
-    bra = [
-        np.array([expression_h.get_state_bra(i) for i in range(expression_h.nphys)]),
-        np.array([expression_p.get_state_bra(i) for i in range(expression_p.nphys)]),
-    ]
-    ket = [
-        np.array([expression_h.get_state_ket(i) for i in range(expression_h.nphys)]),
-        np.array([expression_p.get_state_ket(i) for i in range(expression_p.nphys)]),
-    ]
+    bra = (
+        np.array(expression_h.get_excitation_bras()),
+        np.array(expression_p.get_excitation_bras()),
+    )
+    ket = (
+        np.array(expression_h.get_excitation_kets()),
+        np.array(expression_p.get_excitation_kets()),
+    )
 
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method.h)

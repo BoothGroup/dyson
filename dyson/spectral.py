@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -240,7 +239,7 @@ class Spectral:
             Combined spectral representation.
         """
         # TODO: just concatenate the eigenvectors...?
-        args = [self, *args]
+        args = (self, *args)
         if len(set(arg.nphys for arg in args)) != 1:
             raise ValueError(
                 "All Spectral objects must have the same number of physical degrees of freedom."

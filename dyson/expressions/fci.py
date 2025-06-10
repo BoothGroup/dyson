@@ -124,26 +124,25 @@ class BaseFCI(BaseExpression):
         """
         return self.SIGN * (self._diagonal - (self.e_fci + self.chempot))
 
-    def get_state(self, orbital: int) -> Array:
-        r"""Obtain the state vector corresponding to a fermion operator acting on the ground state.
+    def get_excitation_vector(self, orbital: int) -> Array:
+        r"""Obtain the vector corresponding to a fermionic operator acting on the ground state.
 
-        This state vector is a generalisation of
+        This vector is a generalisation of
 
         .. math::
-            a_i^{\pm} \left| \Psi_0 \right>
+            f_i^{\pm} \left| \Psi_0 \right>
 
-        where :math:`a_i^{\pm}` is the fermionic creation or annihilation operator, depending on the
-        particular expression.
+        where :math:`f_i^{\pm}` is the fermionic creation or annihilation operator, or a product
+        thereof, depending on the particular expression and what Green's function it corresponds to.
 
-        The state vector can be used to find the action of the singles and higher-order
-        configurations in the Hamiltonian on the physical space, required to compute Green's
-        functions.
+        The vector defines the excitaiton manifold probed by the Green's function corresponding to
+        the expression.
 
         Args:
             orbital: Orbital index.
 
         Returns:
-            State vector.
+            Excitation vector.
         """
         return self.STATE_FUNC(
             self.c_fci,

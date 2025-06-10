@@ -159,7 +159,9 @@ class CPGF(DynamicSolver):
         progress.start()
 
         # Get the moments -- allow input to already be traced
-        moments = util.as_trace(self.moments[: iteration + 1], 1 if self.trace else 3).astype(complex)
+        moments = util.as_trace(self.moments[: iteration + 1], 1 if self.trace else 3).astype(
+            complex
+        )
 
         # Scale the grid
         scaled_grid = (self.grid - self.scaling[1]) / self.scaling[0]

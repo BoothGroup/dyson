@@ -7,16 +7,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from dyson.lehmann import Lehmann
-from dyson.solvers import CPGF
-from dyson.spectral import Spectral
-from dyson.grids import RealFrequencyGrid
 from dyson.expressions.hf import BaseHF
+from dyson.grids import RealFrequencyGrid
+from dyson.solvers import CPGF
 
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.expressions.expression import BaseExpression, ExpressionCollection
+    from dyson.expressions.expression import BaseExpression
 
     from .conftest import ExactGetter, Helper
 

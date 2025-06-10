@@ -51,7 +51,7 @@ def test_aufbau_vs_exact_solver(
 
     # Get the Green's function and number of electrons
     greens_function = aufbau.result.get_greens_function()
-    nelec = np.sum(greens_function.occupied().weights(2.0))
+    nelec: int = np.sum(greens_function.occupied().weights(2.0))
 
     # Find the best number of electrons
     best = np.min(
@@ -92,6 +92,6 @@ def test_shift_vs_exact_solver(
 
     # Get the Green's function and number of electrons
     greens_function = solver.result.get_greens_function()
-    nelec = np.sum(greens_function.occupied().weights(2.0))
+    nelec: int = np.sum(greens_function.occupied().weights(2.0))
 
     assert np.abs(mf.mol.nelectron - nelec) < 1e-7

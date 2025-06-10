@@ -243,7 +243,7 @@ class MBLSE(BaseMBL):
         )
 
         # Update the dtype
-        dtype = np.result_type(dtype, off_diagonal_inv.dtype)
+        dtype = np.result_type(dtype, off_diagonal_inv.dtype).char
 
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
@@ -304,7 +304,7 @@ class MBLSE(BaseMBL):
         )
 
         # Update the dtype
-        dtype = np.result_type(dtype, off_diagonal_inv.dtype)
+        dtype = np.result_type(dtype, off_diagonal_inv.dtype).char
 
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion

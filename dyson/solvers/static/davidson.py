@@ -63,8 +63,8 @@ class Davidson(StaticSolver):
     Args:
         matvec: The matrix-vector operation for the self-energy supermatrix.
         diagonal: The diagonal of the self-energy supermatrix.
-        bra: The bra state vector mapping the supermatrix to the physical space.
-        ket: The ket state vector mapping the supermatrix to the physical space.
+        bra: The bra excitation vector mapping the supermatrix to the physical space.
+        ket: The ket excitation vector mapping the supermatrix to the physical space.
     """
 
     hermitian: bool = True
@@ -97,9 +97,9 @@ class Davidson(StaticSolver):
         Args:
             matvec: The matrix-vector operation for the self-energy supermatrix.
             diagonal: The diagonal of the self-energy supermatrix.
-            bra: The bra state vector mapping the supermatrix to the physical space.
-            ket: The ket state vector mapping the supermatrix to the physical space. If `None`, use
-                the same vectors as `bra`.
+            bra: The bra excitation vector mapping the supermatrix to the physical space.
+            ket: The ket excitation vector mapping the supermatrix to the physical space. If `None`,
+                use the same vectors as `bra`.
             hermitian: Whether the matrix is hermitian.
             nroots: Number of roots to find.
             max_cycle: Maximum number of iterations.
@@ -199,12 +199,8 @@ class Davidson(StaticSolver):
         """
         diagonal = expression.diagonal()
         matvec = expression.apply_hamiltonian
-        bra = np.array([expression.get_state_bra(i) for i in range(expression.nphys)])
-        ket = (
-            np.array([expression.get_state_ket(i) for i in range(expression.nphys)])
-            if not expression.hermitian
-            else None
-        )
+        bra = np.array(expression.get_excitation_bras())
+        ket = np.array(expression.get_excitation_kets()) if not expression.hermitian else None
         return cls(
             matvec,
             diagonal,
@@ -334,12 +330,12 @@ class Davidson(StaticSolver):
 
     @property
     def bra(self) -> Array:
-        """Get the bra state vector mapping the supermatrix to the physical space."""
+        """Get the bra excitation vector mapping the supermatrix to the physical space."""
         return self._bra
 
     @property
     def ket(self) -> Array:
-        """Get the ket state vector mapping the supermatrix to the physical space."""
+        """Get the ket excitation vector mapping the supermatrix to the physical space."""
         if self._ket is None:
             return self._bra
         return self._ket
