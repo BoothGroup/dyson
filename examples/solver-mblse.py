@@ -5,7 +5,6 @@ relations of those moments. The resulting Green's function is approximate, and i
 improved by increasing the number of moments (maximum algorithm cycle) used in the calculation.
 """
 
-import numpy
 from pyscf import gto, scf
 
 from dyson import ADC2, MBLSE, Exact

@@ -13,10 +13,9 @@ may not commute, i.e. their solutions cannot be obtain simultaneously. In this c
 is favoured according to a parameter.
 """
 
-import numpy
 from pyscf import gto, scf
 
-from dyson import TDAGW, AufbauPrinciple, AuxiliaryShift, DensityRelaxation, MBLSE, Exact
+from dyson import MBLSE, TDAGW, AufbauPrinciple, AuxiliaryShift, DensityRelaxation, Exact
 from dyson.solvers.static.density import get_fock_matrix_function
 
 # Get a molecule and mean-field from PySCF
@@ -58,11 +57,14 @@ solver.kernel()
 
 # Like the auxiliary shift solver, we can customise the solvers
 
-class MyAufbauPrinciple(AufbauPrinciple):
+
+class MyAufbauPrinciple(AufbauPrinciple):  # noqa: D101
     solver = MBLSE
 
-class MyAuxiliaryShift(AuxiliaryShift):
+
+class MyAuxiliaryShift(AuxiliaryShift):  # noqa: D101
     solver = MyAufbauPrinciple
+
 
 solver = DensityRelaxation.from_self_energy(
     static,

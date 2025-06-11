@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pyscf import adc, ao2mo
 
 from dyson import numpy as np
-from dyson import util, scipy
+from dyson import scipy, util
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
@@ -200,10 +200,10 @@ class ADC2_1h(BaseADC_1h):
             Moments of the self-energy.
         """
         # Get the orbital energies and coefficients
-        eo = self._adc_obj.mo_energy[:self.nocc]
-        ev = self._adc_obj.mo_energy[self.nocc:]
-        co = self._adc_obj.mo_coeff[:, :self.nocc]
-        cv = self._adc_obj.mo_coeff[:, self.nocc:]
+        eo = self._adc_obj.mo_energy[: self.nocc]
+        ev = self._adc_obj.mo_energy[self.nocc :]
+        co = self._adc_obj.mo_coeff[:, : self.nocc]
+        cv = self._adc_obj.mo_coeff[:, self.nocc :]
 
         # Rotate the two-electron integrals
         ooov = ao2mo.kernel(self._adc_obj.mol, (co, co, co, cv), compact=False)
@@ -216,7 +216,7 @@ class ADC2_1h(BaseADC_1h):
             moments_occ.append(util.einsum("ikla,jkla->ij", left, ooov.conj()))
             if i < nmom - 1:
                 left = (
-                    + util.einsum("ikla,k->ikla", left, eo)
+                    +util.einsum("ikla,k->ikla", left, eo)
                     + util.einsum("ikla,l->ikla", left, eo)
                     - util.einsum("ikla,a->ikla", left, ev)
                 )
@@ -252,10 +252,10 @@ class ADC2_1p(BaseADC_1p):
             Moments of the self-energy.
         """
         # Get the orbital energies and coefficients
-        eo = self._adc_obj.mo_energy[:self.nocc]
-        ev = self._adc_obj.mo_energy[self.nocc:]
-        co = self._adc_obj.mo_coeff[:, :self.nocc]
-        cv = self._adc_obj.mo_coeff[:, self.nocc:]
+        eo = self._adc_obj.mo_energy[: self.nocc]
+        ev = self._adc_obj.mo_energy[self.nocc :]
+        co = self._adc_obj.mo_coeff[:, : self.nocc]
+        cv = self._adc_obj.mo_coeff[:, self.nocc :]
 
         # Rotate the two-electron integrals
         vvvo = ao2mo.kernel(self._adc_obj.mol, (cv, cv, cv, co), compact=False)
@@ -268,7 +268,7 @@ class ADC2_1p(BaseADC_1p):
             moments_vir.append(util.einsum("acdi,bcdi->ab", left, vvvo.conj()))
             if i < nmom - 1:
                 left = (
-                    + util.einsum("acdi,c->acdi", left, ev)
+                    +util.einsum("acdi,c->acdi", left, ev)
                     + util.einsum("acdi,d->acdi", left, ev)
                     - util.einsum("acdi,i->acdi", left, eo)
                 )

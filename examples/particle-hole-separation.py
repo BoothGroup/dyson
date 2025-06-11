@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy
 from pyscf import gto, scf
 
-from dyson import ADC2, MBLGF, Exact, Spectral
+from dyson import ADC2, MBLGF, Spectral
 from dyson.grids import GridRF
 
 # Get a molecule and mean-field from PySCF
@@ -29,15 +29,22 @@ result = Spectral.combine(solver_h.result, solver_p.result)
 
 # Get the spectral functions
 grid = GridRF.from_uniform(-3.0, 3.0, 1024, eta=0.05)
-spectrum_h = -grid.evaluate_lehmann(
-    solver_h.result.get_greens_function(), ordering="advanced", trace=True
-).imag / numpy.pi
-spectrum_p = -grid.evaluate_lehmann(
-    solver_p.result.get_greens_function(), ordering="advanced", trace=True
-).imag / numpy.pi
-spectrum_combined = -grid.evaluate_lehmann(
-    result.get_greens_function(), ordering="advanced", trace=True
-).imag / numpy.pi
+spectrum_h = (
+    -grid.evaluate_lehmann(
+        solver_h.result.get_greens_function(), ordering="advanced", trace=True
+    ).imag
+    / numpy.pi
+)
+spectrum_p = (
+    -grid.evaluate_lehmann(
+        solver_p.result.get_greens_function(), ordering="advanced", trace=True
+    ).imag
+    / numpy.pi
+)
+spectrum_combined = (
+    -grid.evaluate_lehmann(result.get_greens_function(), ordering="advanced", trace=True).imag
+    / numpy.pi
+)
 
 # Plot the spectra
 plt.figure()

@@ -14,8 +14,8 @@ from dyson.spectral import Spectral
 if TYPE_CHECKING:
     from pyscf import scf
 
-    from dyson.typing import Array
     from dyson.expressions.expression import BaseExpression, ExpressionCollection
+    from dyson.typing import Array
 
     from .conftest import ExactGetter, Helper
 

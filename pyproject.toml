@@ -47,7 +47,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-include = ["pyproject.toml", "dyson/**/*.py", "tests/**/*.py"]
+include = ["pyproject.toml", "dyson/**/*.py", "tests/**/*.py", "examples/**/*.py"]
 
 [tool.ruff.format]
 quote-style = "double"

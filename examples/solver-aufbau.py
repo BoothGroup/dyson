@@ -5,10 +5,9 @@ principle. This attaches a chemical potential to the solution, and the resulting
 Green's function.
 """
 
-import numpy
 from pyscf import gto, scf
 
-from dyson import TDAGW, AufbauPrinciple, MBLGF, Exact
+from dyson import MBLGF, TDAGW, AufbauPrinciple, Exact
 from dyson.solvers.static.chempot import search_aufbau_global
 
 # Get a molecule and mean-field from PySCF

@@ -1,4 +1,4 @@
-"""Example of the downfolded eigenvalue solver.
+r"""Example of the downfolded eigenvalue solver.
 
 This solver finds the eigenvalues of the frequency-dependent downfolded self-energy matrix in a
 self-consistent manner. It converges on the pole of the Green's function closest to the initial
@@ -35,11 +35,13 @@ solver.kernel()
 
 # 2) Create the solver directly from the generating function
 
+
 def _function(freq: float) -> numpy.ndarray:
     """Evaluate the self-energy at the frequency."""
     grid = GridRF(1, buffer=numpy.array([freq]))
     grid.eta = 1e-2
     return grid.evaluate_lehmann(self_energy, ordering="time-ordered")[0]
+
 
 solver = Downfolded(
     static,

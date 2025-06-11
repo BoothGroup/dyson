@@ -6,7 +6,6 @@ approximate, and is systematically improved by increasing the number of moments 
 cycle) used in the calculation.
 """
 
-import numpy
 from pyscf import gto, scf
 
 from dyson import ADC2, MBLGF, Exact

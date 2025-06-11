@@ -8,7 +8,7 @@ related to MBLGF, however, it does not offer a static result, rather a dynamic G
 import numpy
 from pyscf import gto, scf
 
-from dyson import FCI, CPGF, Exact, util
+from dyson import CPGF, FCI, Exact, util
 from dyson.grids import RealFrequencyGrid
 
 # Get a molecule and mean-field from PySCF
@@ -41,7 +41,9 @@ scaling = util.get_chebyshev_scaling_parameters(energies.min(), energies.max())
 
 # 1) Create the solver from the expression
 max_cycle = 1024
-solver = CPGF.from_expression(exp, grid=grid, max_cycle=max_cycle, scaling=scaling, ordering="advanced")
+solver = CPGF.from_expression(
+    exp, grid=grid, max_cycle=max_cycle, scaling=scaling, ordering="advanced"
+)
 gf = solver.kernel()
 
 # 2) Create the solver from a self-energy

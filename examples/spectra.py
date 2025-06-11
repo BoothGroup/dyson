@@ -5,8 +5,8 @@ import numpy
 from pyscf import gto, scf
 
 from dyson.expressions import ADC2
-from dyson.solvers import Exact, Downfolded, MBLSE, MBLGF, CorrectionVector, CPGF
 from dyson.grids import GridRF
+from dyson.solvers import CPGF, MBLGF, MBLSE, CorrectionVector, Downfolded, Exact
 
 # Get a molecule and mean-field from PySCF
 mol = gto.M(atom="Li 0 0 0; Li 0 0 1.64", basis="sto3g", verbose=0)
