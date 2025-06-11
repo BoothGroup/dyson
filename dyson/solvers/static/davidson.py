@@ -216,7 +216,7 @@ class Davidson(StaticSolver):
         Returns:
             Initial guesses for the eigenvectors.
         """
-        args = np.argsort(np.abs(self.diagonal))
+        args = np.argsort(np.abs(self.diagonal)).astype(int)
         dtype = "<f8" if self.hermitian else "<c16"
         return [util.unit_vector(self.diagonal.size, i, dtype=dtype) for i in args[: self.nroots]]
 
