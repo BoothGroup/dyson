@@ -31,9 +31,6 @@ dependencies = [
     "pyscf>=2.0.0",
     "rich>=11.0.0",
 ]
-dynamic = [
-	"version",
-]
 
 [project.optional-dependencies]
 dev = [
