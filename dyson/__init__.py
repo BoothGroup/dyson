@@ -47,7 +47,7 @@ For a full accounting of the inputs and their types, please see the documentatio
 
 """
 
-__version__ = "0.0.0"
+__version__ = "1.0.0"
 
 import numpy
 import scipy
