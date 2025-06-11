@@ -152,7 +152,7 @@ class Downfolded(StaticSolver):
             Solver instance.
         """
         raise NotImplementedError(
-            "Cannot instantiate Downfolded from expression, use from_self_energy instead."
+            "Cannot instantiate Downfolded solver from an expression, use from_self_energy instead."
         )
 
     def kernel(self) -> Spectral:

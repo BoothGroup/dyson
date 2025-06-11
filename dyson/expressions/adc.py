@@ -5,10 +5,10 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from pyscf import adc
+from pyscf import adc, ao2mo
 
 from dyson import numpy as np
-from dyson import util
+from dyson import util, scipy
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
@@ -76,17 +76,6 @@ class BaseADC(BaseExpression):
         adc_obj.method_type = cls.METHOD_TYPE
         adc_obj.kernel_gs()
         return cls.from_adc(adc_obj)
-
-    def build_se_moments(self, nmom: int) -> Array:
-        """Build the self-energy moments.
-
-        Args:
-            nmom: Number of moments to compute.
-
-        Returns:
-            Moments of the self-energy.
-        """
-        raise NotImplementedError("Self-energy moments not implemented for ADC.")
 
     def apply_hamiltonian(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector.
@@ -201,6 +190,47 @@ class ADC2_1h(BaseADC_1h):
 
     METHOD = "adc(2)"
 
+    def build_se_moments(self, nmom: int) -> Array:
+        """Build the self-energy moments.
+
+        Args:
+            nmom: Number of moments to compute.
+
+        Returns:
+            Moments of the self-energy.
+        """
+        # Get the orbital energies and coefficients
+        eo = self._adc_obj.mo_energy[:self.nocc]
+        ev = self._adc_obj.mo_energy[self.nocc:]
+        co = self._adc_obj.mo_coeff[:, :self.nocc]
+        cv = self._adc_obj.mo_coeff[:, self.nocc:]
+
+        # Rotate the two-electron integrals
+        ooov = ao2mo.kernel(self._adc_obj.mol, (co, co, co, cv), compact=False)
+        ooov = ooov.reshape(eo.size, eo.size, eo.size, ev.size)
+        left = ooov * 2 - ooov.swapaxes(1, 2)
+
+        # Recursively build the moments
+        moments_occ: list[Array] = []
+        for i in range(nmom):
+            moments_occ.append(util.einsum("ikla,jkla->ij", left, ooov.conj()))
+            if i < nmom - 1:
+                left = (
+                    + util.einsum("ikla,k->ikla", left, eo)
+                    + util.einsum("ikla,l->ikla", left, eo)
+                    - util.einsum("ikla,a->ikla", left, ev)
+                )
+
+        # Include the virtual contributions
+        moments = np.array(
+            [
+                scipy.linalg.block_diag(moment, np.zeros((self.nvir, self.nvir)))
+                for moment in moments_occ
+            ]
+        )
+
+        return moments
+
     @property
     def nconfig(self) -> int:
         """Number of configurations."""
@@ -211,6 +241,47 @@ class ADC2_1p(BaseADC_1p):
     """ADC(2) expressions for the one-particle Green's function."""
 
     METHOD = "adc(2)"
+
+    def build_se_moments(self, nmom: int) -> Array:
+        """Build the self-energy moments.
+
+        Args:
+            nmom: Number of moments to compute.
+
+        Returns:
+            Moments of the self-energy.
+        """
+        # Get the orbital energies and coefficients
+        eo = self._adc_obj.mo_energy[:self.nocc]
+        ev = self._adc_obj.mo_energy[self.nocc:]
+        co = self._adc_obj.mo_coeff[:, :self.nocc]
+        cv = self._adc_obj.mo_coeff[:, self.nocc:]
+
+        # Rotate the two-electron integrals
+        vvvo = ao2mo.kernel(self._adc_obj.mol, (cv, cv, cv, co), compact=False)
+        vvvo = vvvo.reshape(ev.size, ev.size, ev.size, eo.size)
+        left = vvvo * 2 - vvvo.swapaxes(1, 2)
+
+        # Recursively build the moments
+        moments_vir: list[Array] = []
+        for i in range(nmom):
+            moments_vir.append(util.einsum("acdi,bcdi->ab", left, vvvo.conj()))
+            if i < nmom - 1:
+                left = (
+                    + util.einsum("acdi,c->acdi", left, ev)
+                    + util.einsum("acdi,d->acdi", left, ev)
+                    - util.einsum("acdi,i->acdi", left, eo)
+                )
+
+        # Include the occupied contributions
+        moments = np.array(
+            [
+                scipy.linalg.block_diag(np.zeros((self.nocc, self.nocc)), moment)
+                for moment in moments_vir
+            ]
+        )
+
+        return moments
 
     @property
     def nconfig(self) -> int:
@@ -223,6 +294,17 @@ class ADC2x_1h(BaseADC_1h):
 
     METHOD = "adc(2)-x"
 
+    def build_se_moments(self, nmom: int) -> Array:
+        """Build the self-energy moments.
+
+        Args:
+            nmom: Number of moments to compute.
+
+        Returns:
+            Moments of the self-energy.
+        """
+        raise NotImplementedError("Self-energy moments not implemented for ADC(2)-x.")
+
     @property
     def nconfig(self) -> int:
         """Number of configurations."""
@@ -233,6 +315,17 @@ class ADC2x_1p(BaseADC_1p):
     """ADC(2)-x expressions for the one-particle Green's function."""
 
     METHOD = "adc(2)-x"
+
+    def build_se_moments(self, nmom: int) -> Array:
+        """Build the self-energy moments.
+
+        Args:
+            nmom: Number of moments to compute.
+
+        Returns:
+            Moments of the self-energy.
+        """
+        raise NotImplementedError("Self-energy moments not implemented for ADC(2)-x.")
 
     @property
     def nconfig(self) -> int:

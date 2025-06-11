@@ -166,8 +166,14 @@ class MBLSE(BaseMBL):
         Returns:
             Solver instance.
         """
-        raise NotImplementedError(
-            "Cannot instantiate MBLSE from expression, use from_self_energy instead."
+        overlap, static = expression.build_gf_moments(2)
+        moments = expression.build_se_moments(2 * kwargs.get("max_cycle", 0) + 2)
+        return cls(
+            static,
+            moments,
+            overlap=overlap,
+            hermitian=expression.hermitian,
+            **kwargs,
         )
 
     def reconstruct_moments(self, iteration: int) -> Array:

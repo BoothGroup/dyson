@@ -116,7 +116,10 @@ class CPGF(DynamicSolver):
         energies, couplings = self_energy.diagonalise_matrix_with_projection(
             static, overlap=overlap
         )
-        scaling = util.get_chebyshev_scaling_parameters(energies.min(), energies.max())
+        if "scaling" not in kwargs:
+            scaling = util.get_chebyshev_scaling_parameters(energies.min(), energies.max())
+        else:
+            scaling = kwargs.pop("scaling")
         greens_function = self_energy.__class__(energies, couplings, chempot=self_energy.chempot)
         moments = greens_function.chebyshev_moments(range(max_cycle + 1), scaling=scaling)
         return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)
@@ -135,10 +138,15 @@ class CPGF(DynamicSolver):
         if "grid" not in kwargs:
             raise ValueError("Missing required argument grid.")
         max_cycle = kwargs.pop("max_cycle", 16)
-        diag = expression.diagonal()
-        emin = np.min(diag)
-        emax = np.max(diag)
-        scaling = ((emax - emin) / (2.0 - 1e-3), (emax + emin) / 2.0)
+        if "scaling" not in kwargs:
+            diag = expression.diagonal()
+            emin = np.min(diag)
+            emax = np.max(diag)
+            emin -= 0.5 * (emax - emin)
+            emax += 0.5 * (emax - emin)
+            scaling = util.get_chebyshev_scaling_parameters(emin, emax)
+        else:
+            scaling = kwargs.pop("scaling")
         moments = expression.build_gf_chebyshev_moments(max_cycle + 1, scaling=scaling)
         return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)
 

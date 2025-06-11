@@ -10,6 +10,7 @@ from dyson.util.linalg import einsum, matrix_power
 
 if TYPE_CHECKING:
     from dyson.typing import Array
+    from dyson.grids.frequency import RealFrequencyGrid
 
 
 def se_moments_to_gf_moments(
