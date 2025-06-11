@@ -10,6 +10,7 @@ import pyscf
 import pytest
 
 from dyson import util
+from dyson.solvers import Exact, Davidson
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 
 if TYPE_CHECKING:
@@ -109,61 +110,120 @@ def test_hf(mf: scf.hf.RHF) -> None:
     assert np.allclose(fock, fock_ref)
     assert np.allclose(gf_dyson_moments[1], fock)
 
+    # Get the Green's function from the Exact solver
+    exact_h = Exact.from_expression(hf_h)
+    exact_h.kernel()
+    exact_p = Exact.from_expression(hf_p)
+    exact_p.kernel()
+    result = exact_h.result.combine(exact_p.result)
+
+    assert np.allclose(result.get_greens_function().as_perturbed_mo_energy(), mf.mo_energy)
+
 
 def test_ccsd(mf: scf.hf.RHF) -> None:
     """Test the CCSD expression."""
     ccsd = CCSD.h.from_mf(mf)
+    pyscf_ccsd = pyscf.cc.CCSD(mf)
+    pyscf_ccsd.run(conv_tol=1e-10, conv_tol_normt=1e-8)
     gf_moments = ccsd.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
-    energy_ref = pyscf.cc.CCSD(mf).run(conv_tol=1e-10).e_tot - mf.mol.energy_nuc()
+    energy_ref = pyscf_ccsd.e_tot - mf.mol.energy_nuc()
 
     with pytest.raises(AssertionError):
         # Galitskii--Migdal should not capture the energy for CCSD
         assert np.abs(energy - energy_ref) < 1e-8
 
+    # Get the Green's function from the Davidson solver
+    davidson = Davidson.from_expression(ccsd, nroots=3)
+    davidson.kernel()
+    ip_ref, _ = pyscf_ccsd.ipccsd(nroots=3)
+
+    assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
+
+    # Check the RDM
+    rdm1 = ccsd.build_gf_moments(1)[0]
+    rdm1 += rdm1.T.conj()
+    rdm1_ref = pyscf_ccsd.make_rdm1(with_mf=True)
+
+    assert np.allclose(rdm1, rdm1_ref)
+
 
 def test_fci(mf: scf.hf.RHF) -> None:
     """Test the FCI expression."""
     fci = FCI.h.from_mf(mf)
+    pyscf_fci = pyscf.fci.FCI(mf)
     gf_moments = fci.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
-    energy_ref = pyscf.fci.FCI(mf).kernel()[0] - mf.mol.energy_nuc()
+    energy_ref = pyscf_fci.kernel()[0] - mf.mol.energy_nuc()
 
     assert np.abs(energy - energy_ref) < 1e-8
+
+    # Check the RDM
+    rdm1 = fci.build_gf_moments(1)[0] * 2
+    rdm1_ref = pyscf_fci.make_rdm1(pyscf_fci.ci, mf.mol.nao, mf.mol.nelectron)
+
+    assert np.allclose(rdm1, rdm1_ref)
 
 
 def test_adc2(mf: scf.hf.RHF) -> None:
     """Test the ADC(2) expression."""
     adc = ADC2.h.from_mf(mf)
+    pyscf_adc = pyscf.adc.ADC(mf)
     gf_moments = adc.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
-    energy_ref = mf.energy_elec()[0] + pyscf.adc.ADC(mf).kernel_gs()[0]
+    energy_ref = mf.energy_elec()[0] + pyscf_adc.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8
+
+    # Get the Green's function from the Davidson solver
+    davidson = Davidson.from_expression(adc, nroots=3)
+    davidson.kernel()
+    ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
+
+    assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
+
+    # Check the RDM
+    rdm1 = adc.build_gf_moments(1)[0] * 2
+    rdm1_ref = np.diag(mf.mo_occ)  # No correlated ground state!
+
+    assert np.allclose(rdm1, rdm1_ref)
 
 
 def test_adc2x(mf: scf.hf.RHF) -> None:
     """Test the ADC(2)-x expression."""
     adc = ADC2x.h.from_mf(mf)
+    pyscf_adc = pyscf.adc.ADC(mf)
+    pyscf_adc.method = "adc(2)-x"
     gf_moments = adc.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
     energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
-    adc_obj = pyscf.adc.ADC(mf)
-    adc_obj.method = "adc(2)-x"
-    energy_ref = mf.energy_elec()[0] + adc_obj.kernel_gs()[0]
+    energy_ref = mf.energy_elec()[0] + pyscf_adc.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8
+
+    # Get the Green's function from the Davidson solver
+    davidson = Davidson.from_expression(adc, nroots=3)
+    davidson.kernel()
+    ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
+
+    assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
+
+    # Check the RDM
+    rdm1 = adc.build_gf_moments(1)[0] * 2
+    rdm1_ref = np.diag(mf.mo_occ)  # No correlated ground state!
+
+    assert np.allclose(rdm1, rdm1_ref)
 
 
 def test_tdagw(mf: scf.hf.RHF, exact_cache: ExactGetter) -> None:

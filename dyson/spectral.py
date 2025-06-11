@@ -228,8 +228,7 @@ class Spectral:
             chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)
 
-    @classmethod
-    def combine(cls, *args: Spectral, chempot: float | None = None) -> Spectral:
+    def combine(self, *args: Spectral, chempot: float | None = None) -> Spectral:
         """Combine multiple spectral representations.
 
         Args:
@@ -241,6 +240,7 @@ class Spectral:
             Combined spectral representation.
         """
         # TODO: just concatenate the eigenvectors...?
+        args = [self, *args]
         if len(set(arg.nphys for arg in args)) != 1:
             raise ValueError(
                 "All Spectral objects must have the same number of physical degrees of freedom."
@@ -280,7 +280,7 @@ class Spectral:
 
         # Solve the eigenvalue problem
         self_energy = Lehmann(energies, couplings)
-        result = cls(
+        result = Spectral(
             *self_energy.diagonalise_matrix(static, overlap=overlap), nphys, chempot=chempot
         )
 
