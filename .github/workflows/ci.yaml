@@ -36,7 +36,7 @@ jobs:
         run: |
           ruff check
           ruff format --check
-          mypy .
+          mypy dyson/ tests/
       - name: Run unit tests
         run: |
           python -m pip install pytest pytest-cov
