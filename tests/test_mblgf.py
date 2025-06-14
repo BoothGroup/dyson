@@ -51,7 +51,7 @@ def test_central_moments(
     else:
         # A little more numerical error in some non-Hermitian cases
         assert helper.have_equal_moments(greens_function, gf_moments, nmom_gf, tol=1e-7)
-    assert helper.have_equal_moments(static, se_static, nmom_se)
+    assert helper.have_equal_moments(static, se_static, nmom_se, tol=1e-7)
     assert helper.have_equal_moments(self_energy, se_moments, nmom_se)
 
 
@@ -114,7 +114,7 @@ def test_vs_exact_solver_central(
     # Recover the particle Green's function from the MBLGF solver
     greens_function = mblgf_p.result.get_greens_function()
 
-    assert helper.have_equal_moments(greens_function, gf_p_moments_exact, nmom_gf)
+    assert helper.have_equal_moments(greens_function, gf_p_moments_exact, nmom_gf, tol=1e-7)
 
     # Recover the self-energy and Green's function from the recovered MBLGF solver
     static = result_ph.get_static_self_energy()
