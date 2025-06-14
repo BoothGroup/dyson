@@ -48,11 +48,13 @@ def test_central_moments(
 
     if expression_h.hermitian:
         assert helper.have_equal_moments(greens_function, gf_moments, nmom_gf)
+        assert helper.have_equal_moments(static, se_static, nmom_se)
+        assert helper.have_equal_moments(self_energy, se_moments, nmom_se)
     else:
         # A little more numerical error in some non-Hermitian cases
         assert helper.have_equal_moments(greens_function, gf_moments, nmom_gf, tol=1e-7)
-    assert helper.have_equal_moments(static, se_static, nmom_se, tol=1e-7)
-    assert helper.have_equal_moments(self_energy, se_moments, nmom_se)
+        assert helper.have_equal_moments(static, se_static, nmom_se, tol=1e-7)
+        assert helper.have_equal_moments(self_energy, se_moments, nmom_se, 1e-7)
 
 
 @pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])
