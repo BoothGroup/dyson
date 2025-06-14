@@ -47,10 +47,9 @@ solver.kernel()
 
 # 2) Create the solver directly from the self-energy
 solver = DensityRelaxation(
-    static,
+    get_fock_matrix_function(mf),
     self_energy,
     overlap=overlap,
-    get_static=get_fock_matrix_function(mf),
     nelec=mol.nelectron,
 )
 solver.kernel()
