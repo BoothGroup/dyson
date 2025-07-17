@@ -826,3 +826,7 @@ class Lehmann:
         return np.allclose(other.energies, self.energies) and (
             np.allclose(other.couplings, self.couplings)
         )
+
+    def __hash__(self) -> int:
+        """Return a hash of the Lehmann representation."""
+        return hash((tuple(self.energies), tuple(self.couplings.flatten()), self.chempot))

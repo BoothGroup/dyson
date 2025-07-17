@@ -330,3 +330,7 @@ class Spectral:
         if other.chempot != self.chempot:
             return False
         return np.allclose(other.eigvals, self.eigvals) and np.allclose(other.eigvecs, self.eigvecs)
+
+    def __hash__(self) -> int:
+        """Hash the object."""
+        return hash((tuple(self.eigvals), tuple(self.eigvecs.flatten()), self.nphys, self.chempot))
