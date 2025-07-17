@@ -10,7 +10,7 @@ import scipy.optimize
 
 from dyson import console, printing, util
 from dyson import numpy as np
-from dyson.lehmann import Lehmann, shift_energies
+from dyson.representations.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.exact import Exact
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.spectral import Spectral
+    from dyson.representations.spectral import Spectral
     from dyson.typing import Array
 
 

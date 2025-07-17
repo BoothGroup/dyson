@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable, Literal
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.lehmann import Lehmann
+    from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
 # TODO: Can we use DIIS?

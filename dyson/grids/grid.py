@@ -11,7 +11,7 @@ from dyson.typing import Array
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.lehmann import Lehmann
+    from dyson.representations.lehmann import Lehmann
 
 
 class BaseGrid(Array, ABC):

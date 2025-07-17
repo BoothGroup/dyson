@@ -9,14 +9,14 @@ from rich import box
 from rich.table import Table
 
 from dyson import console, printing
-from dyson.lehmann import Lehmann
+from dyson.representations.lehmann import Lehmann
 from dyson.typing import Array
 
 if TYPE_CHECKING:
     from typing import Any
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.spectral import Spectral
+    from dyson.representations.spectral import Spectral
 
 
 class BaseSolver(ABC):

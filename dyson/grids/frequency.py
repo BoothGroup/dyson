@@ -14,7 +14,7 @@ from dyson.grids.grid import BaseGrid
 if TYPE_CHECKING:
     from typing import Any, Literal
 
-    from dyson.lehmann import Lehmann
+    from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
 

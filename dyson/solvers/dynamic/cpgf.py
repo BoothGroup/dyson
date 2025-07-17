@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
     from dyson.grids.frequency import RealFrequencyGrid
-    from dyson.lehmann import Lehmann
+    from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
 

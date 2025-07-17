@@ -11,7 +11,7 @@ from dyson import numpy as np
 from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
-    from dyson.spectral import Spectral
+    from dyson.representations.spectral import Spectral
     from dyson.typing import Array
 
 # TODO: reimplement caching

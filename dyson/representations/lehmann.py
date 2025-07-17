@@ -181,7 +181,7 @@ class Lehmann:
         """Return a string representation of the Lehmann representation."""
         return f"Lehmann(nphys={self.nphys}, naux={self.naux}, chempot={self.chempot})"
 
-    def mask(self, mask: Array | slice, deep: bool = True):
+    def mask(self, mask: Array | slice, deep: bool = True) -> Lehmann:
         """Return a part of the Lehmann representation according to a mask.
 
         Args:

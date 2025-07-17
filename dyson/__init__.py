@@ -53,8 +53,7 @@ import numpy
 import scipy
 
 from dyson.printing import console, quiet
-from dyson.lehmann import Lehmann
-from dyson.spectral import Spectral
+from dyson.representations import Lehmann, Spectral
 from dyson.solvers import (
     Exact,
     Davidson,

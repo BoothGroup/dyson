@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from dyson.lehmann import Lehmann
+from dyson.representations.lehmann import Lehmann
 from dyson.solvers import Davidson
-from dyson.spectral import Spectral
+from dyson.representations.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf

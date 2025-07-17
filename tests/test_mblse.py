@@ -9,7 +9,7 @@ import pytest
 from dyson import util
 from dyson.expressions.fci import BaseFCI
 from dyson.solvers import MBLSE
-from dyson.spectral import Spectral
+from dyson.representations.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf
