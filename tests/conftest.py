@@ -34,7 +34,7 @@ MOL_CACHE = {
         verbose=0,
     ),
     "h2o-sto3g": gto.M(
-        atom="O 0 0 0; H 0 0 1; H 0 1 0",
+        atom="O 0 0 0; H 0.758602 0.504284 0; H 0.758602 -0.504284 0",
         basis="sto-3g",
         verbose=0,
     ),
