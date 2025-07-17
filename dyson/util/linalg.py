@@ -185,7 +185,7 @@ def matrix_power(
     matrix: Array,
     power: int | float,
     hermitian: bool = True,
-    threshold: float = 1e-11,
+    threshold: float = 1e-10,
     return_error: bool = False,
     ord: int | float = np.inf,
 ) -> tuple[Array, float | None]:
