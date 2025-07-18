@@ -86,6 +86,7 @@ def test_shift_vs_exact_solver(
         result_exact.get_static_self_energy(),
         result_exact.get_self_energy(),
         nelec=mf.mol.nelectron,
+        conv_tol=1e-9,
     )
     solver.kernel()
     assert solver.result is not None
