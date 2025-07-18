@@ -80,10 +80,10 @@ class BaseFrequencyGrid(BaseGrid):
 
         # Get the required component
         # TODO: Save time by not evaluating the full array when not needed
-        if component == component.REAL:
-            component = component.real
-        elif component == component.IMAG:
-            component = component.imag
+        if component == Component.REAL:
+            array = array.real
+        elif component == Component.IMAG:
+            array = array.imag
 
         return Dynamic(
             self, array, reduction=reduction, component=component, hermitian=lehmann.hermitian

@@ -31,18 +31,29 @@ result = Spectral.combine(solver_h.result, solver_p.result)
 grid = GridRF.from_uniform(-3.0, 3.0, 1024, eta=0.05)
 spectrum_h = (
     -grid.evaluate_lehmann(
-        solver_h.result.get_greens_function(), ordering="advanced", trace=True
-    ).imag
+        solver_h.result.get_greens_function(),
+        ordering="advanced",
+        reduction="trace",
+        component="imag",
+    ).array
     / numpy.pi
 )
 spectrum_p = (
     -grid.evaluate_lehmann(
-        solver_p.result.get_greens_function(), ordering="advanced", trace=True
-    ).imag
+        solver_p.result.get_greens_function(),
+        ordering="advanced",
+        reduction="trace",
+        component="imag",
+    ).array
     / numpy.pi
 )
 spectrum_combined = (
-    -grid.evaluate_lehmann(result.get_greens_function(), ordering="advanced", trace=True).imag
+    -grid.evaluate_lehmann(
+        result.get_greens_function(),
+        ordering="advanced",
+        reduction="trace",
+        component="imag",
+    ).array
     / numpy.pi
 )
 
