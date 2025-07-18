@@ -10,18 +10,26 @@ import scipy.special
 from dyson import numpy as np
 from dyson import util
 from dyson.grids.grid import BaseGrid
+from dyson.representations.enums import Component, Ordering, Reduction
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Any
 
-    from dyson.lehmann import Lehmann
+    from dyson.representations.dynamic import Dynamic
+    from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
 
 class BaseFrequencyGrid(BaseGrid):
     """Base class for frequency grids."""
 
-    def evaluate_lehmann(self, lehmann: Lehmann, trace: bool = False, **kwargs: Any) -> Array:
+    def evaluate_lehmann(
+        self,
+        lehmann: Lehmann,
+        reduction: Reduction = Reduction.NONE,
+        component: Component = Component.FULL,
+        **kwargs: Any,
+    ) -> Dynamic[BaseFrequencyGrid]:
         r"""Evaluate a Lehmann representation on the grid.
 
         The imaginary frequency representation is defined as
@@ -39,16 +47,47 @@ class BaseFrequencyGrid(BaseGrid):
 
         Args:
             lehmann: Lehmann representation to evaluate.
-            trace: Whether to directly compute the trace of the realisation.
+            reduction: The reduction of the dynamic representation.
+            component: The component of the dynamic representation.
             kwargs: Additional keyword arguments for the resolvent.
 
         Returns:
             Lehmann representation, realised on the grid.
         """
+        from dyson.representations.dynamic import Dynamic  # noqa: PLC0415
+
         left, right = lehmann.unpack_couplings()
         resolvent = self.resolvent(lehmann.energies, lehmann.chempot, **kwargs)
-        inp, out = ("qk", "wpq") if not trace else ("pk", "w")
-        return util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
+        reduction = Reduction(reduction)
+        component = Component(component)
+
+        # Get the input and output indices based on the reduction type
+        inp = "qk"
+        out = "wpq"
+        if reduction == reduction.NONE:
+            pass
+        elif reduction == reduction.DIAG:
+            inp = "pk"
+            out = "wp"
+        elif reduction == reduction.TRACE:
+            inp = "pk"
+            out = "w"
+        else:
+            reduction.raise_invalid_representation()
+
+        # Perform the downfolding operation
+        array = util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
+
+        # Get the required component
+        # TODO: Save time by not evaluating the full array when not needed
+        if component == Component.REAL:
+            array = array.real
+        elif component == Component.IMAG:
+            array = array.imag
+
+        return Dynamic(
+            self, array, reduction=reduction, component=component, hermitian=lehmann.hermitian
+        )
 
     @property
     def domain(self) -> str:
@@ -125,27 +164,25 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         self._eta = value
 
     @staticmethod
-    def _resolvent_signs(
-        energies: Array, ordering: Literal["time-ordered", "advanced", "retarded"]
-    ) -> Array:
+    def _resolvent_signs(energies: Array, ordering: Ordering) -> Array:
         """Get the signs for the resolvent based on the time ordering."""
-        if ordering == "time-ordered":
+        ordering = Ordering(ordering)
+        signs: Array
+        if ordering == ordering.ORDERED:
             signs = np.where(energies >= 0, 1.0, -1.0)
-        elif ordering == "advanced":
+        elif ordering == ordering.ADVANCED:
             signs = -np.ones_like(energies)
-        elif ordering == "retarded":
+        elif ordering == ordering.RETARDED:
             signs = np.ones_like(energies)
         else:
-            raise ValueError(
-                f"Invalid ordering: {ordering}. Must be 'time-ordered', 'advanced', or 'retarded'."
-            )
+            ordering.raise_invalid_representation()
         return signs
 
     def resolvent(  # noqa: D417
         self,
         energies: Array,
         chempot: float | Array,
-        ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered",
+        ordering: Ordering = Ordering.ORDERED,
         invert: bool = True,
         **kwargs: Any,
     ) -> Array:

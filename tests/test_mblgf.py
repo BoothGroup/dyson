@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from dyson import util
+from dyson.representations.spectral import Spectral
 from dyson.solvers import MBLGF
-from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf

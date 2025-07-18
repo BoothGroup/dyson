@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+from dyson.representations.spectral import Spectral
 from dyson.solvers import DensityRelaxation
 from dyson.solvers.static.density import get_fock_matrix_function
-from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf

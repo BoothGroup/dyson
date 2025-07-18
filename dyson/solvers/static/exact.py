@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 from dyson import console, printing, util
 from dyson import numpy as np
-from dyson.lehmann import Lehmann
+from dyson.representations.lehmann import Lehmann
+from dyson.representations.spectral import Spectral
 from dyson.solvers.solver import StaticSolver
-from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from typing import Any

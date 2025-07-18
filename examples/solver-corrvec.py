@@ -32,12 +32,12 @@ overlap = exact.result.get_overlap()
 # Solve the Hamiltonian using the correction vector solver, initialisation via either:
 
 # 1) Create the solver from the expression
-solver = CorrectionVector.from_expression(exp, grid=grid, ordering="time-ordered")
+solver = CorrectionVector.from_expression(exp, grid=grid, ordering="ordered")
 gf = solver.kernel()
 
 # 2) Create the solver from a self-energy
 solver = CorrectionVector.from_self_energy(
-    static, self_energy, overlap=overlap, grid=grid, ordering="time-ordered"
+    static, self_energy, overlap=overlap, grid=grid, ordering="ordered"
 )
 gf = solver.kernel()
 
@@ -49,11 +49,11 @@ solver = CorrectionVector(
     grid,
     exp.get_excitation_bra,
     exp.get_excitation_ket,
-    ordering="time-ordered",
+    ordering="ordered",
 )
 gf = solver.kernel()
 
 # Compare to that of the Exact solver, by downfolding the Green's function corresponding to the
 # exact result onto the same grid
-gf_exact = grid.evaluate_lehmann(exact.result.get_greens_function(), ordering="time-ordered")
+gf_exact = grid.evaluate_lehmann(exact.result.get_greens_function(), ordering="ordered")
 print("Correction vector error:", numpy.max(numpy.abs(gf - gf_exact)))

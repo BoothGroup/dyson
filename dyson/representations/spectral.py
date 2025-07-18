@@ -7,15 +7,14 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
-from dyson.lehmann import Lehmann
+from dyson.representations.lehmann import Lehmann
+from dyson.representations.representation import BaseRepresentation
 
 if TYPE_CHECKING:
     from dyson.typing import Array
 
-# TODO: subclass with Lehmann? or nah
 
-
-class Spectral:
+class Spectral(BaseRepresentation):
     r"""Spectral representation matrix with a known number of physical degrees of freedom.
 
     The eigendecomposition (spectral decomposition) of a matrix consists of the eigenvalues

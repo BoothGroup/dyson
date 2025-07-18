@@ -9,6 +9,7 @@ from dyson.util.linalg import (
     matrix_power,
     hermi_sum,
     scaled_error,
+    as_diagonal,
     as_trace,
     unit_vector,
     null_space_basis,

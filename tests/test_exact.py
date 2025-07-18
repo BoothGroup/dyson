@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from dyson.representations.spectral import Spectral
 from dyson.solvers import Exact
-from dyson.spectral import Spectral
 
 if TYPE_CHECKING:
     from pyscf import scf

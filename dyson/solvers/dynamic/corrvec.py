@@ -9,13 +9,15 @@ from scipy.sparse.linalg import LinearOperator, lgmres
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
+from dyson.representations.dynamic import Dynamic
+from dyson.representations.enums import Component, Ordering, Reduction
 from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal
+    from typing import Any, Callable
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.lehmann import Lehmann
+    from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
 # TODO: Can we use DIIS?
@@ -31,11 +33,11 @@ class CorrectionVector(DynamicSolver):
         grid: Real frequency grid upon which to evaluate the Green's function.
     """
 
-    trace: bool = False
-    include_real: bool = True
+    reduction: Reduction = Reduction.NONE
+    component: Component = Component.FULL
+    ordering: Ordering = Ordering.ORDERED
     conv_tol: float = 1e-8
-    ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
-    _options: set[str] = {"trace", "include_real", "conv_tol", "ordering"}
+    _options: set[str] = {"reduction", "component", "ordering", "conv_tol"}
 
     def __init__(  # noqa: D417
         self,
@@ -59,8 +61,8 @@ class CorrectionVector(DynamicSolver):
                 orbital :math:`j`.
             get_state_ket: Function to get the ket vector corresponding to a fermion operator acting
                 on the ground state. If `None`, the :arg:`get_state_bra` function is used.
-            trace: Whether to return only the trace.
-            include_real: Whether to include the real part of the Green's function.
+            component: The component of the dynamic representation to solve for.
+            reduction: The reduction of the dynamic representation to solve for.
             conv_tol: Convergence tolerance for the solver.
             ordering: Time ordering of the resolvent.
         """
@@ -223,7 +225,7 @@ class CorrectionVector(DynamicSolver):
             return self.get_state_bra(orbital)
         return self._get_state_ket(orbital)
 
-    def kernel(self) -> Array:
+    def kernel(self) -> Dynamic[RealFrequencyGrid]:
         """Run the solver.
 
         Returns:
@@ -237,7 +239,7 @@ class CorrectionVector(DynamicSolver):
         bras = list(map(self.get_state_bra, range(self.nphys)))
 
         # Loop over ket vectors
-        shape = (self.grid.size,) if self.trace else (self.grid.size, self.nphys, self.nphys)
+        shape = (self.grid.size,) + (self.nphys,) * self.reduction.ndim
         greens_function = np.zeros(shape, dtype=complex)
         failed: set[int] = set()
         for i in range(self.nphys):
@@ -274,11 +276,22 @@ class CorrectionVector(DynamicSolver):
                 if info != 0:
                     greens_function[w] = np.nan
                     failed.add(w)
-                elif not self.trace:
+                elif self.reduction == Reduction.NONE:
                     for j in range(self.nphys):
                         greens_function[w, i, j] = bras[j] @ x
-                else:
+                elif self.reduction == Reduction.DIAG:
+                    greens_function[w, i] = bras[i] @ x
+                elif self.reduction == Reduction.TRACE:
                     greens_function[w] += bras[i] @ x
+                else:
+                    self.reduction.raise_invalid_representation()
+
+        # Post-process the Green's function component
+        # TODO: Can we do this earlier to avoid computing unnecessary components?
+        if self.component == Component.REAL:
+            greens_function = greens_function.real
+        elif self.component == Component.IMAG:
+            greens_function = greens_function.imag
 
         progress.stop()
         rating = printing.rate_error(len(failed) / self.grid.size, 1e-100, 1e-2)
@@ -288,7 +301,13 @@ class CorrectionVector(DynamicSolver):
             f"frequencies ([{rating}]{1 - len(failed) / self.grid.size:.2%}[/{rating}])."
         )
 
-        return greens_function if self.include_real else greens_function.imag
+        return Dynamic(
+            self.grid,
+            greens_function,
+            reduction=self.reduction,
+            component=self.component,
+            hermitian=self.get_state_ket is None,
+        )
 
     @property
     def matvec(self) -> Callable[[Array], Array]:

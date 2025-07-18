@@ -8,7 +8,7 @@ from pyscf import lib
 
 from dyson import console, printing
 from dyson import numpy as np
-from dyson.lehmann import Lehmann
+from dyson.representations.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pyscf import scf
 
     from dyson.expressions.expression import BaseExpression
-    from dyson.spectral import Spectral
+    from dyson.representations.spectral import Spectral
     from dyson.typing import Array
 
     class StaticFunction(Protocol):

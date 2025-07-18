@@ -288,6 +288,24 @@ def as_trace(matrix: Array, ndim: int, axis1: int = -2, axis2: int = -1) -> Arra
         raise ValueError(f"Matrix has invalid shape {matrix.shape} for trace.")
 
 
+def as_diagonal(matrix: Array, ndim: int) -> Array:
+    """Return the diagonal of a matrix, unless it has been passed as a diagonal.
+
+    Args:
+        matrix: The matrix to be diagonalised.
+        ndim: The number of dimensions of the matrix before the diagonal.
+
+    Returns:
+        The diagonal of the matrix.
+    """
+    if matrix.ndim == ndim:
+        return matrix
+    elif matrix.ndim > ndim:
+        return np.diagonal(matrix, axis1=-2, axis2=-1)
+    else:
+        raise ValueError(f"Matrix has invalid shape {matrix.shape} for diagonal.")
+
+
 def unit_vector(size: int, index: int, dtype: str = "float64") -> Array:
     """Return a unit vector of size `size` with a 1 at index `index`.
 

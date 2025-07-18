@@ -9,6 +9,7 @@ import scipy.linalg
 
 from dyson import numpy as np
 from dyson import util
+from dyson.representations.representation import BaseRepresentation
 from dyson.typing import Array
 
 if TYPE_CHECKING:
@@ -36,7 +37,7 @@ def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
         lehmann._energies = original_energies  # pylint: disable=protected-access
 
 
-class Lehmann:
+class Lehmann(BaseRepresentation):
     r"""Lehman representation.
 
     The Lehmann representation is a set of poles :math:`\epsilon_k` and couplings :math:`v_{pk}`
@@ -181,7 +182,7 @@ class Lehmann:
         """Return a string representation of the Lehmann representation."""
         return f"Lehmann(nphys={self.nphys}, naux={self.naux}, chempot={self.chempot})"
 
-    def mask(self, mask: Array | slice, deep: bool = True):
+    def mask(self, mask: Array | slice, deep: bool = True) -> Lehmann:
         """Return a part of the Lehmann representation according to a mask.
 
         Args:
