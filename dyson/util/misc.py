@@ -27,4 +27,4 @@ def catch_warnings(warning_type: type[Warning] = Warning) -> Iterator[list[Warni
         yield caught_warnings
 
     # Restore user filters
-    warnings.filters = user_filters
+    warnings.filters[:] = user_filters
