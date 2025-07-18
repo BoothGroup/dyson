@@ -10,6 +10,7 @@ import scipy.special
 from dyson import numpy as np
 from dyson import util
 from dyson.grids.grid import BaseGrid
+from dyson.representations.enums import Reduction, Component
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -21,7 +22,13 @@ if TYPE_CHECKING:
 class BaseFrequencyGrid(BaseGrid):
     """Base class for frequency grids."""
 
-    def evaluate_lehmann(self, lehmann: Lehmann, trace: bool = False, **kwargs: Any) -> Array:
+    def evaluate_lehmann(
+        self,
+        lehmann: Lehmann,
+        reduction: Reduction = Reduction.NONE,
+        component: Component = Component.FULL,
+        **kwargs: Any,
+    ) -> Dynamic[BaseFrequencyGrid]:
         r"""Evaluate a Lehmann representation on the grid.
 
         The imaginary frequency representation is defined as
@@ -39,16 +46,45 @@ class BaseFrequencyGrid(BaseGrid):
 
         Args:
             lehmann: Lehmann representation to evaluate.
-            trace: Whether to directly compute the trace of the realisation.
+            reduction: The reduction of the dynamic representation.
+            component: The component of the dynamic representation.
             kwargs: Additional keyword arguments for the resolvent.
 
         Returns:
             Lehmann representation, realised on the grid.
         """
+        from dyson.representations.dynamic import Dynamic
+
         left, right = lehmann.unpack_couplings()
         resolvent = self.resolvent(lehmann.energies, lehmann.chempot, **kwargs)
-        inp, out = ("qk", "wpq") if not trace else ("pk", "w")
-        return util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
+
+        # Get the input and output indices based on the reduction type
+        inp = "qk"
+        out = "wpq"
+        if reduction == reduction.NONE:
+            pass
+        elif reduction == reduction.DIAG:
+            inp = "pk"
+            out = "wp"
+        elif reduction == reduction.TRACE:
+            inp = "pk"
+            out = "w"
+        else:
+            reduction.raise_invalid_reduction()
+
+        # Perform the downfolding operation
+        array = util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
+
+        # Get the required component
+        # TODO: Save time by not evaluating the full array when not needed
+        if component == component.REAL:
+            component = component.real
+        elif component == component.IMAG:
+            component = component.imag
+
+        return Dynamic(
+            self, array, reduction=reduction, component=component, hermitian=lehmann.hermitian
+        )
 
     @property
     def domain(self) -> str:

@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
     from dyson.representations.spectral import Spectral
+    from dyson.representations.dynamic import Dynamic
+    from dyson.grids.grid import BaseGrid
 
 
 class BaseSolver(ABC):
@@ -171,7 +173,7 @@ class DynamicSolver(BaseSolver):
     """Base class for dynamic Dyson equation solvers."""
 
     @abstractmethod
-    def kernel(self) -> Array:
+    def kernel(self) -> Dynamic[Any]:
         """Run the solver.
 
         Returns:

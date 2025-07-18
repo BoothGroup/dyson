@@ -10,6 +10,7 @@ import scipy.linalg
 from dyson import numpy as np
 from dyson import util
 from dyson.typing import Array
+from dyson.representations.representation import BaseRepresentation
 
 if TYPE_CHECKING:
     from typing import Iterable, Iterator
@@ -36,7 +37,7 @@ def shift_energies(lehmann: Lehmann, shift: float) -> Iterator[None]:
         lehmann._energies = original_energies  # pylint: disable=protected-access
 
 
-class Lehmann:
+class Lehmann(BaseRepresentation):
     r"""Lehman representation.
 
     The Lehmann representation is a set of poles :math:`\epsilon_k` and couplings :math:`v_{pk}`

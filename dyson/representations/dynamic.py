@@ -2,24 +2,70 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
+from dyson import numpy as np
 from dyson import util
+from dyson.representations.representation import BaseRepresentation
+from dyson.grids.grid import BaseGrid
+from dyson.representations.enums import Component, Reduction
 
 if TYPE_CHECKING:
-    from dyson.grids.grid import BaseGrid
     from dyson.typing import Array
     from dyson.representations.lehmann import Lehmann
 
+_TGrid = TypeVar("_TGrid", bound=BaseGrid)
 
-class Dynamic:
+
+def _cast_reduction(first: Reduction, second: Reduction) -> Reduction:
+    """Find the reduction that is compatible with both reductions."""
+    values = {Reduction.NONE: 0, Reduction.DIAG: 1, Reduction.TRACE: 2}
+    if values[first] <= values[second]:
+        return first
+    return second
+
+
+def _cast_component(first: Component, second: Component) -> Component:
+    """Find the component that is compatible with both components."""
+    if first == second:
+        return first
+    return Component.FULL
+
+
+def _cast_arrays(first: Dynamic[_TGrid], second: Dynamic[_TGrid]) -> tuple[Array, Array]:
+    """Cast the arrays of two dynamic representations to the same component and reduction."""
+    component = _cast_component(first.component, second.component)
+    reduction = _cast_reduction(first.reduction, second.reduction)
+    array_first = first.as_dynamic(component=component, reduction=reduction).array
+    array_second = second.as_dynamic(component=component, reduction=reduction).array
+    return array_first, array_second
+
+
+def _same_grid(first: Dynamic[_TGrid], second: Dynamic[_TGrid]) -> bool:
+    """Check if two dynamic representations have the same grid."""
+    # TODO: Move to BaseGrid
+    if first.grid.size != second.grid.size:
+        return False
+    if not np.allclose(first.grid.weights, second.grid.weights):
+        return False
+    return np.allclose(first.grid, second.grid)
+
+
+class Dynamic(BaseRepresentation, Generic[_TGrid]):
     r"""Dynamic representation.
 
     The dynamic representation is a set of arrays in some physical space at each point in a time or
     frequency grid. This class contains the arrays and the grid information.
     """
 
-    def __init__(self, grid: BaseGrid, array: Array, hermitian: bool = False):
+    def __init__(
+        self,
+        grid: _TGrid,
+        array: Array,
+        reduction: Reduction = Reduction.NONE,
+        component: Component = Component.FULL,
+        hermitian: bool = False,
+    ):
         """Initialise the object.
 
         Args:
@@ -30,26 +76,45 @@ class Dynamic:
         self._grid = grid
         self._array = array
         self._hermitian = hermitian
+        self._reduction = reduction
+        self._component = component
         if array.shape[0] != grid.size:
             raise ValueError(
                 f"Array must have the same size as the grid in the first dimension, but got "
                 f"{array.shape[0]} for grid size {grid.size}."
             )
-        if array.ndim not in {1, 2, 3}:
-            raise ValueError(f"Array must be 1D, 2D, or 3D, but got {array.ndim}D.")
+        if (array.ndim - 1) != self.reduction.ndim:
+            raise ValueError(
+                f"Array must be {self.reduction.ndim}D for reduction {self.reduction}, but got "
+                f"{array.ndim}D."
+            )
+        if int(np.iscomplexobj(array)) + 1 != self.component.ncomp:
+            raise ValueError(
+                f"Array must only be complex valued for component {Component.FULL}, but got "
+                f"{array.dtype} for {self.component}."
+            )
 
-    def from_lehmann(cls, lehmann: Lehmann, grid: BaseGrid, trace: bool = False) -> Dynamic:
+    @classmethod
+    def from_lehmann(
+        cls,
+        lehmann: Lehmann,
+        grid: _TGrid,
+        reduction: Reduction = Reduction.NONE,
+        component: Component = Component.FULL,
+    ) -> Dynamic[_TGrid]:
         """Construct a dynamic representation from a Lehmann representation.
 
         Args:
             lehmann: The Lehmann representation to convert.
             grid: The grid on which the dynamic representation is defined.
-            trace: If True, return the trace of the dynamic representation.
+            reduction: The reduction of the dynamic representation.
+            component: The component of the dynamic representation.
 
         Returns:
             A dynamic representation.
         """
-        return grid.evaluate_lehmann(lehmann, trace=trace)
+        array = grid.evaluate_lehmann(lehmann, reduction=reduction, component=component)
+        return cls(grid, array, hermitian=lehmann.hermitian)
 
     @property
     def nphys(self) -> int:
@@ -57,7 +122,7 @@ class Dynamic:
         return self.array.shape[-1]
 
     @property
-    def grid(self) -> BaseGrid:
+    def grid(self) -> _TGrid:
         """Get the grid on which the dynamic representation is defined."""
         return self._grid
 
@@ -67,24 +132,19 @@ class Dynamic:
         return self._array
 
     @property
+    def reduction(self) -> Reduction:
+        """Get the reduction of the dynamic representation."""
+        return self._reduction
+
+    @property
+    def component(self) -> Component:
+        """Get the component of the dynamic representation."""
+        return self._component
+
+    @property
     def hermitian(self) -> bool:
-        """Get a flag indicating whether the array is Hermitian."""
-        return self._hermitian or not self.full
-
-    @property
-    def full(self) -> bool:
-        """Get a flag indicating whether the dynamic representation is full."""
-        return self.array.ndim == 3
-
-    @property
-    def diagonal(self) -> bool:
-        """Get a flag indicating whether the dynamic representation is diagonal."""
-        return self.array.ndim == 2
-
-    @property
-    def traced(self) -> bool:
-        """Get a flag indicating whether the dynamic representation is traced."""
-        return self.array.ndim == 1
+        """Get a boolean indicating if the system is Hermitian."""
+        return self._hermitian or self.reduction != Reduction.NONE
 
     @property
     def dtype(self) -> np.dtype:
@@ -97,72 +157,82 @@ class Dynamic:
             f"Dynamic(grid={self.grid}, shape={self.array.shape}, hermitian={self.hermitian})"
         )
 
-    def copy(self, deep: bool = True) -> Dynamic:
+    def copy(
+        self,
+        deep: bool = True,
+        reduction: Reduction | None = None,
+        component: Component | None = None,
+    ) -> Dynamic[_TGrid]:
         """Return a copy of the dynamic representation.
 
         Args:
             deep: Whether to return a deep copy of the energies and couplings.
+            component: The component of the dynamic representation.
+            reduction: The reduction of the dynamic representation.
 
         Returns:
             A new dynamic representation.
         """
         grid = self.grid
         array = self.array
+        if reduction is None:
+            reduction = self.reduction
+        if component is None:
+            component = self.component
 
         # Copy the array if requested
         if deep:
             array = array.copy()
 
+        # Adjust the reduction if necessary
+        if reduction != self.reduction:
+            if (self.reduction, reduction) == (Reduction.NONE, Reduction.DIAG):
+                array = np.diagonal(array, axis1=1, axis2=2)
+            elif (self.reduction, reduction) == (Reduction.NONE, Reduction.TRACE):
+                array = np.trace(array, axis1=1, axis2=2)
+            elif (self.reduction, reduction) == (Reduction.DIAG, Reduction.TRACE):
+                array = np.sum(array, axis=1)
+            elif (self.reduction, reduction) == (Reduction.DIAG, Reduction.NONE):
+                array_new = np.zeros((grid.size, self.nphys, self.nphys), dtype=array.dtype)
+                np.fill_diagonal(array_new, array)
+                array = array_new
+            else:
+                raise ValueError(
+                    f"Cannot convert from {self.reduction} to {reduction} for dynamic representation."
+                )
+
+        # Adjust the component if necessary
+        if component != self.component:
+            if (self.component, component) == (Component.FULL, Component.REAL):
+                array = np.real(array)
+            elif (self.component, component) == (Component.FULL, Component.IMAG):
+                array = np.imag(array)
+            elif (self.component, component) == (Component.REAL, Component.FULL):
+                array = array + 1.0j * np.zeros_like(array)
+            elif (self.component, component) == (Component.IMAG, Component.FULL):
+                array = np.zeros_like(array) + 1.0j * array
+            else:
+                raise ValueError(
+                    f"Cannot convert from {self.component} to {component} for dynamic representation."
+                )
+
         return self.__class__(grid, array, hermitian=self.hermitian)
 
-    def as_full(self) -> Dynamic:
-        """Return the dynamic representation as a full representation.
+    def as_dynamic(
+        self, component: Component | None = None, reduction: Reduction | None = None
+    ) -> Dynamic[_TGrid]:
+        """Return the dynamic representation with the specified component and reduction.
+
+        Args:
+            component: The component of the dynamic representation.
+            reduction: The reduction of the dynamic representation.
 
         Returns:
-            A new dynamic representation with the full array.
+            A new dynamic representation with the specified component and reduction.
         """
-        if self.full:
-            array = self.array
-        elif self.diagonal:
-            array = np.zeros((self.grid.size, self.nphys, self.nphys), dtype=self.array.dtype)
-            np.fill_diagonal(array, self.array)
-        elif self.traced:
-            raise ValueError(
-                "Cannot convert a traced dynamic representation to a full representation."
-            )
-        return self.__class__(self.grid, array, hermitian=self.hermitian)
+        return self.copy(deep=False, component=component, reduction=reduction)
 
-    def as_diagonal(self) -> Dynamic:
-        """Return the dynamic representation as a diagonal representation.
-
-        Returns:
-            A new dynamic representation with the diagonal of the array.
-        """
-        if self.full:
-            array = np.diagonal(self.array, axis1=1, axis2=2)
-        elif self.diagonal:
-            array = self.array
-        else:
-            raise ValueError(
-                "Cannot convert a traced dynamic representation to a diagonal representation."
-            )
-        return self.__class__(self.grid, array, hermitian=self.hermitian)
-
-    def as_trace(self) -> Dynamic:
-        """Return the trace of the dynamic representation.
-
-        Returns:
-            A new dynamic representation with the trace of the array.
-        """
-        if self.full:
-            array = np.trace(self.array, axis1=1, axis2=2)
-        elif self.diagonal:
-            array = np.sum(self.array, axis=1)
-        else:
-            array = self.array
-        return self.__class__(self.grid, array, hermitian=self.hermitian)
-
-    def rotate(self, rotation: Array | tuple[Array, Array]) -> Dynamic:
+    def rotate(self, rotation: Array | tuple[Array, Array]) -> Dynamic[_TGrid]:
         """Rotate the dynamic representation.
 
         Args:
@@ -174,11 +244,78 @@ class Dynamic:
             A new dynamic representation with the rotated array.
         """
         left, right = rotation if isinstance(rotation, tuple) else (rotation, rotation)
-        if self.traced:
-            array = util.einsum("wp,pi,pj->wij", self.array, left.conj(), right)
+
+        if np.iscomplexobj(left) or np.iscomplexobj(right):
+            array = self.as_dynamic(component=Component.FULL).array
+            component = Component.FULL
         else:
-            array = util.einsum("wpq,pi,qj->wij", self.array, left.conj(), right)
-        return self.__class__(self.grid, array, hermitian=self.hermitian)
+            array = self.array
+            component = self.component
+
+        if self.reduction == Reduction.NONE:
+            array = util.einsum("wpq,pi,qj->wij", array, left.conj(), right)
+        elif self.reduction == Reduction.DIAG:
+            array = util.einsum("wp,pi,pj->wij", array, left.conj(), right)
+        elif self.reduction == Reduction.TRACE:
+            raise ValueError("Cannot rotate a dynamic representation with trace reduction.")
+
+        return self.__class__(
+            self.grid,
+            array,
+            component=component,
+            reduction=Reduction.NONE,
+            hermitian=self.hermitian,
+        )
+
+    def __add__(self, other: Dynamic[_TGrid]) -> Dynamic[_TGrid]:
+        """Add two dynamic representations."""
+        if not isinstance(other, Dynamic):
+            return NotImplemented
+        if not _same_grid(self, other):
+            raise ValueError("Cannot add dynamic representations with different grids.")
+        return self.__class__(
+            self.grid,
+            np.add(*_cast_arrays(self, other)),
+            component=_cast_component(self.component, other.component),
+            reduction=_cast_reduction(self.reduction, other.reduction),
+            hermitian=self.hermitian or other.hermitian,
+        )
+
+    def __sub__(self, other: Dynamic[_TGrid]) -> Dynamic[_TGrid]:
+        """Subtract two dynamic representations."""
+        if not isinstance(other, Dynamic):
+            return NotImplemented
+        if not _same_grid(self, other):
+            raise ValueError("Cannot subtract dynamic representations with different grids.")
+        return self.__class__(
+            self.grid,
+            np.subtract(*_cast_arrays(self, other)),
+            component=_cast_component(self.component, other.component),
+            reduction=_cast_reduction(self.reduction, other.reduction),
+            hermitian=self.hermitian or other.hermitian,
+        )
+
+    def __mul__(self, other: float | int) -> Dynamic[_TGrid]:
+        """Multiply the dynamic representation by a scalar."""
+        if not isinstance(other, (float, int)):
+            return NotImplemented
+        return self.__class__(
+            self.grid,
+            self.array * other,
+            component=self.component,
+            reduction=self.reduction,
+            hermitian=self.hermitian,
+        )
+
+    __rmul__ = __mul__
+
+    def __neg__(self) -> Dynamic[_TGrid]:
+        """Negate the dynamic representation."""
+        return -1 * self
+
+    def __array__(self) -> Array:
+        """Return the dynamic representation as a NumPy array."""
+        return self.array
 
     def __eq__(self, other: object) -> bool:
         """Check if two dynamic representations are equal."""
@@ -190,10 +327,9 @@ class Dynamic:
             return False
         if other.hermitian != self.hermitian:
             return False
-        return np.allclose(other.grid, self.grid) and (
-            np.allclose(other.grid.weights, self.grid.weights)
-            and np.allclose(other.array, self.array)
-        )
+        if not _same_grid(self, other):
+            return False
+        return np.allclose(other.array, self.array)
 
     def __hash__(self) -> int:
         """Return a hash of the dynamic representation."""

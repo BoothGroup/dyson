@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
+from dyson.representations.enums import Reduction, Component
+from dyson.representations.dynamic import Dynamic
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -35,10 +37,10 @@ class CPGF(DynamicSolver):
         [1] A. Ferreira, and E. R. Mucciolo, Phys. Rev. Lett. 115, 106601 (2015).
     """
 
-    trace: bool = False
-    include_real: bool = True
+    reduction: Reduction = Reduction.NONE
+    component: Component = Component.FULL
     ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
-    _options: set[str] = {"trace", "include_real", "ordering"}
+    _options: set[str] = {"reduction", "component", "ordering"}
 
     def __init__(  # noqa: D417
         self,
@@ -56,8 +58,8 @@ class CPGF(DynamicSolver):
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
                 `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
             max_cycle: Maximum number of iterations.
-            trace: Whether to return only the trace.
-            include_real: Whether to include the real part of the Green's function.
+            component: The component of the dynamic representation to solve for.
+            reduction: The reduction of the dynamic representation to solve for.
             ordering: Time ordering of the resolvent.
         """
         self._moments = moments
@@ -150,7 +152,7 @@ class CPGF(DynamicSolver):
         moments = expression.build_gf_chebyshev_moments(max_cycle + 1, scaling=scaling)
         return cls(moments, kwargs.pop("grid"), scaling, max_cycle=max_cycle, **kwargs)
 
-    def kernel(self, iteration: int | None = None) -> Array:
+    def kernel(self, iteration: int | None = None) -> Dynamic[RealFrequencyGrid]:
         """Run the solver.
 
         Args:
@@ -166,10 +168,18 @@ class CPGF(DynamicSolver):
         progress = printing.IterationsPrinter(iteration + 1, description="Polynomial order")
         progress.start()
 
-        # Get the moments -- allow input to already be traced
-        moments = util.as_trace(self.moments[: iteration + 1], 1 if self.trace else 3).astype(
-            complex
-        )
+        # Get the moments -- allow input to already be traced or diagonal
+        if self.reduction == Reduction.NONE:
+            moments = self.moments[: iteration + 1].astype(complex)
+        elif self.reduction == Reduction.DIAG:
+            moments = util.as_diagonal(self.moments[: iteration + 1], 1).astype(complex)
+        elif self.reduction == Reduction.TRACE:
+            moments = util.as_trace(self.moments[: iteration + 1], 1).astype(complex)
+        if (moments.ndim - 1) != self.reduction.ndim:
+            raise ValueError(
+                f"moments must be {self.reduction.ndim + 1}D for reduction {self.reduction}, got "
+                f"{moments.ndim}D."
+            )
 
         # Scale the grid
         scaled_grid = (self.grid - self.scaling[1]) / self.scaling[0]
@@ -194,9 +204,22 @@ class CPGF(DynamicSolver):
         if self.ordering == "advanced":
             greens_function = greens_function.conj()
 
+        # Post-process the Green's function component
+        # TODO: Can we do this earlier to avoid computing unnecessary components?
+        if self.component == Component.REAL:
+            greens_function = greens_function.real
+        elif self.component == Component.IMAG:
+            greens_function = greens_function.imag
+
         progress.stop()
 
-        return greens_function if self.include_real else greens_function.imag
+        return Dynamic(
+            self.grid,
+            greens_function,
+            reduction=self.reduction,
+            component=self.component,
+            hermitian=np.allclose(self.moments, self.moments.transpose(0, 2, 1).conj()),
+        )
 
     @property
     def moments(self) -> Array:

@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson.typing import Array
+from dyson.representations.enums import Reduction, Component
 
 if TYPE_CHECKING:
     from typing import Any
 
     from dyson.representations.lehmann import Lehmann
+    from dyson.representations.dynamic import Dynamic
 
 
 class BaseGrid(Array, ABC):
@@ -35,12 +37,18 @@ class BaseGrid(Array, ABC):
         return obj
 
     @abstractmethod
-    def evaluate_lehmann(self, lehmann: Lehmann, trace: bool = False) -> Array:
+    def evaluate_lehmann(
+        self,
+        lehmann: Lehmann,
+        reduction: Reduction = Reduction.NONE,
+        component: Component = Component.FULL,
+    ) -> Dynamic[Any]:
         """Evaluate a Lehmann representation on the grid.
 
         Args:
             lehmann: Lehmann representation to evaluate.
-            trace: Whether to directly compute the trace of the realisation.
+            reduction: The reduction of the dynamic representation.
+            component: The component of the dynamic representation.
 
         Returns:
             Lehmann representation, realised on the grid.
