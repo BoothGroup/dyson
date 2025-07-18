@@ -9,10 +9,10 @@ import scipy.linalg
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
-from dyson.representations.lehmann import Lehmann
-from dyson.solvers.solver import StaticSolver
-from dyson.representations.spectral import Spectral
 from dyson.representations.enums import Ordering
+from dyson.representations.lehmann import Lehmann
+from dyson.representations.spectral import Spectral
+from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
     from typing import Any, Callable

@@ -9,12 +9,12 @@ from scipy.sparse.linalg import LinearOperator, lgmres
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
-from dyson.solvers.solver import DynamicSolver
-from dyson.representations.enums import Reduction, Component, Ordering
 from dyson.representations.dynamic import Dynamic
+from dyson.representations.enums import Component, Ordering, Reduction
+from dyson.solvers.solver import DynamicSolver
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal
+    from typing import Any, Callable
 
     from dyson.expressions.expression import BaseExpression
     from dyson.representations.lehmann import Lehmann

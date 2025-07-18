@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
-from dyson.representations.representation import BaseRepresentation
 from dyson.representations.lehmann import Lehmann
+from dyson.representations.representation import BaseRepresentation
 
 if TYPE_CHECKING:
     from dyson.typing import Array

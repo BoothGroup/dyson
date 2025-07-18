@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from enum import Enum, auto
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dyson.typing import Array
+    pass
 
 
 class RepresentationEnum(Enum):

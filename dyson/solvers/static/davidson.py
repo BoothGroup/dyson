@@ -10,8 +10,8 @@ from pyscf import lib
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
-from dyson.solvers.solver import StaticSolver
 from dyson.representations.spectral import Spectral
+from dyson.solvers.solver import StaticSolver
 
 if TYPE_CHECKING:
     from typing import Any, Callable

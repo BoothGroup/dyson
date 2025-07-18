@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 from dyson.representations.lehmann import Lehmann
-from dyson.solvers import Davidson
 from dyson.representations.spectral import Spectral
+from dyson.solvers import Davidson
 
 if TYPE_CHECKING:
     from pyscf import scf

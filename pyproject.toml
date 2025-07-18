@@ -70,6 +70,7 @@ ignore = [
     "PLR0915",  # too-many-statements
     "PLR2004",  # magic-value-comparison
     "PLR5501",  # collapsible-else-if
+    "PLW2901",  # redefined-loop-name
 ]
 
 [tool.ruff.lint.per-file-ignores]

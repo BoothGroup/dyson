@@ -6,14 +6,14 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
+from dyson.representations.enums import Component, Reduction
 from dyson.typing import Array
-from dyson.representations.enums import Reduction, Component
 
 if TYPE_CHECKING:
     from typing import Any
 
-    from dyson.representations.lehmann import Lehmann
     from dyson.representations.dynamic import Dynamic
+    from dyson.representations.lehmann import Lehmann
 
 
 class BaseGrid(Array, ABC):

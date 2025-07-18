@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
-from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 from dyson.representations.spectral import Spectral
+from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 
 if TYPE_CHECKING:
     from typing import Any, TypeVar

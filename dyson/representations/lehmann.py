@@ -9,8 +9,8 @@ import scipy.linalg
 
 from dyson import numpy as np
 from dyson import util
-from dyson.typing import Array
 from dyson.representations.representation import BaseRepresentation
+from dyson.typing import Array
 
 if TYPE_CHECKING:
     from typing import Iterable, Iterator

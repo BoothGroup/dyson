@@ -10,8 +10,8 @@ from pyscf import gto, scf
 from dyson import numpy as np
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 from dyson.representations.lehmann import Lehmann
-from dyson.solvers import Exact
 from dyson.representations.spectral import Spectral
+from dyson.solvers import Exact
 
 if TYPE_CHECKING:
     from typing import Callable, Hashable

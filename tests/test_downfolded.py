@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from dyson.solvers import Downfolded
 from dyson.representations.spectral import Spectral
+from dyson.solvers import Downfolded
 
 if TYPE_CHECKING:
     from pyscf import scf

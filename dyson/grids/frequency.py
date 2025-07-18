@@ -10,10 +10,10 @@ import scipy.special
 from dyson import numpy as np
 from dyson import util
 from dyson.grids.grid import BaseGrid
-from dyson.representations.enums import Reduction, Component, Ordering
+from dyson.representations.enums import Component, Ordering, Reduction
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Any
 
     from dyson.representations.dynamic import Dynamic
     from dyson.representations.lehmann import Lehmann
@@ -54,7 +54,7 @@ class BaseFrequencyGrid(BaseGrid):
         Returns:
             Lehmann representation, realised on the grid.
         """
-        from dyson.representations.dynamic import Dynamic
+        from dyson.representations.dynamic import Dynamic  # noqa: PLC0415
 
         left, right = lehmann.unpack_couplings()
         resolvent = self.resolvent(lehmann.energies, lehmann.chempot, **kwargs)

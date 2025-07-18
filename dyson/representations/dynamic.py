@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 from dyson import numpy as np
 from dyson import util
-from dyson.representations.representation import BaseRepresentation
 from dyson.grids.grid import BaseGrid
 from dyson.representations.enums import Component, Reduction
+from dyson.representations.representation import BaseRepresentation
 
 if TYPE_CHECKING:
-    from dyson.typing import Array
     from dyson.representations.lehmann import Lehmann
+    from dyson.typing import Array
 
 _TGrid = TypeVar("_TGrid", bound=BaseGrid)
 
@@ -71,6 +71,8 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
         Args:
             grid: The grid on which the dynamic representation is defined.
             array: The array of values at each point in the grid.
+            reduction: The reduction of the dynamic representation.
+            component: The component of the dynamic representation.
             hermitian: Whether the array is Hermitian.
         """
         self._grid = grid
@@ -197,7 +199,8 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
                 array = array_new
             else:
                 raise ValueError(
-                    f"Cannot convert from {self.reduction} to {reduction} for dynamic representation."
+                    f"Cannot convert from {self.reduction} to {reduction} for dynamic "
+                    "representation."
                 )
 
         # Adjust the component if necessary
@@ -212,7 +215,8 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
                 array = np.zeros_like(array) + 1.0j * array
             else:
                 raise ValueError(
-                    f"Cannot convert from {self.component} to {component} for dynamic representation."
+                    f"Cannot convert from {self.component} to {component} for dynamic "
+                    "representation."
                 )
 
         return self.__class__(grid, array, hermitian=self.hermitian)
