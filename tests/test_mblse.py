@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from dyson import util
-from dyson.expressions.fci import BaseFCI
 from dyson.representations.spectral import Spectral
 from dyson.solvers import MBLSE
 
@@ -38,9 +37,7 @@ def test_central_moments(
     static, se_moments = util.gf_moments_to_se_moments(gf_moments)
 
     # Check if we need a non-Hermitian solver
-    hermitian = expression_h.hermitian_downfolded and not (
-        isinstance(expression_p, BaseFCI) and max_cycle > 1
-    )
+    hermitian = expression_h.hermitian_downfolded and expression_p.hermitian_downfolded
 
     # Run the MBLSE solver
     solver = MBLSE(static, se_moments, hermitian=hermitian)
@@ -73,9 +70,7 @@ def test_vs_exact_solver_central(
     nmom_se = max_cycle * 2 + 2
 
     # Check if we need a non-Hermitian solver
-    hermitian = expression_h.hermitian_downfolded and not (
-        isinstance(expression_p, BaseFCI) and max_cycle > 1
-    )
+    hermitian = expression_h.hermitian_downfolded and expression_p.hermitian_downfolded
 
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method.h)

@@ -245,7 +245,10 @@ class MBLSE(BaseMBL):
 
         # Invert the off-diagonal block
         off_diagonal_inv, error_inv_sqrt = util.matrix_power(
-            off_diagonal_squared, -0.5, hermitian=self.hermitian, return_error=self.calculate_errors
+            off_diagonal_squared,
+            -0.5,
+            hermitian=self.hermitian,
+            return_error=self.calculate_errors,
         )
 
         # Update the dtype
@@ -265,7 +268,7 @@ class MBLSE(BaseMBL):
             residual += util.hermi_sum(
                 on_diagonal[i] @ coefficients[i, i - 1, n] @ off_diagonal[i - 1]
             )
-            residual += util.hermi_sum(
+            residual += (
                 off_diagonal[i - 1].T.conj() @ coefficients[i - 1, i - 1, n] @ off_diagonal[i - 1]
             )
             residual += on_diagonal[i] @ coefficients[i, i, n] @ on_diagonal[i]
