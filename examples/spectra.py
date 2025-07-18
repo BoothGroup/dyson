@@ -39,9 +39,10 @@ for key, solver_cls, kwargs in [
     solver = solver_cls.from_self_energy(static, self_energy, **kwargs)
     solver.kernel()
     gf = solver.result.get_greens_function()
-    spectra[key] = -grid.evaluate_lehmann(
-        gf, ordering="retarded", reduction="trace", component="imag"
-    ).array / numpy.pi
+    spectra[key] = (
+        -grid.evaluate_lehmann(gf, ordering="retarded", reduction="trace", component="imag").array
+        / numpy.pi
+    )
 
 # Solve the self-energy using each dynamic solver
 for key, solver_cls, kwargs in [
