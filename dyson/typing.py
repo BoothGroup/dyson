@@ -6,4 +6,4 @@ from typing import Any
 
 from dyson import numpy
 
-Array = numpy.ndarray[Any, numpy.dtype[Any]]
+Array = numpy.ndarray
