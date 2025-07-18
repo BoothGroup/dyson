@@ -152,9 +152,7 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
 
     def __repr__(self) -> str:
         """Get a string representation of the dynamic representation."""
-        return (
-            f"Dynamic(grid={self.grid}, shape={self.array.shape}, hermitian={self.hermitian})"
-        )
+        return f"Dynamic(grid={self.grid}, shape={self.array.shape}, hermitian={self.hermitian})"
 
     def copy(
         self,
