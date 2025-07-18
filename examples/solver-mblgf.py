@@ -39,6 +39,6 @@ solver.kernel()
 max_cycle = 1
 solver = MBLGF(
     solver.result.get_greens_function().moments(range(2 * max_cycle + 2)),
-    hermitian=exp.hermitian,
+    hermitian=exp.hermitian_downfolded,
     max_cycle=max_cycle,
 )

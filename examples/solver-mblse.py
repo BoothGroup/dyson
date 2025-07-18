@@ -40,7 +40,7 @@ solver = MBLSE(
     static,
     self_energy.moments(range(2 * max_cycle + 2)),
     overlap=overlap,
-    hermitian=exp.hermitian,
+    hermitian=exp.hermitian_downfolded,
     max_cycle=max_cycle,
 )
 solver.kernel()

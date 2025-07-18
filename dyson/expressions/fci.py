@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 class BaseFCI(BaseExpression):
     """Base class for FCI expressions."""
 
-    hermitian = True
+    hermitian_downfolded = True
+    hermitian_upfolded = True
 
     SIGN: int
     DELTA_ALPHA: int

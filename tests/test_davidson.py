@@ -46,7 +46,7 @@ def test_vs_exact_solver(
         bra,
         ket,
         nroots=expression.nsingle + expression.nconfig,  # Get all the roots
-        hermitian=expression.hermitian,
+        hermitian=expression.hermitian_upfolded,
     )
     davidson.kernel()
     assert davidson.result is not None
@@ -66,7 +66,7 @@ def test_vs_exact_solver(
     self_energy_exact = exact.result.get_self_energy()
     greens_function_exact = exact.result.get_greens_function()
 
-    if expression.hermitian:
+    if expression.hermitian_upfolded:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
         assert helper.are_equal_arrays(static, static_exact)
         assert helper.have_equal_moments(self_energy, self_energy_exact, 4)
@@ -110,7 +110,7 @@ def test_vs_exact_solver_central(
         bra[0],
         ket[0],
         nroots=expression_h.nsingle + expression_h.nconfig,  # Get all the roots
-        hermitian=expression_h.hermitian,
+        hermitian=expression_h.hermitian_upfolded,
         conv_tol=1e-11,
         conv_tol_residual=1e-8,
     )
@@ -121,7 +121,7 @@ def test_vs_exact_solver_central(
         bra[1],
         ket[1],
         nroots=expression_p.nsingle + expression_p.nconfig,  # Get all the roots
-        hermitian=expression_p.hermitian,
+        hermitian=expression_p.hermitian_upfolded,
         conv_tol=1e-11,
         conv_tol_residual=1e-8,
     )
@@ -147,7 +147,7 @@ def test_vs_exact_solver_central(
         exact_h.result.get_greens_function(), exact_p.result.get_greens_function()
     )
 
-    if expression_h.hermitian and expression_p.hermitian:
+    if expression_h.hermitian_upfolded and expression_p.hermitian_upfolded:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
         assert helper.are_equal_arrays(static, static_exact)
         assert helper.have_equal_moments(self_energy, self_energy_exact, 2)
@@ -166,7 +166,7 @@ def test_vs_exact_solver_central(
     self_energy_exact = result_exact.get_self_energy()
     greens_function_exact = result_exact.get_greens_function()
 
-    if expression_h.hermitian and expression_p.hermitian:
+    if expression_h.hermitian_upfolded and expression_p.hermitian_upfolded:
         # Left-handed eigenvectors not converged for non-Hermitian Davidson  # TODO
         assert helper.are_equal_arrays(static, static_exact)
         assert helper.have_equal_moments(self_energy, self_energy_exact, 2)

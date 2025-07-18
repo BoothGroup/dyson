@@ -19,7 +19,8 @@ if TYPE_CHECKING:
 class BaseHF(BaseExpression):
     """Base class for HF expressions."""
 
-    hermitian = True
+    hermitian_downfolded = True
+    hermitian_upfolded = True
 
     def __init__(
         self,

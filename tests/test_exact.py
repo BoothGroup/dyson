@@ -34,7 +34,7 @@ def test_exact_solver(
 
     assert solver.result is not None
     assert solver.nphys == expression.nphys
-    assert solver.hermitian == expression.hermitian
+    assert solver.hermitian == expression.hermitian_upfolded
 
     # Get the self-energy and Green's function from the solver
     static = solver.result.get_static_self_energy()

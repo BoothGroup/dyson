@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 class BaseExpression(ABC):
     """Base class for expressions."""
 
-    hermitian: bool = True
+    hermitian_downfolded: bool = True
+    hermitian_upfolded: bool = True
 
     @classmethod
     @abstractmethod
@@ -215,12 +216,12 @@ class BaseExpression(ABC):
             # Loop over moment orders
             for n in range(nmom):
                 # Loop over bra vectors
-                for j in range(i if self.hermitian else 0, self.nphys):
+                for j in range(i if self.hermitian_downfolded else 0, self.nphys):
                     bra = bras[j] if store_vectors else get_bra(j)
 
                     # Contract the bra and ket vectors
                     moments[n, i, j] = bra.conj() @ ket
-                    if self.hermitian:
+                    if self.hermitian_downfolded:
                         moments[n, j, i] = moments[n, i, j].conj()
 
                 # Apply the Hamiltonian to the ket vector
@@ -365,6 +366,11 @@ class BaseExpression(ABC):
     def non_dyson(self) -> bool:
         """Whether the expression produces a non-Dyson Green's function."""
         pass
+
+    @property
+    def hermitian(self) -> bool:
+        """Whether the expression is Hermitian."""
+        return self.hermitian_downfolded and self.hermitian_upfolded
 
     @property
     def nphys(self) -> int:

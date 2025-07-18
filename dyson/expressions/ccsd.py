@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 class BaseCCSD(BaseExpression):
     """Base class for CCSD expressions."""
 
-    hermitian = False
+    hermitian_downfolded = False
+    hermitian_upfolded = False
 
     partition: str | None = None
 

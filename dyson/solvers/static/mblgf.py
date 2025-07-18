@@ -164,7 +164,7 @@ class MBLGF(BaseMBL):
             Solver instance.
         """
         moments = expression.build_gf_moments(2 * kwargs.get("max_cycle", 0) + 2)
-        return cls(moments, hermitian=expression.hermitian, **kwargs)
+        return cls(moments, hermitian=expression.hermitian_downfolded, **kwargs)
 
     def reconstruct_moments(self, iteration: int) -> Array:
         """Reconstruct the moments.
@@ -398,6 +398,8 @@ class MBLGF(BaseMBL):
             [self.off_diagonal_lower[i] for i in range(iteration)] if not self.hermitian else None
         )
         hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
+
+        # Allow Hermitian solution even for non-Hermitian solver if the Hamiltonian is Hermitian
         if self.hermitian:
             eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
         else:

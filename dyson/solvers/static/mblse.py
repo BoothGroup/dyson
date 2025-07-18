@@ -172,7 +172,7 @@ class MBLSE(BaseMBL):
             static,
             moments,
             overlap=overlap,
-            hermitian=expression.hermitian,
+            hermitian=expression.hermitian_downfolded,
             **kwargs,
         )
 

@@ -20,7 +20,8 @@ if TYPE_CHECKING:
 class BaseGW_Dyson(BaseExpression):
     """Base class for GW expressions for the Dyson Green's function."""
 
-    hermitian = False  # FIXME: hermitian downfolded, but not formally hermitian supermatrix
+    hermitian_downfolded = True
+    hermitian_upfolded = True
 
     def __init__(
         self,

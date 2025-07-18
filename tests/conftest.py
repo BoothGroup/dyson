@@ -52,6 +52,11 @@ MF_CACHE = {
     "he-ccpvdz": scf.RHF(MOL_CACHE["he-ccpvdz"]).run(conv_tol=1e-12),
 }
 
+for key, mf in MF_CACHE.items():
+    mo = mf.stability()[0]
+    dm = mf.make_rdm1(mo, mf.mo_occ)
+    mf = mf.run(dm)
+
 METHODS = [HF, CCSD, FCI, ADC2, ADC2x, TDAGW]
 METHOD_NAMES = ["HF", "CCSD", "FCI", "ADC2", "ADC2x", "TDAGW"]
 

@@ -33,7 +33,7 @@ def test_moments_conversion(
 
     assert solver.result is not None
     assert solver.nphys == expression.nphys
-    assert solver.hermitian == expression.hermitian
+    assert solver.hermitian == expression.hermitian_upfolded
 
     # Get the self-energy and Green's function from the solver
     static = solver.result.get_static_self_energy()
@@ -52,7 +52,7 @@ def test_moments_conversion(
     gf_moments_other = util.se_moments_to_gf_moments(static, se_moments, overlap=gf_moments[0])
 
     assert helper.are_equal_arrays(static, static_other)
-    if expression.hermitian:
+    if expression.hermitian_upfolded:
         assert helper.have_equal_moments(se_moments, se_moments_other, 4)
         assert helper.have_equal_moments(gf_moments, gf_moments_other, 6)
     else:

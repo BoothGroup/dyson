@@ -41,7 +41,7 @@ solver = Davidson(
     exp.diagonal(),
     numpy.asarray(exp.get_excitation_bras()),
     numpy.asarray(exp.get_excitation_kets()),
-    hermitian=exp.hermitian,
+    hermitian=exp.hermitian_upfolded,
     nroots=5,
 )
 solver.kernel()

@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 class BaseADC(BaseExpression):
     """Base class for ADC expressions."""
 
-    hermitian = False  # FIXME: hermitian downfolded, but not formally hermitian supermatrix
+    hermitian_downfolded = True
+    hermitian_upfolded = False
 
     PYSCF_ADC: ModuleType
     SIGN: int

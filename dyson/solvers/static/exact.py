@@ -131,8 +131,8 @@ class Exact(StaticSolver):
         """
         matrix = expression.build_matrix()
         bra = np.array(expression.get_excitation_bras())
-        ket = np.array(expression.get_excitation_kets()) if not expression.hermitian else None
-        return cls(matrix, bra, ket, hermitian=expression.hermitian, **kwargs)
+        ket = np.array(expression.get_excitation_kets()) if not expression.hermitian_upfolded else None
+        return cls(matrix, bra, ket, hermitian=expression.hermitian_upfolded, **kwargs)
 
     def kernel(self) -> Spectral:
         """Run the solver.

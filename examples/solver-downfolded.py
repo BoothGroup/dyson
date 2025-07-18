@@ -47,6 +47,6 @@ solver = Downfolded(
     static,
     _function,
     overlap=overlap,
-    hermitian=exp.hermitian,
+    hermitian=exp.hermitian_downfolded,
 )
 solver.kernel()

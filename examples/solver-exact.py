@@ -36,6 +36,6 @@ solver = Exact(
     exp.build_matrix(),
     numpy.asarray(exp.get_excitation_bras()),
     numpy.asarray(exp.get_excitation_kets()),
-    hermitian=exp.hermitian,
+    hermitian=exp.hermitian_upfolded,
 )
 solver.kernel()
