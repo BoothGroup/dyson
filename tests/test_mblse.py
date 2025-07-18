@@ -38,10 +38,12 @@ def test_central_moments(
     static, se_moments = util.gf_moments_to_se_moments(gf_moments)
 
     # Check if we need a non-Hermitian solver
-    hermitian = expression_h.hermitian_downfolded and not (isinstance(expression_p, BaseFCI) and max_cycle > 1)
+    hermitian = expression_h.hermitian_downfolded and not (
+        isinstance(expression_p, BaseFCI) and max_cycle > 1
+    )
 
     # Run the MBLSE solver
-    solver = MBLSE(static, se_moments, hermitian=hermitian_downfolded)
+    solver = MBLSE(static, se_moments, hermitian=hermitian)
     solver.kernel()
     assert solver.result is not None
 
@@ -71,7 +73,9 @@ def test_vs_exact_solver_central(
     nmom_se = max_cycle * 2 + 2
 
     # Check if we need a non-Hermitian solver
-    hermitian = expression_h.hermitian_downfolded and not (isinstance(expression_p, BaseFCI) and max_cycle > 1)
+    hermitian = expression_h.hermitian_downfolded and not (
+        isinstance(expression_p, BaseFCI) and max_cycle > 1
+    )
 
     # Solve the Hamiltonian exactly
     exact_h = exact_cache(mf, expression_method.h)
@@ -96,14 +100,14 @@ def test_vs_exact_solver_central(
         static_h_exact,
         se_h_moments_exact,
         overlap=overlap_h,
-        hermitian=hermitian_downfolded,
+        hermitian=hermitian,
     )
     result_h = mblse_h.kernel()
     mblse_p = MBLSE(
         static_p_exact,
         se_p_moments_exact,
         overlap=overlap_p,
-        hermitian=hermitian_downfolded,
+        hermitian=hermitian,
     )
     result_p = mblse_p.kernel()
     result_ph = Spectral.combine(result_h, result_p)

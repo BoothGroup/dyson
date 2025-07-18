@@ -200,7 +200,11 @@ class Davidson(StaticSolver):
         diagonal = expression.diagonal()
         matvec = expression.apply_hamiltonian
         bra = np.array(expression.get_excitation_bras())
-        ket = np.array(expression.get_excitation_kets()) if not expression.hermitian_upfolded else None
+        ket = (
+            np.array(expression.get_excitation_kets())
+            if not expression.hermitian_upfolded
+            else None
+        )
         return cls(
             matvec,
             diagonal,
