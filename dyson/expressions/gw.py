@@ -21,7 +21,7 @@ class BaseGW_Dyson(BaseExpression):
     """Base class for GW expressions for the Dyson Green's function."""
 
     hermitian_downfolded = True
-    hermitian_upfolded = True
+    hermitian_upfolded = False
 
     def __init__(
         self,
