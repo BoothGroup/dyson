@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.solvers.solver import DynamicSolver
-from dyson.representations.enums import Reduction, Component
+from dyson.representations.enums import Reduction, Component, Ordering
 from dyson.representations.dynamic import Dynamic
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class CPGF(DynamicSolver):
 
     reduction: Reduction = Reduction.NONE
     component: Component = Component.FULL
-    ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
+    ordering: Ordering = Ordering.ORDERED
     _options: set[str] = {"reduction", "component", "ordering"}
 
     def __init__(  # noqa: D417
@@ -77,8 +77,8 @@ class CPGF(DynamicSolver):
             )
         if _infer_max_cycle(self.moments) < self.max_cycle:
             raise ValueError("not enough moments provided for the specified max_cycle.")
-        if self.ordering == "time-ordered":
-            raise NotImplementedError("ordering='time-ordered' is not implemented for CPGF.")
+        if self.ordering == Ordering.ORDERED:
+            raise NotImplementedError(f"{self.ordering} is not implemented for CPGF.")
 
         # Print the input information
         cond = printing.format_float(
@@ -175,6 +175,8 @@ class CPGF(DynamicSolver):
             moments = util.as_diagonal(self.moments[: iteration + 1], 1).astype(complex)
         elif self.reduction == Reduction.TRACE:
             moments = util.as_trace(self.moments[: iteration + 1], 1).astype(complex)
+        else:
+            self.reduction.raise_invalid_representation()
         if (moments.ndim - 1) != self.reduction.ndim:
             raise ValueError(
                 f"moments must be {self.reduction.ndim + 1}D for reduction {self.reduction}, got "
@@ -201,7 +203,7 @@ class CPGF(DynamicSolver):
         # Apply factors
         greens_function /= self.scaling[0]
         greens_function *= -1.0j
-        if self.ordering == "advanced":
+        if self.ordering == Ordering.ADVANCED:
             greens_function = greens_function.conj()
 
         # Post-process the Green's function component

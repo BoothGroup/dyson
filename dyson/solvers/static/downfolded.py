@@ -12,6 +12,7 @@ from dyson.grids.frequency import RealFrequencyGrid
 from dyson.representations.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.representations.spectral import Spectral
+from dyson.representations.enums import Ordering
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -130,7 +131,7 @@ class Downfolded(StaticSolver):
             """Evaluate the self-energy at the frequency."""
             grid = RealFrequencyGrid(1, buffer=np.array([freq]))
             grid.eta = eta
-            return grid.evaluate_lehmann(self_energy, ordering="time-ordered")[0]
+            return grid.evaluate_lehmann(self_energy, ordering=Ordering.ORDERED).array[0]
 
         return cls(
             static,

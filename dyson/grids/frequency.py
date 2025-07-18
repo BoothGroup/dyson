@@ -10,11 +10,12 @@ import scipy.special
 from dyson import numpy as np
 from dyson import util
 from dyson.grids.grid import BaseGrid
-from dyson.representations.enums import Reduction, Component
+from dyson.representations.enums import Reduction, Component, Ordering
 
 if TYPE_CHECKING:
     from typing import Any, Literal
 
+    from dyson.representations.dynamic import Dynamic
     from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
@@ -57,6 +58,8 @@ class BaseFrequencyGrid(BaseGrid):
 
         left, right = lehmann.unpack_couplings()
         resolvent = self.resolvent(lehmann.energies, lehmann.chempot, **kwargs)
+        reduction = Reduction(reduction)
+        component = Component(component)
 
         # Get the input and output indices based on the reduction type
         inp = "qk"
@@ -70,7 +73,7 @@ class BaseFrequencyGrid(BaseGrid):
             inp = "pk"
             out = "w"
         else:
-            reduction.raise_invalid_reduction()
+            reduction.raise_invalid_representation()
 
         # Perform the downfolding operation
         array = util.einsum(f"pk,{inp},wk->{out}", right, left.conj(), resolvent)
@@ -161,27 +164,25 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         self._eta = value
 
     @staticmethod
-    def _resolvent_signs(
-        energies: Array, ordering: Literal["time-ordered", "advanced", "retarded"]
-    ) -> Array:
+    def _resolvent_signs(energies: Array, ordering: Ordering) -> Array:
         """Get the signs for the resolvent based on the time ordering."""
-        if ordering == "time-ordered":
+        ordering = Ordering(ordering)
+        signs: Array
+        if ordering == ordering.ORDERED:
             signs = np.where(energies >= 0, 1.0, -1.0)
-        elif ordering == "advanced":
+        elif ordering == ordering.ADVANCED:
             signs = -np.ones_like(energies)
-        elif ordering == "retarded":
+        elif ordering == ordering.RETARDED:
             signs = np.ones_like(energies)
         else:
-            raise ValueError(
-                f"Invalid ordering: {ordering}. Must be 'time-ordered', 'advanced', or 'retarded'."
-            )
+            ordering.raise_invalid_representation()
         return signs
 
     def resolvent(  # noqa: D417
         self,
         energies: Array,
         chempot: float | Array,
-        ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered",
+        ordering: Ordering = Ordering.ORDERED,
         invert: bool = True,
         **kwargs: Any,
     ) -> Array:

@@ -11,6 +11,7 @@ from rich.table import Table
 from dyson import console, printing
 from dyson.representations.lehmann import Lehmann
 from dyson.typing import Array
+from dyson.representations.enums import RepresentationEnum
 
 if TYPE_CHECKING:
     from typing import Any
@@ -94,6 +95,9 @@ class BaseSolver(ABC):
         for key, val in kwargs.items():
             if key not in self._options:
                 raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            if isinstance(getattr(self, key), RepresentationEnum):
+                # Casts string to the appropriate enum type if the default value is an enum
+                val = getattr(self, key).__class__(val)
             setattr(self, key, val)
 
     @abstractmethod

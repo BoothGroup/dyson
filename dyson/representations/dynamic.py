@@ -76,8 +76,8 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
         self._grid = grid
         self._array = array
         self._hermitian = hermitian
-        self._reduction = reduction
-        self._component = component
+        self._reduction = Reduction(reduction)
+        self._component = Component(component)
         if array.shape[0] != grid.size:
             raise ValueError(
                 f"Array must have the same size as the grid in the first dimension, but got "
@@ -113,8 +113,7 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
         Returns:
             A dynamic representation.
         """
-        array = grid.evaluate_lehmann(lehmann, reduction=reduction, component=component)
-        return cls(grid, array, hermitian=lehmann.hermitian)
+        return grid.evaluate_lehmann(lehmann, reduction=reduction, component=component)
 
     @property
     def nphys(self) -> int:
@@ -177,8 +176,10 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
         array = self.array
         if reduction is None:
             reduction = self.reduction
+        reduction = Reduction(reduction)
         if component is None:
             component = self.component
+        component = Component(component)
 
         # Copy the array if requested
         if deep:

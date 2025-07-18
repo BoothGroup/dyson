@@ -10,7 +10,7 @@ from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.solvers.solver import DynamicSolver
-from dyson.representations.enums import Reduction, Component
+from dyson.representations.enums import Reduction, Component, Ordering
 from dyson.representations.dynamic import Dynamic
 
 if TYPE_CHECKING:
@@ -35,9 +35,9 @@ class CorrectionVector(DynamicSolver):
 
     reduction: Reduction = Reduction.NONE
     component: Component = Component.FULL
+    ordering: Ordering = Ordering.ORDERED
     conv_tol: float = 1e-8
-    ordering: Literal["time-ordered", "advanced", "retarded"] = "time-ordered"
-    _options: set[str] = {"reduction", "component", "conv_tol", "ordering"}
+    _options: set[str] = {"reduction", "component", "ordering", "conv_tol"}
 
     def __init__(  # noqa: D417
         self,
@@ -283,6 +283,8 @@ class CorrectionVector(DynamicSolver):
                     greens_function[w, i] = bras[i] @ x
                 elif self.reduction == Reduction.TRACE:
                     greens_function[w] += bras[i] @ x
+                else:
+                    self.reduction.raise_invalid_representation()
 
         # Post-process the Green's function component
         # TODO: Can we do this earlier to avoid computing unnecessary components?

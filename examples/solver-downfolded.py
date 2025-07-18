@@ -40,7 +40,7 @@ def _function(freq: float) -> numpy.ndarray:
     """Evaluate the self-energy at the frequency."""
     grid = GridRF(1, buffer=numpy.array([freq]))
     grid.eta = 1e-2
-    return grid.evaluate_lehmann(self_energy, ordering="time-ordered")[0]
+    return grid.evaluate_lehmann(self_energy, ordering="ordered").array[0]
 
 
 solver = Downfolded(
