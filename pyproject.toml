@@ -43,6 +43,7 @@ dev = [
     "matplotlib>=3.4.0",
     "sphinx>=7.0",
     "sphinx-book-theme>=1.0",
+    "sphinx-mdinclude>=0.5",
 ]
 
 [tool.ruff]
