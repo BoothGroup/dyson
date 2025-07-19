@@ -15,6 +15,7 @@ Welcome to dyson's documentation!
 .. toctree::
    :maxdepth: 1
    :caption: API:
+
    generated/dyson
    generated/dyson.representations
    generated/dyson.expressions
