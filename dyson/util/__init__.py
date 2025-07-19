@@ -1,4 +1,18 @@
-"""Utility functions."""
+"""Utility functions.
+
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree:
+
+    dyson.util.linalg
+    dyson.util.moments
+    dyson.util.energy
+    dyson.util.misc
+
+"""
 
 from dyson.util.linalg import (
     einsum,

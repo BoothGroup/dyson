@@ -16,12 +16,12 @@ Welcome to dyson's documentation!
    :maxdepth: 1
    :caption: API:
 
-   generated/dyson
-   generated/dyson.representations
-   generated/dyson.expressions
-   generated/dyson.solvers
-   generated/dyson.grids
-   generated/dyson.utils
+   _autosummary/dyson
+   _autosummary/dyson.representations
+   _autosummary/dyson.expressions
+   _autosummary/dyson.solvers
+   _autosummary/dyson.grids
+   _autosummary/dyson.utils
 
 
 Indices and tables

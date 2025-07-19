@@ -70,6 +70,20 @@ is an instance of :class:`~dyson.expressions.expression.ExpressionCollection`, w
 subclasses of :class:`~dyson.expressions.expression.BaseExpression` for various sectors such as the
 hole and particle.
 
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree:
+
+    dyson.expressions.expression
+    dyson.expressions.hf
+    dyson.expressions.ccsd
+    dyson.expressions.fci
+    dyson.expressions.adc
+    dyson.expressions.gw
+
 """
 
 from dyson.expressions.hf import HF

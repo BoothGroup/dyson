@@ -50,6 +50,17 @@ format requested by the solver arguments.
 A list of available solvers is provided in the documentation of :mod:`dyson`, along with their
 expected inputs.
 
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree:
+
+    dyson.solvers.solver
+    dyson.solvers.static
+    dyson.solvers.dynamic
+
 """
 
 from dyson.solvers.static.exact import Exact

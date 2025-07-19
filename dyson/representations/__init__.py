@@ -65,6 +65,19 @@ i.e. whether it is the real or imaginary part, or the full complex matrix.
 The various solvers in :mod:`~dyson.solvers` have different representations a their inputs and
 outputs.
 
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree:
+
+    dyson.representations.representation
+    dyson.representations.lehmann
+    dyson.representations.spectral
+    dyson.representations.dynamic
+    dyson.representations.enums
+
 """
 
 from dyson.representations.enums import Reduction, Component
