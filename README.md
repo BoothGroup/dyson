@@ -5,7 +5,7 @@
 The `dyson` package implements various Dyson equation solvers, including novel approaches that avoiding explicitly grid-resolved numerical procedures such as Fourier transforms and analytical continuation.
 These include the moment-resolved block Lanczos methods for moments of the Green's function or self-energy.
 
-### Installation:
+### Installation
 
 From source:
 
