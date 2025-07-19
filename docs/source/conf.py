@@ -20,6 +20,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx_mdinclude",
 ]
@@ -49,3 +50,8 @@ intersphinx_mapping = {
     "pyscf": ("https://pyscf.org/", None),
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
 }
+
+
+# Options for napoleon
+
+napoleon_google_docstring = True
