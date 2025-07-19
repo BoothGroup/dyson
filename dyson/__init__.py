@@ -85,12 +85,11 @@ Submodules
 .. autosummary::
     :toctree: _autosummary
 
-    dyson
     dyson.expressions
     dyson.grids
     dyson.representations
     dyson.solvers
-    dyson.utils
+    dyson.util
 
 """
 

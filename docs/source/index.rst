@@ -13,9 +13,9 @@
    :maxdepth: 1
    :caption: API:
 
-   _autosummary/dyson
+   dyson
    _autosummary/dyson.representations
    _autosummary/dyson.expressions
    _autosummary/dyson.solvers
    _autosummary/dyson.grids
-   _autosummary/dyson.utils
+   _autosummary/dyson.util
