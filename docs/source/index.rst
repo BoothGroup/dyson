@@ -19,11 +19,3 @@
    _autosummary/dyson.solvers
    _autosummary/dyson.grids
    _autosummary/dyson.utils
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
