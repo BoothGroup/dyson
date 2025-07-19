@@ -51,3 +51,11 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
+      - name: Build documentation
+        run: |
+          sphinx-build docs/source docs/build/html
+        if: matrix.documentation
+      - name: Run documentation tests
+        run: |
+          sphinx-build -b doctest docs/source docs/build/doctest
+        if: matrix.documentation
