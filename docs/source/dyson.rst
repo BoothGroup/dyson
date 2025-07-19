@@ -1,0 +1,4 @@
+dyson
+=====
+
+.. automodule:: dyson
