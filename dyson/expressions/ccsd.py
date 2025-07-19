@@ -99,7 +99,7 @@ class BaseCCSD(BaseExpression):
             Expression object.
         """
         ccsd = cc.CCSD(mf)
-        ccsd.conv_tol_normt = 1e-8
+        ccsd.conv_tol_normt = 1e-9
         ccsd.kernel()
         ccsd.solve_lambda()
         return cls.from_ccsd(ccsd)
