@@ -1,6 +1,5 @@
 """Utility functions.
 
-
 Submodules
 ----------
 

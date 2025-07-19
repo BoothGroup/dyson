@@ -1,6 +1,5 @@
 r"""Solvers for solving the Dyson equation dynamically.
 
-
 Submodules
 ----------
 
