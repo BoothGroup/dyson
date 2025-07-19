@@ -1,7 +1,7 @@
 """
-*************************************************************
-dyson: Dyson equation solvers for electron propagator methods
-*************************************************************
+**********************************************************
+dyson: Dyson equation solvers for Green's function methods
+**********************************************************
 
 Dyson equation solvers in :mod:`dyson` are general solvers that accept a variety of inputs to
 represent self-energies or existing Green's functions, and solve the Dyson equation in some fashion
