@@ -6,6 +6,8 @@ import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+from pyscf import gto, scf
+
 if TYPE_CHECKING:
     from typing import Iterator
     from warnings import WarningMessage
@@ -28,3 +30,22 @@ def catch_warnings(warning_type: type[Warning] = Warning) -> Iterator[list[Warni
 
     # Restore user filters
     warnings.filters[:] = user_filters  # type: ignore[index]
+
+
+def get_mean_field(atom: str, basis: str, charge: int = 0, spin: int = 0) -> scf.RHF:
+    """Get a mean-field object for a given system.
+
+    Intended as a convenience function for examples.
+
+    Args:
+        atom: The atomic symbol of the system.
+        basis: The basis set to use.
+        charge: The total charge of the system.
+        spin: The total spin of the system.
+
+    Returns:
+        A mean-field object for the system.
+    """
+    mol = gto.M(atom=atom, basis=basis, charge=charge, spin=spin, verbose=0)
+    mf = scf.RHF(mol).run()
+    return mf

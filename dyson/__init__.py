@@ -3,15 +3,29 @@
 dyson: Dyson equation solvers for electron propagator methods
 *************************************************************
 
-Dyson equation solvers in :mod:`dyson` are general solvers that a variety of inputs to represent
-self-energies or existing Green's functions, and solve the Dyson equation in some fashion to
-obtain either
+Dyson equation solvers in :mod:`dyson` are general solvers that accept a variety of inputs to
+represent self-energies or existing Green's functions, and solve the Dyson equation in some fashion
+to obtain either
 
-    a) a static spectral representation that can be projected into a static representation of the
-         Green's function or self-energy, or
+    a) a static spectral representation that can be projected into a static Lehmann representation
+        of the Green's function or self-energy, or
     b) a dynamic Green's function.
 
-Below is a table summarising the inputs expected by each solver, first for static solvers:
+The self-energy and Green's function are represented in the following ways:
+
+    +-------------------+--------------------------------------------------------------------------+
+    | Representation    | Description                                                              |
+    | :---------------- | :----------------------------------------------------------------------- |
+    | Spectral          | Eigenvalues and eigenvectors of the static self-energy supermatrix,
+                          from which the Lehmann representation of the self-energy or Green's
+                          function can be constructed.                                             |
+    | Lehmann           | The Lehmann representation of the self-energy or Green's function,
+                          consisting of pole energies and their couplings to a physical space.     |
+    | Dynamic           | The dynamic self-energy or Green's function, represented as a series of
+                          arrays at each point on a grid of time or frequency points.              |
+    +-------------------+--------------------------------------------------------------------------+
+
+The available static solvers are, along with their expected inputs:
 
     +-------------------+--------------------------------------------------------------------------+
     | Solver            | Inputs                                                                   |
@@ -23,8 +37,6 @@ Below is a table summarising the inputs expected by each solver, first for stati
                           given frequency.                                                         |
     | MBLSE             | Static self-energy and moments of the dynamic self-energy.               |
     | MBLGF             | Moments of the dynamic Green's function.                                 |
-    | BlockMBLSE        | Static self-energy and moments of the dynamic self-energies.             |
-    | BlockMBLGF        | Moments of the dynamic Green's functions.                                |
     | AufbauPrinciple   | Static self-energy, Lehmann representation of the dynamic self-energy,
                           and the target number of electrons.                                      |
     | AuxiliaryShift    | Static self-energy, Lehmann representation of the dynamic self-energy,
@@ -44,6 +56,40 @@ For dynamic solvers, all solvers require the grid parameters, along with:
     +-------------------+--------------------------------------------------------------------------+
 
 For a full accounting of the inputs and their types, please see the documentation for each solver.
+
+A number of classes are provided to represent the expressions needed to construct these inputs at
+different levels of theory. These expressions are all implemented for RHF references, with other
+spin symmetries left to the user to implement as needed. The available expressions are:
+
+    +-------------------+--------------------------------------------------------------------------+
+    | Expression        | Description                                                              |
+    | :---------------- | :----------------------------------------------------------------------- |
+    | HF                | Hartree--Fock (mean-field) ground state, exploiting Koopmans' theorem
+                          for the excited states.                                                  |
+    | CCSD              | Coupled cluster singles and doubles ground state, and the respective
+                          equation-of-motion method for the excited states.                        |
+    | FCI               | Full configuration interaction (exact diagonalisation) ground and
+                          excited states.                                                          |
+    | ADC2              | Algebraic diagrammatic construction second order excited states, based
+                          on a mean-field ground state.                                            |
+    | ADC2x             | Algebraic diagrammatic construction extended second order excited
+                          states, based on a mean-field ground state.                              |
+    | TDAGW             | GW theory with the Tamm--Dancoff approximation for the excited states,
+                          based on a mean-field ground state.                                      |
+    +-------------------+--------------------------------------------------------------------------+
+
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree: _autosummary
+
+    dyson.expressions
+    dyson.grids
+    dyson.representations
+    dyson.solvers
+    dyson.utils
 
 """
 
