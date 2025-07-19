@@ -42,9 +42,9 @@ autosummary_generate = True
 # Options for intersphinx
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
+    "python": ("https://docs.python.org/3/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-    "pyscf": ("https://pyscf.org/doc/latest/", None),
+    "pyscf": ("https://pyscf.org/", None),
     "rich": ("https://rich.readthedocs.io/en/stable/", None),
 }
