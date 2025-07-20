@@ -723,7 +723,7 @@ class Lehmann(BaseRepresentation):
 
         Note:
             The return value of this function is intended to be compatible with
-            :attr:`~pyscf.scf.hf.SCF.mo_energy`, i.e. it represents a reduced quasiparticle picture
+            :attr:`pyscf.scf.hf.SCF.mo_energy`, i.e. it represents a reduced quasiparticle picture
             consisting of :math:`N_\mathrm{phys}` energies that are picked from the poles of the
             Lehmann representation, according to the best overlap with the MO of the same index.
         """
