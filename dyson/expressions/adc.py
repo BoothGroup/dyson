@@ -1,16 +1,4 @@
-"""Algebraic diagrammatic construction theory (ADC) expressions.
-
-
-.. autosummary::
-
-    ADC2
-    ADC2x
-    ADC2_1h
-    ADC2_1p
-    ADC2x_1h
-    ADC2x_1p
-
-"""
+"""Algebraic diagrammatic construction theory (ADC) expressions."""
 
 from __future__ import annotations
 
@@ -346,5 +334,17 @@ class ADC2x_1p(BaseADC_1p):
         return self.nvir * self.nvir * self.nocc
 
 
-ADC2 = ExpressionCollection(ADC2_1h, ADC2_1p, None, None, "ADC(2)")
-ADC2x = ExpressionCollection(ADC2x_1h, ADC2x_1p, None, None, "ADC(2)-x")
+class ADC2(ExpressionCollection):
+    """Collection of ADC(2) expressions for different parts of the Green's function."""
+
+    _hole = ADC2_1h
+    _particle = ADC2_1p
+    _name = "ADC(2)"
+
+
+class ADC2x(ExpressionCollection):
+    """Collection of ADC(2)-x expressions for different parts of the Green's function."""
+
+    _hole = ADC2x_1h
+    _particle = ADC2x_1p
+    _name = "ADC(2)-x"

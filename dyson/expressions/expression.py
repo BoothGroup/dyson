@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
@@ -409,97 +409,93 @@ class BaseExpression(ABC):
 class ExpressionCollection:
     """Collection of expressions for different parts of the Green's function."""
 
-    def __init__(
-        self,
-        hole: type[BaseExpression] | None = None,
-        particle: type[BaseExpression] | None = None,
-        central: type[BaseExpression] | None = None,
-        neutral: type[BaseExpression] | None = None,
-        name: str | None = None,
-    ):
-        """Initialise the collection.
+    _hole: type[BaseExpression] | None = None
+    _particle: type[BaseExpression] | None = None
+    _central: type[BaseExpression] | None = None
+    _neutral: type[BaseExpression] | None = None
+    _name: str | None = None
 
-        Args:
-            hole: Hole expression.
-            particle: Particle expression.
-            central: Central expression.
-            neutral: Neutral expression.
-            name: Name of the collection.
-        """
-        self._hole = hole
-        self._particle = particle
-        self._central = central
-        self._neutral = neutral
-        self.name = name
-
+    @classmethod
     @property
-    def hole(self) -> type[BaseExpression]:
+    def hole(cls) -> type[BaseExpression]:
         """Hole expression."""
-        if self._hole is None:
+        if cls._hole is None:
             raise ValueError("Hole expression is not set.")
-        return self._hole
+        return cls._hole
 
-    ip = o = h = cast(type[BaseExpression], hole)
+    ip = o = h = hole
 
+    @classmethod
     @property
-    def particle(self) -> type[BaseExpression]:
+    def particle(cls) -> type[BaseExpression]:
         """Particle expression."""
-        if self._particle is None:
+        if cls._particle is None:
             raise ValueError("Particle expression is not set.")
-        return self._particle
+        return cls._particle
 
-    ea = v = p = cast(type[BaseExpression], particle)
+    ea = v = p = particle
 
+    @classmethod
     @property
-    def central(self) -> type[BaseExpression]:
+    def central(cls) -> type[BaseExpression]:
         """Central expression."""
-        if self._central is None:
+        if cls._central is None:
             raise ValueError("Central expression is not set.")
-        return self._central
+        return cls._central
 
-    dyson = cast(type[BaseExpression], central)
+    dyson = central
 
+    @classmethod
     @property
-    def neutral(self) -> type[BaseExpression]:
+    def neutral(cls) -> type[BaseExpression]:
         """Neutral expression."""
-        if self._neutral is None:
+        if cls._neutral is None:
             raise ValueError("Neutral expression is not set.")
-        return self._neutral
+        return cls._neutral
 
-    ee = ph = cast(type[BaseExpression], neutral)
+    ee = ph = neutral
 
-    def __dict__(self) -> dict[str, type[BaseExpression]]:  # type: ignore[override]
+    @classmethod
+    def __dict__(cls) -> dict[str, type[BaseExpression]]:
         """Get a dictionary representation of the collection."""
         exps: dict[str, type[BaseExpression]] = {}
         for key in ("hole", "particle", "central", "neutral"):
-            if key in self:
-                exps[key] = getattr(self, key)
+            try:
+                exps[key] = getattr(cls, key)
+            except ValueError:
+                pass
         return exps
 
-    def keys(self) -> KeysView[str]:
+    @classmethod
+    def keys(cls) -> KeysView[str]:
         """Get the keys of the collection."""
-        return self.__dict__().keys()
+        return cls.__dict__().keys()
 
-    def values(self) -> ValuesView[type[BaseExpression]]:
+    @classmethod
+    def values(cls) -> ValuesView[type[BaseExpression]]:
         """Get the values of the collection."""
-        return self.__dict__().values()
+        return cls.__dict__().values()
 
-    def items(self) -> ItemsView[str, type[BaseExpression]]:
+    @classmethod
+    def items(cls) -> ItemsView[str, type[BaseExpression]]:
         """Get an item view of the collection."""
-        return self.__dict__().items()
+        return cls.__dict__().items()
 
-    def __getitem__(self, key: str) -> type[BaseExpression]:
+    @classmethod
+    def __getitem__(cls, key: str) -> type[BaseExpression]:
         """Get an expression by its name."""
-        return getattr(self, key)
+        return getattr(cls, key)
 
-    def __contains__(self, key: str) -> bool:
+    @classmethod
+    def __contains__(cls, key: str) -> bool:
         """Check if an expression exists by its name."""
         try:
-            self[key]
+            cls[key]
             return True
         except ValueError:
             return False
 
-    def __repr__(self) -> str:
+    @classmethod
+    def __repr__(cls) -> str:
         """String representation of the collection."""
-        return f"ExpressionCollection({self.name})" if self.name else "ExpressionCollection"
+        return f"ExpressionCollection({cls._name})" if cls._name else "ExpressionCollection"

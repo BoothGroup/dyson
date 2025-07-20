@@ -1,13 +1,4 @@
-"""Coupled cluster singles and doubles (CCSD) expressions.
-
-
-.. autosummary::
-
-    CCSD
-    CCSD_1h
-    CCSD_1p
-
-"""
+"""Coupled cluster singles and doubles (CCSD) expressions."""
 
 from __future__ import annotations
 
@@ -488,4 +479,9 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         return self.nvir * self.nvir * self.nocc
 
 
-CCSD = ExpressionCollection(CCSD_1h, CCSD_1p, None, None, "CCSD")
+class CCSD(ExpressionCollection):
+    """Collection of CCSD expressions for different parts of the Green's function."""
+
+    _hole = CCSD_1h
+    _particle = CCSD_1p
+    _name = "CCSD"

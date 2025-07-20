@@ -1,13 +1,4 @@
-"""Full configuration interaction (FCI) expressions.
-
-
-.. autosummary::
-
-    FCI
-    FCI_1h
-    FCI_1p
-
-"""
+"""Full configuration interaction (FCI) expressions."""
 
 from __future__ import annotations
 
@@ -246,4 +237,9 @@ class FCI_1p(BaseFCI):  # pylint: disable=invalid-name
         return self.nvir
 
 
-FCI = ExpressionCollection(FCI_1h, FCI_1p, None, None, "FCI")
+class FCI(ExpressionCollection):
+    """Collection of FCI expressions for different parts of the Green's function."""
+
+    _hole = FCI_1h
+    _particle = FCI_1p
+    _name = "FCI"

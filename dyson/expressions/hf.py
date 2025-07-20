@@ -1,11 +1,4 @@
-"""Hartree--Fock (HF) expressions.
-
-
-.. autoattribute::
-
-    HF
-
-"""
+"""Hartree--Fock (HF) expressions."""
 
 from __future__ import annotations
 
@@ -233,4 +226,10 @@ class HF_Dyson(BaseHF):  # pylint: disable=invalid-name
         return False
 
 
-HF = ExpressionCollection(HF_1h, HF_1p, HF_Dyson, None, name="HF")
+class HF(ExpressionCollection):
+    """Collection of HF expressions for different parts of the Green's function."""
+
+    _hole = HF_1h
+    _particle = HF_1p
+    _dyson = HF_Dyson
+    _name = "HF"

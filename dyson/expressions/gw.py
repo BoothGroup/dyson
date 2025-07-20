@@ -1,12 +1,4 @@
-"""GW approximation expressions.
-
-
-.. autosummary::
-
-    TDAGW
-    TDAGW_Dyson
-
-"""
+"""GW approximation expressions."""
 
 from __future__ import annotations
 
@@ -227,4 +219,8 @@ class TDAGW_Dyson(BaseGW_Dyson):
         return np.concatenate([diag_o1, diag_v1, diag_o2, diag_v2])
 
 
-TDAGW = ExpressionCollection(None, None, TDAGW_Dyson, None, "TDA-GW")
+class TDAGW(ExpressionCollection):
+    """Collection of TDAGW expressions for different parts of the Green's function."""
+
+    _dyson = TDAGW_Dyson
+    _name = "TDA-GW"
