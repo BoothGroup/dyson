@@ -263,6 +263,14 @@ class Lehmann(BaseRepresentation):
     def rotate_couplings(self, rotation: Array | tuple[Array, Array]) -> Lehmann:
         """Rotate the couplings and return a new Lehmann representation.
 
+        For rotation matrix :math:`R`, the couplings are rotated as
+
+        .. math::
+            \tilde{\mathbf{v}} = R^\dagger \mathbf{v}, \quad
+            \tilde{\mathbf{u}} = R^\dagger \mathbf{u},
+
+        where :math:`v` are the right couplings and :math:`u` are the left couplings.
+
         Args:
             rotation: The rotation matrix to apply to the couplings. If the matrix has three
                 dimensions, the first dimension is used to rotate the left couplings, and the
@@ -302,7 +310,14 @@ class Lehmann(BaseRepresentation):
         .. math::
             T_{pq}^{n} = \sum_{k} v_{pk} u_{qk}^* \epsilon_k^n,
 
-        where :math:`T_{pq}^{n}` is the moment of order :math:`n` in the physical space.
+        where :math:`T_{pq}^{n}` is the moment of order :math:`n` in the physical space. In terms of
+        the frequency-dependency, the moments can be written as the integral
+
+        .. math::
+            T_{pq}^{n} = \int_{-\infty}^{\infty} d\omega \, \left[ \sum_{k}
+            \frac{v_{pk} u_{qk}^*}{\omega - \epsilon_k} \right] \, \omega^n,
+
+        where the integral is over the entire real line for central moments.
 
         Args:
             order: The order(s) of the moment(s).
@@ -409,7 +424,7 @@ class Lehmann(BaseRepresentation):
         .. math::
             \begin{pmatrix}
                 \mathbf{f} & \mathbf{v} \\
-                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
+                \mathbf{u}^\dagger & \boldsymbol{\epsilon} \mathbf{I}
             \end{pmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, provided as an
@@ -442,6 +457,11 @@ class Lehmann(BaseRepresentation):
 
     def diagonal(self, physical: Array, chempot: bool | float = False) -> Array:
         r"""Build the diagonal supermatrix form of the Lehmann representation.
+
+        The diagonal supermatrix is defined as
+
+        .. math::
+            \begin{pmatrix} \mathrm{diag}(\mathbf{f}) & \boldsymbol{\epsilon} \end{pmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, provided as an
         argument.
@@ -479,7 +499,7 @@ class Lehmann(BaseRepresentation):
             =
             \begin{pmatrix}
                 \mathbf{f} & \mathbf{v} \\
-                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
+                \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{I}
             \end{pmatrix}
             \begin{pmatrix}
                 \mathbf{r}_\mathrm{phys} \\
@@ -599,6 +619,19 @@ class Lehmann(BaseRepresentation):
     ) -> tuple[Array, Array]:
         """Diagonalise the supermatrix and project the eigenvectors into the physical space.
 
+        The projection of the eigenvectors is
+
+        .. math::
+            \mathbf{x}_\mathrm{phys} = \mathbf{P}_\mathrm{phys} \mathbf{x},
+
+        where :math:`\mathbf{P}_\mathrm{phys}` is the projection operator onto the physical space,
+        which can be written as
+
+        .. math::
+            \mathbf{P}_\mathrm{phys} = \begin{pmatrix} \mathbf{I} & 0 \\ 0 & 0 \end{pmatrix},
+
+        within the supermatrix block structure of :meth:`matrix`.
+
         Args:
             physical: The matrix to use for the physical space part of the supermatrix.
             chempot: Whether to include the chemical potential in the supermatrix. If `True`, the
@@ -656,6 +689,10 @@ class Lehmann(BaseRepresentation):
 
         Returns:
             The energies, coefficients, and occupancies of the states.
+
+        Note:
+            This representation is intended to be compatible with PySCF's mean-field representation
+            of molecular orbitals.
         """
         if not self.hermitian:
             raise NotImplementedError("Cannot convert non-Hermitian system orbitals.")
@@ -673,12 +710,20 @@ class Lehmann(BaseRepresentation):
     def as_perturbed_mo_energy(self) -> Array:
         r"""Return an array of :math:`N_\mathrm{phys}` pole energies according to best overlap.
 
+        The pole energies are selected as
+
+        .. math::
+            \epsilon_p = \epsilon_k \quad \text{where} \quad k = \arg\max_{k} |v_{pk} u_{pk}^*|,
+
+        where :math:`\epsilon_p` is the energy of the physical state :math:`p`, and :math:`k` is the
+        index of a pole in the Lehmann representation.
+
         Returns:
             The selected energies.
 
         Note:
             The return value of this function is intended to be compatible with
-            :attr:`pyscf.scf.hf.SCF.mo_energy`, i.e. it represents a reduced quasiparticle picture
+            :attr:`~pyscf.scf.hf.SCF.mo_energy`, i.e. it represents a reduced quasiparticle picture
             consisting of :math:`N_\mathrm{phys}` energies that are picked from the poles of the
             Lehmann representation, according to the best overlap with the MO of the same index.
         """
@@ -730,6 +775,10 @@ class Lehmann(BaseRepresentation):
         Returns:
             The Lehmann representation coupled with the occupied and virtual parts, as separate
             Lehmann representations.
+
+        Note:
+            The Fermi level (value at which the parts are separated) is defined by the chemical
+            potential :attr:`chempot`.
         """
         occ = self.__class__(
             self.energies,
@@ -753,6 +802,9 @@ class Lehmann(BaseRepresentation):
 
         Returns:
             A new Lehmann representation that is the combination of the two.
+
+        Raises:
+            ValueError: If the two representations have different chemical potentials.
         """
         if not np.isclose(self.chempot, other.chempot):
             raise ValueError(
@@ -784,6 +836,10 @@ class Lehmann(BaseRepresentation):
 
         Returns:
             A new Lehmann representation that is the concatenation of the two.
+
+        Raises:
+            ValueError: If the two representations have different physical dimensions or chemical
+                potentials.
         """
         if self.nphys != other.nphys:
             raise ValueError(

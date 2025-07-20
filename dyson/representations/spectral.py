@@ -71,7 +71,7 @@ class Spectral(BaseRepresentation):
     def from_matrix(
         cls, matrix: Array, nphys: int, hermitian: bool = True, chempot: float | None = None
     ) -> Spectral:
-        """Create a spectrum from a matrix.
+        """Create a spectrum from a matrix by diagonalising it.
 
         Args:
             matrix: Matrix to diagonalise.
@@ -140,6 +140,10 @@ class Spectral(BaseRepresentation):
 
         Returns:
             Static self-energy.
+
+        Note:
+            The static part of the self-energy is defined as the physical space part of the matrix
+            from which the spectrum is derived.
         """
         return self._get_matrix_block((slice(self.nphys), slice(self.nphys)))
 
@@ -148,6 +152,11 @@ class Spectral(BaseRepresentation):
 
         Returns:
             Auxiliary energies and couplings.
+
+        Note:
+            The auxiliary energies are the eigenvalues of the auxiliary subspace, and the couplings
+            are the eigenvectors projected back to the auxiliary subspace using the
+            physical-auxiliary block of the matrix from which the spectrum is derived.
         """
         phys = slice(None, self.nphys)
         aux = slice(self.nphys, None)
@@ -191,6 +200,10 @@ class Spectral(BaseRepresentation):
 
         Returns:
             Overlap matrix.
+
+        Note:
+            The overlap matrix is defined as the zeroth moment of the Green's function, and is given
+            by the inner product of the Dyson orbitals.
         """
         _, orbitals = self.get_dyson_orbitals()
         left, right = util.unpack_vectors(orbitals)
