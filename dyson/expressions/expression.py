@@ -258,9 +258,9 @@ class BaseExpression(ABC):
             Moments of the Green's function.
 
         Notes:
-            Unlike :func:`dyson.lehmann.Lehmann.moments`, this function takes the number of moments
-            to compute as an argument, rather than a single order or list of orders. This is because
-            in this case, the moments are computed recursively.
+            Unlike :func:`dyson.representations.lehmann.Lehmann.moments`, this function takes the
+            number of moments to compute as an argument, rather than a single order or list of
+            orders. This is because in this case, the moments are computed recursively.
         """
         # Get the appropriate functions
         if left:
@@ -305,9 +305,9 @@ class BaseExpression(ABC):
             Chebyshev polynomial moments of the Green's function.
 
         Notes:
-            Unlike :func:`dyson.lehmann.Lehmann.chebyshev_moments`, this function takes the number
-            of moments to compute as an argument, rather than a single order or list of orders. This
-            is because in this case, the moments are computed recursively.
+            Unlike :func:`dyson.representations.lehmann.Lehmann.chebyshev_moments`, this function
+            takes the number of moments to compute as an argument, rather than a single order or
+            list of orders. This is because in this case, the moments are computed recursively.
         """
         if scaling is None:
             # Approximate the energy scale of the spectrum using the diagonal -- can also use an
