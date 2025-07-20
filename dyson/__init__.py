@@ -85,7 +85,8 @@ spin symmetries left to the user to implement as needed. The available expressio
     * - Expression
       - Description
     * - :data:`~dyson.expressions.hf.HF`
-      - Hartree--Fock (mean-field) ground state, exploiting Koopmans' theorem for the excited states.
+      - Hartree--Fock (mean-field) ground state, exploiting Koopmans' theorem for the excited
+        states.
     * - :data:`~dyson.expressions.ccsd.CCSD`
       - Coupled cluster singles and doubles ground state, and the respective equation-of-motion
         method for the excited states.
