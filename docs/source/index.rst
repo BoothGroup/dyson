@@ -11,11 +11,7 @@
 
 .. toctree::
    :maxdepth: 1
-   :caption: API:
+   :hidden:
+   :caption: API Reference
 
    dyson
-   _autosummary/dyson.representations
-   _autosummary/dyson.expressions
-   _autosummary/dyson.solvers
-   _autosummary/dyson.grids
-   _autosummary/dyson.util
