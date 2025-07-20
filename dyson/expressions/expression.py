@@ -439,6 +439,14 @@ class _ExpressionCollectionMeta(type):
             cls for cls in [cls._hole, cls._particle, cls._dyson, cls._neutral] if cls is not None
         }
 
+    def __contains__(cls, key: str) -> bool:
+        """Check if an expression exists by its name."""
+        try:
+            cls[key]  # type: ignore[index]
+            return True
+        except ValueError:
+            return False
+
 
 class ExpressionCollection(metaclass=_ExpressionCollectionMeta):
     """Collection of expressions for different parts of the Green's function."""
@@ -455,15 +463,6 @@ class ExpressionCollection(metaclass=_ExpressionCollectionMeta):
         return getattr(type(cls), key)
 
     __getitem__ = __getattr__
-
-    @classmethod
-    def __contains__(cls, key: str) -> bool:
-        """Check if an expression exists by its name."""
-        try:
-            cls[key]  # type: ignore[index]
-            return True
-        except ValueError:
-            return False
 
     @classmethod
     def __repr__(cls) -> str:
