@@ -464,6 +464,10 @@ class ExpressionCollection(metaclass=_ExpressionCollectionMeta):
 
     __getitem__ = __getattr__
 
+    def __contains__(cls, key: str) -> bool:
+        """Check if an expression exists by its name."""
+        return getattr(type(cls), key, None) is not None
+
     @classmethod
     def __repr__(cls) -> str:
         """String representation of the collection."""
