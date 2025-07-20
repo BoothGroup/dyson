@@ -261,7 +261,7 @@ class Lehmann(BaseRepresentation):
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
 
     def rotate_couplings(self, rotation: Array | tuple[Array, Array]) -> Lehmann:
-        """Rotate the couplings and return a new Lehmann representation.
+        r"""Rotate the couplings and return a new Lehmann representation.
 
         For rotation matrix :math:`R`, the couplings are rotated as
 
@@ -422,10 +422,10 @@ class Lehmann(BaseRepresentation):
         The supermatrix is defined as
 
         .. math::
-            \begin{pmatrix}
+            \begin{bmatrix}
                 \mathbf{f} & \mathbf{v} \\
                 \mathbf{u}^\dagger & \boldsymbol{\epsilon} \mathbf{I}
-            \end{pmatrix},
+            \end{bmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, provided as an
         argument.
@@ -461,7 +461,7 @@ class Lehmann(BaseRepresentation):
         The diagonal supermatrix is defined as
 
         .. math::
-            \begin{pmatrix} \mathrm{diag}(\mathbf{f}) & \boldsymbol{\epsilon} \end{pmatrix},
+            \begin{bmatrix} \mathrm{diag}(\mathbf{f}) & \boldsymbol{\epsilon} \end{bmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, provided as an
         argument.
@@ -492,19 +492,19 @@ class Lehmann(BaseRepresentation):
         The matrix-vector product is defined as
 
         .. math::
-            \begin{pmatrix}
+            \begin{bmatrix}
                 \mathbf{x}_\mathrm{phys} \\
                 \mathbf{x}_\mathrm{aux}
-            \end{pmatrix}
+            \end{bmatrix}
             =
-            \begin{pmatrix}
+            \begin{bmatrix}
                 \mathbf{f} & \mathbf{v} \\
                 \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{I}
-            \end{pmatrix}
-            \begin{pmatrix}
+            \end{bmatrix}
+            \begin{bmatrix}
                 \mathbf{r}_\mathrm{phys} \\
                 \mathbf{r}_\mathrm{aux}
-            \end{pmatrix},
+            \end{bmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, and the input
         vector :math:`\mathbf{r}` is spans both the physical and auxiliary spaces.
@@ -549,20 +549,20 @@ class Lehmann(BaseRepresentation):
         The eigenvalue problem is defined as
 
         .. math::
-            \begin{pmatrix}
+            \begin{bmatrix}
                 \mathbf{f} & \mathbf{v} \\
                 \mathbf{u}^\dagger & \mathbf{\epsilon} \mathbf{1}
-            \end{pmatrix}
-            \begin{pmatrix}
+            \end{bmatrix}
+            \begin{bmatrix}
                 \mathbf{x}_\mathrm{phys} \\
                 \mathbf{x}_\mathrm{aux}
-            \end{pmatrix}
+            \end{bmatrix}
             =
             E
-            \begin{pmatrix}
+            \begin{bmatrix}
                 \mathbf{x}_\mathrm{phys} \\
                 \mathbf{x}_\mathrm{aux}
-            \end{pmatrix},
+            \end{bmatrix},
 
         where :math:`\mathbf{f}` is the physical space part of the supermatrix, and the eigenvectors
         :math:`\mathbf{x}` span both the physical and auxiliary spaces.
@@ -617,7 +617,7 @@ class Lehmann(BaseRepresentation):
     def diagonalise_matrix_with_projection(
         self, physical: Array, chempot: bool | float = False, overlap: Array | None = None
     ) -> tuple[Array, Array]:
-        """Diagonalise the supermatrix and project the eigenvectors into the physical space.
+        r"""Diagonalise the supermatrix and project the eigenvectors into the physical space.
 
         The projection of the eigenvectors is
 
@@ -628,7 +628,7 @@ class Lehmann(BaseRepresentation):
         which can be written as
 
         .. math::
-            \mathbf{P}_\mathrm{phys} = \begin{pmatrix} \mathbf{I} & 0 \\ 0 & 0 \end{pmatrix},
+            \mathbf{P}_\mathrm{phys} = \begin{bmatrix} \mathbf{I} & 0 \\ 0 & 0 \end{bmatrix},
 
         within the supermatrix block structure of :meth:`matrix`.
 
