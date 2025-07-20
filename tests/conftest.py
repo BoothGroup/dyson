@@ -68,9 +68,9 @@ def pytest_generate_tests(metafunc):  # type: ignore
         expressions = []
         ids = []
         for method, name in zip(METHODS, METHOD_NAMES):
-            for sector, expression in method.items():
+            for expression in method._classes:
                 expressions.append(expression)
-                ids.append(f"{name}-{sector}")
+                ids.append(expression.__name__)
         metafunc.parametrize("expression_cls", expressions, ids=ids)
     if "expression_method" in metafunc.fixturenames:
         expressions = []

@@ -38,7 +38,7 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     diagonal = expression.diagonal()
     hamiltonian = expression.build_matrix()
 
-    if expression_cls in ADC2.values():
+    if expression_cls in ADC2._classes:
         # ADC(2)-x diagonal is set to ADC(2) diagonal in PySCF for better Davidson convergence
         assert np.allclose(np.diag(hamiltonian), diagonal)
     assert hamiltonian.shape == expression.shape
