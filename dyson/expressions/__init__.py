@@ -5,17 +5,17 @@ provide different representations of the self-energy or Green's function for the
 theory. The Green's function is related to the resolvent
 
 .. math::
-    left[ \omega - \mathbf{H} \right]^{-1}
+    \left[ \omega - \mathbf{H} \right]^{-1},
 
 where :math:`\mathbf{H}` is the Hamiltonian, and in the presence of correlation, takes the form of a
 self-energy supermatrix
 
 .. math::
     \mathbf{H} = \begin{bmatrix} \boldsymbol{\Sigma}(\omega) & \mathbf{v} \\ \mathbf{v}^\dagger &
-    \mathbf{K} + \mathbf{C} \end{bmatrix}
+    \mathbf{K} + \mathbf{C} \end{bmatrix},
 
 which possesses its own Lehmann representation. For more details on these representations, see the
-:module:`~dyson.representations` module.
+:mod:`~dyson.representations` module.
 
 The :class:`~dyson.expressions.expression.BaseExpression` interface provides a
 :func:`~dyson.expressions.expression.BaseExpression.from_mf` constructor to create an expression of
