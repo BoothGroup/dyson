@@ -57,9 +57,9 @@ Submodules
 .. autosummary::
     :toctree:
 
-    dyson.solvers.solver
-    dyson.solvers.static
-    dyson.solvers.dynamic
+    solver
+    static
+    dynamic
 
 """
 

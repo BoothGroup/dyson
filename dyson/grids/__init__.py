@@ -9,8 +9,8 @@ Submodules
 .. autosummary::
     :toctree:
 
-    dyson.grids.grid
-    dyson.grids.frequency
+    grid
+    frequency
 """
 
 from dyson.grids.frequency import RealFrequencyGrid, GridRF

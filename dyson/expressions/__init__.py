@@ -77,12 +77,12 @@ Submodules
 .. autosummary::
     :toctree:
 
-    dyson.expressions.expression
-    dyson.expressions.hf
-    dyson.expressions.ccsd
-    dyson.expressions.fci
-    dyson.expressions.adc
-    dyson.expressions.gw
+    expression
+    hf
+    ccsd
+    fci
+    adc
+    gw
 
 """
 

@@ -72,11 +72,11 @@ Submodules
 .. autosummary::
     :toctree:
 
-    dyson.representations.representation
-    dyson.representations.lehmann
-    dyson.representations.spectral
-    dyson.representations.dynamic
-    dyson.representations.enums
+    representation
+    lehmann
+    spectral
+    dynamic
+    enums
 
 """
 

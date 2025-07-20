@@ -6,10 +6,10 @@ Submodules
 .. autosummary::
     :toctree:
 
-    dyson.util.linalg
-    dyson.util.moments
-    dyson.util.energy
-    dyson.util.misc
+    linalg
+    moments
+    energy
+    misc
 
 """
 
