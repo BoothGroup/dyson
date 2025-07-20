@@ -1,4 +1,13 @@
-"""Coupled cluster singles and doubles (CCSD) expressions."""
+"""Coupled cluster singles and doubles (CCSD) expressions.
+
+
+.. autosummary::
+
+    CCSD
+    CCSD_1h
+    CCSD_1p
+
+"""
 
 from __future__ import annotations
 
@@ -19,9 +28,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-# Help sphinx to generate the API documentation
-__all__ = ["CCSD", "BaseCCSD", "CCSD_1h", "CCSD_1p"]
 
 
 class BaseCCSD(BaseExpression):

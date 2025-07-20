@@ -1,4 +1,14 @@
-"""Hartree--Fock (HF) expressions."""
+"""Hartree--Fock (HF) expressions.
+
+
+.. autosummary::
+
+    HF
+    HF_1h
+    HF_1p
+    HF_Dyson
+
+"""
 
 from __future__ import annotations
 
@@ -14,9 +24,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-# Help sphinx to generate the API documentation
-__all__ = ["HF", "BaseHF", "HF_1h", "HF_1p", "HF_Dyson"]
 
 
 class BaseHF(BaseExpression):

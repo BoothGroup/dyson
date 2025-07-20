@@ -1,4 +1,13 @@
-"""Full configuration interaction (FCI) expressions."""
+"""Full configuration interaction (FCI) expressions.
+
+
+.. autosummary::
+
+    FCI
+    FCI_1h
+    FCI_1p
+
+"""
 
 from __future__ import annotations
 
@@ -16,9 +25,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-# Help sphinx to generate the API documentation
-__all__ = ["FCI", "BaseFCI", "FCI_1h", "FCI_1p"]
 
 
 class BaseFCI(BaseExpression):

@@ -1,4 +1,12 @@
-"""GW approximation expressions."""
+"""GW approximation expressions.
+
+
+.. autosummary::
+
+    TDAGW
+    TDAGW_Dyson
+
+"""
 
 from __future__ import annotations
 
@@ -15,9 +23,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-# Help sphinx to generate the API documentation
-__all__ = ["TDAGW", "BaseGW_Dyson", "TDAGW_Dyson"]
 
 
 class BaseGW_Dyson(BaseExpression):

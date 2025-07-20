@@ -1,4 +1,16 @@
-"""Algebraic diagrammatic construction theory (ADC) expressions."""
+"""Algebraic diagrammatic construction theory (ADC) expressions.
+
+
+.. autosummary::
+
+    ADC2
+    ADC2x
+    ADC2_1h
+    ADC2_1p
+    ADC2x_1h
+    ADC2x_1p
+
+"""
 
 from __future__ import annotations
 
@@ -19,19 +31,6 @@ if TYPE_CHECKING:
     from pyscf.scf.hf import RHF
 
     from dyson.typing import Array
-
-# Help sphinx to generate the API documentation
-__all__ = [
-    "BaseADC",
-    "BaseADC_1h",
-    "BaseADC_1p",
-    "ADC2_1h",
-    "ADC2_1p",
-    "ADC2x_1h",
-    "ADC2x_1p",
-    "ADC2",
-    "ADC2x",
-]
 
 
 class BaseADC(BaseExpression):
