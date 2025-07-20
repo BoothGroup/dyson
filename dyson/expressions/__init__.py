@@ -21,20 +21,20 @@ The :class:`~dyson.expressions.expression.BaseExpression` interface provides a
 :func:`~dyson.expressions.expression.BaseExpression.from_mf` constructor to create an expression of
 that level of theory from a mean-field object
 
->>> from dyson import util, quiet, CCSD
+>>> from dyson import util, quiet, FCI
 >>> quiet()  # Suppress output
 >>> mf = util.get_mean_field("H 0 0 0; H 0 0 1", "6-31g")
->>> ccsd = CCSD.h.from_mf(mf)
+>>> fci = FCI.h.from_mf(mf)
 
 The :class:`~dyson.expressions.expression.BaseExpression` interface provides methods to compute the
 matrix-vector operations and diagonal of the self-energy supermatrix
 
 >>> import numpy as np
->>> ham = ccsd.build_matrix()
->>> np.allclose(np.diag(ham), ccsd.diagonal())
+>>> ham = fci.build_matrix()
+>>> np.allclose(np.diag(ham), fci.diagonal())
 True
->>> vec = np.random.random(ccsd.shape[0])
->>> np.allclose(ccsd.apply_hamiltonian(vec), ham @ vec)
+>>> vec = np.random.random(fci.shape[0])
+>>> np.allclose(fci.apply_hamiltonian(vec), ham @ vec)
 True
 
 More precisely, the Green's function requires also the excitation operators to connect to the
@@ -47,8 +47,8 @@ ground state
 which may be a simple projection when the ground state is mean-field, or otherwise
 in the case of correlated ground states. The interface can provide these vectors
 
->>> bra = ccsd.get_excitation_bras()
->>> ket = ccsd.get_excitation_kets()
+>>> bra = fci.get_excitation_bras()
+>>> ket = fci.get_excitation_kets()
 
 which are vectors with shape `(nphys, nconfig)` where `nphys` is the number of physical states.
 
@@ -62,7 +62,7 @@ which are important for some of the novel approaches implemented in :mod:`dyson`
 some levels of theory, analytic expressions for the moments of the self-energy are also available.
 These moments can be calculated using
 
->>> gf_moments = ccsd.build_gf_moments(nmom=10)
+>>> gf_moments = fci.build_gf_moments(nmom=6)
 
 A list of available expressions is provided in the documentation of :mod:`dyson`. Each expression
 is an instance of :class:`~dyson.expressions.expression.ExpressionCollection`, which provides the
