@@ -21,7 +21,8 @@ The :class:`~dyson.expressions.expression.BaseExpression` interface provides a
 :func:`~dyson.expressions.expression.BaseExpression.from_mf` constructor to create an expression of
 that level of theory from a mean-field object
 
->>> from dyson import util, CCSD
+>>> from dyson import util, quiet, CCSD
+>>> quiet()  # Suppress output
 >>> mf = util.get_mean_field("H 0 0 0; H 0 0 1", "6-31g")
 >>> ccsd = CCSD.h.from_mf(mf)
 
@@ -33,9 +34,7 @@ matrix-vector operations and diagonal of the self-energy supermatrix
 >>> np.allclose(np.diag(ham), ccsd.diagonal())
 True
 >>> vec = np.random.random(ccsd.shape[0])
->>> np.allclose(ccsd.apply_hamiltonian_right(vec), ham @ vec)
-True
->>> np.allclose(ccsd.apply_hamiltonian_left(vec), vec @ ham)
+>>> np.allclose(ccsd.apply_hamiltonian(vec), ham @ vec)
 True
 
 More precisely, the Green's function requires also the excitation operators to connect to the

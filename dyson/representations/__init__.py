@@ -30,7 +30,8 @@ energies and couplings, along with a chemical potential. The
 eigenspectrum (including :math:`\mathbf{w}`), and can provide the Lehmann representation of both the
 Green's function and self-energy.
 
->>> from dyson import util, FCI, Exact
+>>> from dyson import util, quiet, FCI, Exact
+>>> quiet()  # Suppress output
 >>> mf = util.get_mean_field("H 0 0 0; H 0 0 1", "6-31g")
 >>> fci = FCI.h.from_mf(mf)
 >>> solver = Exact.from_expression(fci)

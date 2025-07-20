@@ -28,7 +28,8 @@ either an instance of a subclass of :class:`~dyson.expressions.expression.BaseEx
 self-energy in the form of an instance of :class:`~dyson.representations.lehmann.Lehmann` object,
 respectively
 
->>> from dyson import util, CCSD, Exact
+>>> from dyson import util, quiet, CCSD, Exact
+>>> quiet()  # Suppress output
 >>> mf = util.get_mean_field("H 0 0 0; H 0 0 1", "6-31g")
 >>> ccsd = CCSD.h.from_mf(mf)
 >>> solver = Exact.from_expression(ccsd)

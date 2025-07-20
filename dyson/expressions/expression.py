@@ -97,7 +97,7 @@ class BaseExpression(ABC):
                 UserWarning,
                 2,
             )
-        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)])
+        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)]).T
 
     @abstractmethod
     def get_excitation_vector(self, orbital: int) -> Array:
@@ -408,6 +408,8 @@ class BaseExpression(ABC):
 
 class _ExpressionCollectionMeta(type):
     """Metaclass for the ExpressionCollection class."""
+
+    __wrapped__: bool = False
 
     def __getattr__(cls, key: str) -> type[BaseExpression]:
         """Get an expression by its name."""

@@ -141,3 +141,4 @@ testpaths = [
     "dyson",
     "tests",
 ]
+addopts = "--doctest-modules --cov=dyson"
