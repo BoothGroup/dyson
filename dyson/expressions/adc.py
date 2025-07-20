@@ -20,6 +20,19 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
+# Help sphinx to generate the API documentation
+__all__ = [
+    "BaseADC",
+    "BaseADC_1h",
+    "BaseADC_1p",
+    "ADC2_1h",
+    "ADC2_1p",
+    "ADC2x_1h",
+    "ADC2x_1p",
+    "ADC2",
+    "ADC2x",
+]
+
 
 class BaseADC(BaseExpression):
     """Base class for ADC expressions."""

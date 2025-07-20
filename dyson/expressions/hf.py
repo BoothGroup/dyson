@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
+# Help sphinx to generate the API documentation
+__all__ = ["HF", "BaseHF", "HF_1h", "HF_1p", "HF_Dyson"]
+
 
 class BaseHF(BaseExpression):
     """Base class for HF expressions."""

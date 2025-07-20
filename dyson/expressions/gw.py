@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
+# Help sphinx to generate the API documentation
+__all__ = ["TDAGW", "BaseGW_Dyson", "TDAGW_Dyson"]
+
 
 class BaseGW_Dyson(BaseExpression):
     """Base class for GW expressions for the Dyson Green's function."""

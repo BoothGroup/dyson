@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
+# Help sphinx to generate the API documentation
+__all__ = ["CCSD", "BaseCCSD", "CCSD_1h", "CCSD_1p"]
+
 
 class BaseCCSD(BaseExpression):
     """Base class for CCSD expressions."""

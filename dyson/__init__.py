@@ -66,10 +66,10 @@ For dynamic solvers, all solvers require the grid parameters, along with:
 
    * - Solver
      - Inputs
-   * - :class:`~dyson.solvers.dynamic.CorrectionVector`
+   * - :class:`~dyson.solvers.dynamic.corrvec.CorrectionVector`
      - Matrix-vector operation and diagonal of the supermatrix of the static and dynamic
        self-energy.
-   * - :class:`~dyson.solvers.dynamic.CPGF`
+   * - :class:`~dyson.solvers.dynamic.cpgf.CPGF`
      - Chebyshev polynomial moments of the dynamic Green's function.
 
 For a full accounting of the inputs and their types, please see the documentation for each solver.
@@ -84,20 +84,20 @@ spin symmetries left to the user to implement as needed. The available expressio
 
     * - Expression
       - Description
-    * - :class:`~dyson.expressions.hf.HF`
+    * - :data:`~dyson.expressions.hf.HF`
       - Hartree--Fock (mean-field) ground state, exploiting Koopmans' theorem for the excited states.
-    * - :class:`~dyson.expressions.ccsd.CCSD`
+    * - :data:`~dyson.expressions.ccsd.CCSD`
       - Coupled cluster singles and doubles ground state, and the respective equation-of-motion
         method for the excited states.
-    * - :class:`~dyson.expressions.fci.FCI`
+    * - :data:`~dyson.expressions.fci.FCI`
       - Full configuration interaction (exact diagonalisation) ground and excited states.
-    * - :class:`~dyson.expressions.adc.ADC2`
+    * - :data:`~dyson.expressions.adc.ADC2`
       - Algebraic diagrammatic construction second order excited states, based on a mean-field
         ground state.
-    * - :class:`~dyson.expressions.adc.ADC2x`
+    * - :data:`~dyson.expressions.adc.ADC2x`
       - Algebraic diagrammatic construction extended second order excited states, based on a
         mean-field ground state.
-    * - :class:`~dyson.expressions.gw.TDAGW`
+    * - :data:`~dyson.expressions.gw.TDAGW`
       - GW theory with the Tamm--Dancoff approximation for the excited states, based on a
         mean-field ground state.
 

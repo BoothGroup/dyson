@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
     from dyson.typing import Array
 
+# Help sphinx to generate the API documentation
+__all__ = ["FCI", "BaseFCI", "FCI_1h", "FCI_1p"]
+
 
 class BaseFCI(BaseExpression):
     """Base class for FCI expressions."""
