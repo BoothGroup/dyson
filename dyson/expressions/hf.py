@@ -1,12 +1,9 @@
 """Hartree--Fock (HF) expressions.
 
 
-.. autosummary::
+.. autoattribute::
 
     HF
-    HF_1h
-    HF_1p
-    HF_Dyson
 
 """
 
