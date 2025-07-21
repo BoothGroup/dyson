@@ -203,7 +203,7 @@ def format_axes_spectral_function(
     ax.set_xlim(_convert(grid.min(), "Ha", energy_unit), _convert(grid.max(), "Ha", energy_unit))
 
 
-def unknown_pleasures(dynamics: list[Dynamic]) -> None:
+def unknown_pleasures(dynamics: list[Dynamic]) -> Axes:
     """Channel your inner Ian Curtis."""
     fig, ax = plt.subplots(figsize=(5, 7), facecolor="black")
     norm = max([np.max(np.abs(d.array)) for d in dynamics])
