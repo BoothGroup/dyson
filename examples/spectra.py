@@ -6,6 +6,7 @@ from pyscf import gto, scf
 
 from dyson.expressions import ADC2
 from dyson.grids import GridRF
+from dyson.plotting import format_axes_spectral_function, plot_dynamic
 from dyson.solvers import CPGF, MBLGF, MBLSE, CorrectionVector, Downfolded, Exact
 
 # Get a molecule and mean-field from PySCF
@@ -39,9 +40,8 @@ for key, solver_cls, kwargs in [
     solver = solver_cls.from_self_energy(static, self_energy, **kwargs)
     solver.kernel()
     gf = solver.result.get_greens_function()
-    spectra[key] = (
-        -grid.evaluate_lehmann(gf, ordering="retarded", reduction="trace", component="imag").array
-        / numpy.pi
+    spectra[key] = (1 / numpy.pi) * (
+        grid.evaluate_lehmann(gf, ordering="advanced", reduction="trace", component="imag")
     )
 
 # Solve the self-energy using each dynamic solver
@@ -53,21 +53,24 @@ for key, solver_cls, kwargs in [
         static,
         self_energy,
         grid=grid,
-        ordering="retarded",
+        ordering="advanced",
         reduction="trace",
         component="imag",
         **kwargs,
     )
     gf = solver.kernel()
-    spectra[key] = -gf.array / numpy.pi
+    spectra[key] = (1 / numpy.pi) * gf
 
 # Plot the spectra
-plt.figure()
+fig, ax = plt.subplots()
 for i, (key, spectrum) in enumerate(spectra.items()):
-    plt.plot(grid, spectrum, f"C{i}", label=key)
-plt.xlabel("Frequency")
-plt.ylabel("Spectral function")
-plt.grid()
+    plot_dynamic(
+        spectrum,
+        fmt=f"C{i}",
+        label=key,
+        energy_unit="eV",
+        ax=ax,
+    )
+format_axes_spectral_function(grid, ax=ax, energy_unit="eV")
 plt.legend()
-plt.tight_layout()
 plt.show()

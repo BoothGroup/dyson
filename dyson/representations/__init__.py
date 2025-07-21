@@ -63,7 +63,7 @@ i.e. whether it is the real or imaginary part, or the full complex matrix.
 >>> type(spectrum)
 <class 'dyson.representations.dynamic.Dynamic'>
 
-The various solvers in :mod:`~dyson.solvers` have different representations a their inputs and
+The various solvers in :mod:`~dyson.solvers` have different representations as their inputs and
 outputs.
 
 
