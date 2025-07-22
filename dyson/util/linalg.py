@@ -8,13 +8,22 @@ from typing import TYPE_CHECKING, cast
 import scipy.linalg
 
 from dyson import numpy as np
+from dyson.util import cache_by_id
 
 if TYPE_CHECKING:
     from dyson.typing import Array
 
 einsum = functools.partial(np.einsum, optimize=True)
 
+"""Flag to avoid using :func:`scipy.linalg.eig` and :func:`scipy.linalg.eigh`.
 
+On some platforms, mixing :mod:`numpy` and :mod:`scipy` eigenvalue solvers can lead to performance
+issues, likely from repeating warm-up overhead from conflicting BLAS and/or LAPACK libraries.
+"""
+AVOID_SCIPY_EIG = True
+
+
+@cache_by_id
 def orthonormalise(
     vectors: Array, transpose: bool = False, add_to_overlap: Array | None = None
 ) -> Array:
@@ -41,6 +50,7 @@ def orthonormalise(
     return vectors
 
 
+@cache_by_id
 def biorthonormalise(
     left: Array,
     right: Array,
@@ -81,6 +91,33 @@ def biorthonormalise(
     return left, right
 
 
+def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> tuple[Array, Array]:
+    """Sort eigenvalues and eigenvectors.
+
+    Args:
+        eigvals: The eigenvalues to be sorted.
+        eigvecs: The eigenvectors to be sorted.
+        threshold: Threshold for rounding the eigenvalues to avoid numerical noise.
+
+    Returns:
+        The sorted eigenvalues and eigenvectors.
+
+    Note:
+        The indirect sort attempts to sort the eigenvalues such that complex conjugate pairs are
+        ordered correctly, regardless of any numerical noise in the real part. This is done by
+        first ordering based on the rounded real and imaginary parts of the eigenvalues, and then
+        sorting by the true real and imaginary parts.
+    """
+    decimals = round(-np.log10(threshold))
+    real_approx = np.round(eigvals.real, decimals=decimals)
+    imag_approx = np.round(eigvals.imag, decimals=decimals)
+    idx = np.lexsort((eigvals.imag, eigvals.real, imag_approx, real_approx))
+    eigvals = eigvals[idx]
+    eigvecs = eigvecs[:, idx]
+    return eigvals, eigvecs
+
+
+@cache_by_id
 def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> tuple[Array, Array]:
     """Compute the eigenvalues and eigenvectors of a matrix.
 
@@ -93,9 +130,13 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
         The eigenvalues and eigenvectors of the matrix.
     """
     # Find the eigenvalues and eigenvectors
-    if hermitian:
-        # assert np.allclose(m, m.T.conj())
-        # eigvals, eigvecs = np.linalg.eigh(matrix)
+    if AVOID_SCIPY_EIG and overlap is not None:
+        matrix = np.linalg.solve(overlap, matrix)
+    if AVOID_SCIPY_EIG and hermitian:
+        eigvals, eigvecs = np.linalg.eigh(matrix)
+    elif AVOID_SCIPY_EIG:
+        eigvals, eigvecs = np.linalg.eig(matrix)
+    elif hermitian:
         eigvals, eigvecs = scipy.linalg.eigh(matrix, b=overlap)
     else:
         eigvals, eigvecs = scipy.linalg.eig(matrix, b=overlap)
@@ -104,14 +145,10 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
     if not hermitian and np.all(eigvals.imag == 0.0):
         eigvals = eigvals.real
 
-    # Sort the eigenvalues and eigenvectors
-    idx = np.argsort(eigvals)
-    eigvals = eigvals[idx]
-    eigvecs = eigvecs[:, idx]
-
-    return eigvals, eigvecs
+    return _sort_eigvals(eigvals, eigvecs)
 
 
+@cache_by_id
 def eig_lr(
     matrix: Array, hermitian: bool = True, overlap: Array | None = None
 ) -> tuple[Array, tuple[Array, Array]]:
@@ -126,28 +163,44 @@ def eig_lr(
         The eigenvalues and biorthogonal left- and right-hand eigenvectors of the matrix.
     """
     # Find the eigenvalues and eigenvectors
-    if hermitian:
-        eigvals, eigvecs_left = scipy.linalg.eigh(matrix, b=overlap)
-        eigvecs_right = eigvecs_left
+    eigvals_left: Array | None = None
+    if AVOID_SCIPY_EIG and hermitian:
+        if overlap is not None:
+            matrix = np.linalg.solve(overlap, matrix)
+        eigvals, eigvecs_right = _sort_eigvals(*np.linalg.eigh(matrix))
+        eigvecs_left = eigvecs_right
+    elif AVOID_SCIPY_EIG:
+        matrix_right = matrix
+        matrix_left = matrix.T.conj()
+        if overlap is not None:
+            matrix_right = np.linalg.solve(overlap, matrix_right)
+            matrix_left = np.linalg.solve(overlap.T.conj(), matrix_left)
+        eigvals, eigvecs_right = _sort_eigvals(*np.linalg.eig(matrix_right))
+        eigvals_left, eigvecs_left = np.linalg.eig(matrix_left)
+        eigvals_left, eigvecs_left = _sort_eigvals(eigvals_left.conj(), eigvecs_left)
+    elif hermitian:
+        eigvals, eigvecs_right = _sort_eigvals(*scipy.linalg.eigh(matrix, b=overlap))
+        eigvecs_left = eigvecs_right
     else:
-        eigvals, eigvecs_left, eigvecs_right = scipy.linalg.eig(
-            matrix, left=True, right=True, b=overlap
+        eigvals_raw, eigvecs_left, eigvecs_right = scipy.linalg.eig(
+            matrix,
+            left=True,
+            right=True,
+            b=overlap,
         )
+        eigvals, eigvecs_right = _sort_eigvals(eigvals_raw, eigvecs_right)
+        eigvals, eigvecs_left = _sort_eigvals(eigvals_raw, eigvecs_left)
+    if not hermitian:
         eigvecs_left, eigvecs_right = biorthonormalise(eigvecs_left, eigvecs_right)
 
     # See if we can remove the imaginary part of the eigenvalues
     if not hermitian and np.all(eigvals.imag == 0.0):
         eigvals = eigvals.real
 
-    # Sort the eigenvalues and eigenvectors
-    idx = np.argsort(eigvals)
-    eigvals = eigvals[idx]
-    eigvecs_left = eigvecs_left[:, idx]
-    eigvecs_right = eigvecs_right[:, idx]
-
     return eigvals, (eigvecs_left, eigvecs_right)
 
 
+@cache_by_id
 def null_space_basis(
     bra: Array, ket: Array | None = None, threshold: float = 1e-11
 ) -> tuple[Array, Array]:
@@ -181,6 +234,7 @@ def null_space_basis(
     return (left, right) if hermitian else (left, left)
 
 
+@cache_by_id
 def matrix_power(
     matrix: Array,
     power: int | float,
@@ -356,7 +410,7 @@ def concatenate_paired_vectors(vectors: list[Array], size: int) -> Array:
     space1 = slice(0, size)
     space2 = slice(size, None)
     vectors1 = np.concatenate([vector[space1] for vector in vectors], axis=1)
-    vectors2 = scipy.linalg.block_diag(*[vector[space2] for vector in vectors])
+    vectors2 = block_diag(*[vector[space2] for vector in vectors])
     return np.concatenate([vectors1, vectors2], axis=0)
 
 
@@ -388,7 +442,14 @@ def block_diag(*arrays: Array) -> Array:
     Returns:
         The block diagonal matrix.
     """
-    return scipy.linalg.block_diag(*arrays)
+    if not all(array.ndim == 2 for array in arrays):
+        raise ValueError("All arrays must be 2D.")
+    rows = [array.shape[0] for array in arrays]
+    cols = [array.shape[1] for array in arrays]
+    arrays_full = [[np.zeros((row, col)) for col in cols] for row in rows]
+    for i, array in enumerate(arrays):
+        arrays_full[i][i] = array
+    return np.block(arrays_full)
 
 
 def set_subspace(vectors: Array, subspace: Array) -> Array:

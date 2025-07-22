@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pyscf import adc, ao2mo
 
 from dyson import numpy as np
-from dyson import scipy, util
+from dyson import util
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 
 if TYPE_CHECKING:
@@ -224,10 +224,7 @@ class ADC2_1h(BaseADC_1h):
 
         # Include the virtual contributions
         moments = np.array(
-            [
-                scipy.linalg.block_diag(moment, np.zeros((self.nvir, self.nvir)))
-                for moment in moments_occ
-            ]
+            [util.block_diag(moment, np.zeros((self.nvir, self.nvir))) for moment in moments_occ]
         )
 
         return moments
@@ -276,10 +273,7 @@ class ADC2_1p(BaseADC_1p):
 
         # Include the occupied contributions
         moments = np.array(
-            [
-                scipy.linalg.block_diag(np.zeros((self.nocc, self.nocc)), moment)
-                for moment in moments_vir
-            ]
+            [util.block_diag(np.zeros((self.nocc, self.nocc)), moment) for moment in moments_vir]
         )
 
         return moments

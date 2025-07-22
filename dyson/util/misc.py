@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import functools
 import warnings
+import weakref
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from pyscf import gto, scf
 
 if TYPE_CHECKING:
-    from typing import Iterator
+    from typing import Any, Callable, Iterator
     from warnings import WarningMessage
 
 
@@ -30,6 +32,49 @@ def catch_warnings(warning_type: type[Warning] = Warning) -> Iterator[list[Warni
 
     # Restore user filters
     warnings.filters[:] = user_filters  # type: ignore[index]
+
+
+def cache_by_id(func: Callable) -> Callable:
+    """Decorator to cache function results based on the ``id`` of the arguments.
+
+    Args:
+        func: The function to cache.
+
+    Returns:
+        A wrapper function that caches results based on the id of the arguments.
+    """
+    cache: dict[tuple[tuple[int, ...], tuple[tuple[str, int], ...]], Any] = {}
+    watchers: dict[tuple[tuple[int, ...], tuple[tuple[str, int], ...]], list[weakref.ref]] = {}
+
+    def _remove(key: tuple[tuple[int, ...], tuple[tuple[str, int], ...]]) -> None:
+        """Remove an entry from the cache."""
+        cache.pop(key, None)
+        watchers.pop(key, None)
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        """Cache results based on the id of the arguments."""
+        key_args = tuple(id(arg) for arg in args)
+        key_kwargs = tuple(sorted((k, id(v)) for k, v in kwargs.items()))
+        key = (key_args, key_kwargs)
+        if key in cache:
+            return cache[key]
+
+        result = func(*args, **kwargs)
+        cache[key] = result
+
+        refs: list[weakref.ref] = []
+        for obj in [*args, *kwargs.values()]:
+            try:
+                refs.append(weakref.ref(obj, lambda _ref, k=key: _remove(k)))  # type: ignore[misc]
+            except TypeError:
+                continue
+        if refs:
+            watchers[key] = refs
+
+        return result
+
+    return wrapper
 
 
 def get_mean_field(atom: str, basis: str, charge: int = 0, spin: int = 0) -> scf.RHF:

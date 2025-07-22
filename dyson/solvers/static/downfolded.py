@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import scipy.linalg
-
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
@@ -175,7 +173,7 @@ class Downfolded(StaticSolver):
         for cycle in range(1, self.max_cycle + 1):
             # Update the root
             matrix = self.static + self.function(root)
-            roots = scipy.linalg.eigvals(matrix, b=self.overlap)
+            roots, _ = util.eig(matrix, overlap=self.overlap, hermitian=self.hermitian)
             root_prev = root
             root = roots[np.argmin(np.abs(roots - self.guess))]
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from dyson import console, printing, util
@@ -178,6 +179,34 @@ class MBLGF(BaseMBL):
         greens_function = self.solve(iteration=iteration).get_greens_function()
         return greens_function.moments(range(2 * iteration + 2))
 
+    @functools.lru_cache(maxsize=None)
+    def _rotated_moment(self, i: int, j: int, k: int, jk: int) -> Array:
+        """Compute an orthogonalised moment rotated by given coefficients.
+
+        Equivalent to the expression
+
+        .. code-block:: python
+            coefficients[0][i, k].T.conj() @ moments[jk] @ coefficients[0][i, j]
+
+        for Hermitian Green's functions, or
+
+        .. code-block:: python
+            coefficients[1][i, k] @ moments[jk] @ coefficients[0][i, j]
+
+        for non-Hermitian Green's functions.
+
+        Args:
+            i, j, k, jk: Indices for the coefficients and moments, as defined above.
+
+        Returns:
+            The orthogonalised moment rotated by the coefficients.
+        """
+        moment = self.orthogonalised_moment(jk)
+        if self.hermitian:
+            return self.coefficients[0][i, k].T.conj() @ moment @ self.coefficients[0][i, j]
+        else:
+            return self.coefficients[1][i, k] @ moment @ self.coefficients[0][i, j]
+
     def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
         """Initialise the recurrence (zeroth iteration).
 
@@ -224,11 +253,7 @@ class MBLGF(BaseMBL):
         off_diagonal_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 1):
-                off_diagonal_squared += (
-                    coefficients[i + 1, k + 1].T.conj()
-                    @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[i + 1, j]
-                )
+                off_diagonal_squared += self._rotated_moment(i + 1, j, k + 1, j + k + 1)
         off_diagonal_squared -= on_diagonal[i] @ on_diagonal[i]
         if i:
             off_diagonal_squared -= off_diagonal[i - 1] @ off_diagonal[i - 1]
@@ -257,11 +282,7 @@ class MBLGF(BaseMBL):
         on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 2):
-                on_diagonal[i + 1] += (
-                    coefficients[i + 2, k + 1].T.conj()
-                    @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[i + 2, j + 1]
-                )
+                on_diagonal[i + 1] += self._rotated_moment(i + 2, j + 1, k + 1, j + k + 1)
 
         # Get the error in the moments
         error_moments: float | None = None
@@ -290,16 +311,8 @@ class MBLGF(BaseMBL):
         off_diagonal_lower_squared = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 1):
-                off_diagonal_upper_squared += (
-                    coefficients[1][i + 1, k + 1]
-                    @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[0][i + 1, j]
-                )
-                off_diagonal_lower_squared += (
-                    coefficients[1][i + 1, j]
-                    @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[0][i + 1, k + 1]
-                )
+                off_diagonal_upper_squared += self._rotated_moment(i + 1, j, k + 1, j + k + 1)
+                off_diagonal_lower_squared += self._rotated_moment(i + 1, k + 1, j, j + k + 1)
         off_diagonal_upper_squared -= on_diagonal[i] @ on_diagonal[i]
         off_diagonal_lower_squared -= on_diagonal[i] @ on_diagonal[i]
         if i:
@@ -362,11 +375,7 @@ class MBLGF(BaseMBL):
         on_diagonal[i + 1] = np.zeros((self.nphys, self.nphys), dtype=dtype)
         for j in range(i + 2):
             for k in range(i + 2):
-                on_diagonal[i + 1] += (
-                    coefficients[1][i + 2, k + 1]
-                    @ self.orthogonalised_moment(j + k + 1)
-                    @ coefficients[0][i + 2, j + 1]
-                )
+                on_diagonal[i + 1] += self._rotated_moment(i + 2, j + 1, k + 1, j + k + 1)
 
         # Get the error in the moments
         error_moments: float | None = None

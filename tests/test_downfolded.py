@@ -45,6 +45,7 @@ def test_vs_exact_solver(
         result_exact.get_static_self_energy(),
         result_exact.get_self_energy(),
         eta=1e-9,
+        conv_tol=1e-10,
     )
     downfolded.kernel()
     assert downfolded.result is not None
