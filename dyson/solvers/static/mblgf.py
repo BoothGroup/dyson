@@ -180,7 +180,7 @@ class MBLGF(BaseMBL):
         return greens_function.moments(range(2 * iteration + 2))
 
     @functools.lru_cache(maxsize=None)
-    def _rotated_moment(self, i: int, j: int, k: int, jk: int) -> Array:
+    def _rotated_moment(self, i: int, j: int, k: int, jk: int) -> Array:  # noqa: D417
         """Compute an orthogonalised moment rotated by given coefficients.
 
         Equivalent to the expression
