@@ -1,4 +1,14 @@
-"""Algebraic diagrammatic construction theory (ADC) expressions."""
+"""Algebraic diagrammatic construction theory (ADC) expressions [schirmer1983]_ [banerjee2019]_.
+
+.. [banerjee2019] Banerjee, S., & Sokolov, A. Y. (2019). Third-order algebraic diagrammatic
+   construction theory for electron attachment and ionization energies: Conventional and Green’s
+   function implementation. The Journal of Chemical Physics, 151(22).
+   https://doi.org/10.1063/1.5131771
+
+.. [schirmer1983] Schirmer, J., Cederbaum, L. S., & Walter, O. (1983). New approach to the
+   one-particle Green’s function for finite Fermi systems. Physical Review. A, General Physics,
+   28(3), 1237–1259. https://doi.org/10.1103/physreva.28.1237
+"""
 
 from __future__ import annotations
 

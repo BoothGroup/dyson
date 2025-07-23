@@ -1,4 +1,9 @@
-"""Full configuration interaction (FCI) expressions."""
+"""Full configuration interaction (FCI) expressions [knowles1984]_.
+
+.. [knowles1984] Knowles, P., & Handy, N. (1984). A new determinant-based full configuration
+   interaction method. Chemical Physics Letters, 111(4–5), 315–321.
+   https://doi.org/10.1016/0009-2614(84)85513-x
+"""
 
 from __future__ import annotations
 

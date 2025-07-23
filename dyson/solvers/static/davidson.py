@@ -1,4 +1,13 @@
-"""Davidson algorithm."""
+"""Davidson algorithm [davidson1975]_ [morgan1990]_.
+
+.. [davidson1975] Davidson, E. R. (1975). The iterative calculation of a few of the lowest
+   eigenvalues and corresponding eigenvectors of large real-symmetric matrices. Journal of
+   Computational Physics, 17(1), 87–94. https://doi.org/10.1016/0021-9991(75)90065-0
+
+.. [morgan1990] Morgan, R. B. (1990). Davidson’s method and preconditioning for generalized
+   eigenvalue problems. Journal of Computational Physics, 89(1), 241–245.
+   https://doi.org/10.1016/0021-9991(90)90124-j
+"""
 
 from __future__ import annotations
 

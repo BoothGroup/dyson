@@ -1,4 +1,9 @@
-"""Chebyshev polynomial Green's function solver."""
+"""Chebyshev polynomial Green's function solver [ferreira2015]_.
+
+.. [ferreira2015] Ferreira, A., & Mucciolo, E. R. (2015). Critical delocalization of Chiral zero
+   energy modes in graphene. Physical Review Letters, 115(10).
+   https://doi.org/10.1103/physrevlett.115.106601
+"""
 
 from __future__ import annotations
 
@@ -25,16 +30,13 @@ def _infer_max_cycle(moments: Array) -> int:
 
 
 class CPGF(DynamicSolver):
-    """Chebyshev polynomial Green's function solver [1]_.
+    """Chebyshev polynomial Green's function solver.
 
     Args:
         moments: Chebyshev moments of the Green's function.
         grid: Real frequency grid upon which to evaluate the Green's function.
         scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
             `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
-
-    References:
-        [1] A. Ferreira, and E. R. Mucciolo, Phys. Rev. Lett. 115, 106601 (2015).
     """
 
     reduction: Reduction = Reduction.NONE
