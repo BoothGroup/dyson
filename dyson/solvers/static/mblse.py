@@ -469,7 +469,7 @@ class MBLSE(BaseMBL):
 
 
 class MLSE(MBLSE):
-    """Moment Lanczos for diagonal moments of the self-energy.
+    """Moment Lanczos for scalar moments of the self-energy.
 
     This is a specialisation of :class:`MBLSE` for scalar moments.
 
