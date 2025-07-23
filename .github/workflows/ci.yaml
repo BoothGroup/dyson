@@ -39,7 +39,7 @@ jobs:
           mypy dyson/ tests/
       - name: Run unit tests
         run: |
-          pytest
+          OMP_NUM_THREADS=1 pytest
       - name: Run examples
         env:
           MPLBACKEND: Agg
