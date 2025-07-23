@@ -71,8 +71,8 @@ class Exact(StaticSolver):
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""
         assert self.result is not None
-        emin = printing.format_float(self.result.eigvals.min())
-        emax = printing.format_float(self.result.eigvals.max())
+        emin = printing.format_float(self.result.eigvals[np.argmin(np.abs(self.result.eigvals))])
+        emax = printing.format_float(self.result.eigvals[np.argmax(np.abs(self.result.eigvals))])
         console.print("")
         console.print(
             f"Found [output]{self.result.neig}[/output] roots between [output]{emin}[/output] and "

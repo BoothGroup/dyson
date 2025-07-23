@@ -161,6 +161,13 @@ def format_float(
     Returns:
         str: The formatted string.
     """
+    if isinstance(value, complex):
+        real = format_float(value.real, precision, scientific, threshold)
+        if abs(value.imag) < (1e-1**precision):
+            return real
+        sign = "+" if value.imag >= 0 else "-"
+        imag = format_float(abs(value.imag), precision, scientific, threshold)
+        return f"{real}{sign}{imag}i"
     if value is None:
         return "N/A"
     if value.imag < (1e-1**precision):
