@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -202,6 +203,7 @@ class BaseExpression(ABC):
         nmom: int,
         store_vectors: bool = True,
         left: bool = False,
+        reduction: Reduction = Reduction.NONE,
     ) -> Array:
         """Build the moments of the Green's function."""
         # Precompute bra vectors if needed
@@ -215,37 +217,66 @@ class BaseExpression(ABC):
 
             # Loop over moment orders
             for n in range(nmom):
-                # Loop over bra vectors
-                for j in range(i if self.hermitian_downfolded else 0, self.nphys):
-                    bra = bras[j] if store_vectors else get_bra(j)
+                if Reduction(reduction) == Reduction.NONE:
+                    # Loop over bra vectors
+                    for j in range(i if self.hermitian_downfolded else 0, self.nphys):
+                        bra = bras[j] if store_vectors else get_bra(j)
 
+                        # Contract the bra and ket vectors
+                        moments[n, i, j] = bra.conj() @ ket
+                        if self.hermitian_downfolded:
+                            moments[n, j, i] = moments[n, i, j].conj()
+
+                else:
                     # Contract the bra and ket vectors
-                    moments[n, i, j] = bra.conj() @ ket
-                    if self.hermitian_downfolded:
-                        moments[n, j, i] = moments[n, i, j].conj()
+                    bra = bras[i] if store_vectors else get_bra(i)
+                    moments[n, i, i] = bra.conj() @ ket
 
                 # Apply the Hamiltonian to the ket vector
                 if n != nmom - 1:
                     ket, ket_prev = apply_hamiltonian_poly(ket, ket_prev, n), ket
 
-        # Convert the moments to a numpy array
-        moments_array = np.array(
-            [
-                moments[n, i, j]
-                for n in range(nmom)
-                for i in range(self.nphys)
-                for j in range(self.nphys)
-            ]
-        )
-        moments_array = moments_array.reshape(nmom, self.nphys, self.nphys)
+        if Reduction(reduction) == Reduction.NONE:
+            # Convert the moments to a numpy array
+            moments_array = np.array(
+                [
+                    moments[n, i, j]
+                    for n in range(nmom)
+                    for i in range(self.nphys)
+                    for j in range(self.nphys)
+                ]
+            )
+            moments_array = moments_array.reshape(nmom, self.nphys, self.nphys)
 
-        # If left-handed, transpose the moments
-        if left:
-            moments_array = moments_array.transpose(0, 2, 1).conj()
+            # If left-handed, transpose the moments
+            if left:
+                moments_array = moments_array.transpose(0, 2, 1).conj()
+
+        elif Reduction(reduction) == Reduction.DIAG:
+            # Convert the moments to a numpy array, only keeping the diagonal elements
+            moments_array = np.array(
+                [moments[n, i, i] for n in range(nmom) for i in range(self.nphys)]
+            )
+            moments_array = moments_array.reshape(nmom, self.nphys)
+
+        elif Reduction(reduction) == Reduction.TRACE:
+            # Convert the moments to a numpy array, only keeping the trace
+            moments_array = np.array(
+                [sum([moments[n, i, i] for i in range(self.nphys)]) for n in range(nmom)]
+            )
+
+        else:
+            Reduction(reduction).raise_invalid_representation()
 
         return moments_array
 
-    def build_gf_moments(self, nmom: int, store_vectors: bool = True, left: bool = False) -> Array:
+    def build_gf_moments(
+        self,
+        nmom: int,
+        store_vectors: bool = True,
+        left: bool = False,
+        reduction: Reduction = Reduction.NONE,
+    ) -> Array:
         """Build the moments of the Green's function.
 
         Args:
@@ -253,6 +284,7 @@ class BaseExpression(ABC):
             store_vectors: Whether to store the vectors on disk. Storing the vectors makes the
                 memory overhead scale worse, but the CPU overhead scales better.
             left: Whether to use the left-handed Hamiltonian application.
+            reduction: Reduction to apply to the moments.
 
         Returns:
             Moments of the Green's function.
@@ -279,6 +311,7 @@ class BaseExpression(ABC):
             nmom,
             store_vectors=store_vectors,
             left=left,
+            reduction=reduction,
         )
 
     def build_gf_chebyshev_moments(
@@ -287,6 +320,7 @@ class BaseExpression(ABC):
         store_vectors: bool = True,
         left: bool = False,
         scaling: tuple[float, float] | None = None,
+        reduction: Reduction = Reduction.NONE,
     ) -> Array:
         """Build the moments of the Green's function using Chebyshev polynomials.
 
@@ -300,6 +334,7 @@ class BaseExpression(ABC):
                 `None`, the default scaling is computed as
                 `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
                 `(max(energies) + min(energies)) / 2.0`, respectively.
+            reduction: Reduction to apply to the moments.
 
         Returns:
             Chebyshev polynomial moments of the Green's function.
@@ -341,14 +376,16 @@ class BaseExpression(ABC):
             nmom,
             store_vectors=store_vectors,
             left=left,
+            reduction=reduction,
         )
 
     @abstractmethod
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction to apply to the moments.
 
         Returns:
             Moments of the self-energy.

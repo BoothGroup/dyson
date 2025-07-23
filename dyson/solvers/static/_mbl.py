@@ -24,6 +24,8 @@ class BaseRecursionCoefficients(ABC):
         nphys: Number of physical degrees of freedom.
     """
 
+    NDIM: int = 2
+
     def __init__(
         self,
         nphys: int,
@@ -32,7 +34,7 @@ class BaseRecursionCoefficients(ABC):
     ):
         """Initialise the recursion coefficients."""
         self._nphys = nphys
-        self._zero = np.zeros((nphys, nphys))
+        self._zero = np.zeros((nphys,) * self.NDIM)
         self._data: dict[tuple[int, ...], Array] = {}
         self.hermitian = hermitian
         self.force_orthogonality = force_orthogonality

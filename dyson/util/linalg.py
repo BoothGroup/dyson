@@ -317,8 +317,8 @@ def scaled_error(matrix1: Array, matrix2: Array, ord: int | float = np.inf) -> f
     Returns:
         The scaled error between the two matrices.
     """
-    matrix1 = matrix1 / max(np.max(np.abs(matrix1)), 1)
-    matrix2 = matrix2 / max(np.max(np.abs(matrix2)), 1)
+    matrix1 = np.atleast_1d(matrix1 / max(np.max(np.abs(matrix1)), 1))
+    matrix2 = np.atleast_1d(matrix2 / max(np.max(np.abs(matrix2)), 1))
     return cast(float, np.linalg.norm(matrix1 - matrix2, ord=ord))
 
 

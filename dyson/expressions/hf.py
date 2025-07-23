@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from dyson import numpy as np
 from dyson import util
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from pyscf.gto.mole import Mole
@@ -72,16 +73,17 @@ class BaseHF(BaseExpression):
         """
         pass
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments.
+            reduction: Reduction method to apply to the moments.
 
         Returns:
             Self-energy moments.
         """
-        return np.zeros((nmom, self.nphys, self.nphys))
+        return np.zeros((nmom,) + (self.nphys,) * Reduction(reduction).ndim)
 
     @property
     def mol(self) -> Mole:

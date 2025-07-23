@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 from dyson import console, printing, util
 from dyson import numpy as np
+from dyson.representations.enums import Reduction
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
@@ -64,6 +66,46 @@ class RecursionCoefficients(BaseRecursionCoefficients):
             self._data[j, i, order] = value.T.conj()
         else:
             self._data[i, j, order] = value
+
+
+class ScalarRecursionCoefficients(BaseRecursionCoefficients):
+    """Scalar recursion coefficients for the moment block Lanczos algorithm for the self-energy.
+
+    Args:
+        nphys: Number of physical degrees of freedom.
+    """
+
+    NDIM = 0
+
+    def __getitem__(self, key: tuple[int, ...]) -> Array:
+        """Get the recursion coefficients for the given key.
+
+        Args:
+            key: The key for the recursion coefficients.
+
+        Returns:
+            The recursion coefficients.
+        """
+        i, j, order = key
+        if i == 0 or j == 0:
+            return 0.0  # type: ignore[return-value]
+        if i < j:
+            i, j = j, i
+        return self._data[i, j, order]
+
+    def __setitem__(self, key: tuple[int, ...], value: Array) -> None:
+        """Set the recursion coefficients for the given key.
+
+        Args:
+            key: The key for the recursion coefficients.
+            value: The recursion coefficients.
+        """
+        i, j, order = key
+        if order == 0 and self.force_orthogonality:
+            value = 1.0  # type: ignore[assignment]
+        if i < j:
+            i, j = j, i
+        self._data[i, j, order] = np.asarray(value).item()
 
 
 def _infer_max_cycle(moments: Array) -> int:
@@ -385,17 +427,19 @@ class MBLSE(BaseMBL):
         subspace = hamiltonian[self.nphys :, self.nphys :]
         energies, rotated = util.eig_lr(subspace, hermitian=self.hermitian)
         if self.hermitian:
-            couplings = self.off_diagonal[0] @ rotated[0][: self.nphys]
+            couplings = np.atleast_2d(self.off_diagonal[0]) @ rotated[0][: self.nphys]
         else:
             couplings = np.array(
                 [
-                    self.off_diagonal[0].T.conj() @ rotated[0][: self.nphys],
-                    self.off_diagonal[0] @ rotated[1][: self.nphys],
+                    np.atleast_2d(self.off_diagonal[0]).T.conj() @ rotated[0][: self.nphys],
+                    np.atleast_2d(self.off_diagonal[0]) @ rotated[1][: self.nphys],
                 ]
             )
 
         return Spectral.from_self_energy(
-            self.static, Lehmann(energies, couplings), overlap=self.overlap
+            np.atleast_2d(self.static),
+            Lehmann(energies, couplings),
+            overlap=np.atleast_2d(self.overlap) if self.overlap is not None else None,
         )
 
     @property
@@ -422,3 +466,182 @@ class MBLSE(BaseMBL):
     def off_diagonal(self) -> dict[int, Array]:
         """Get the off-diagonal blocks of the self-energy."""
         return self._off_diagonal
+
+
+class MLSE(MBLSE):
+    """Moment Lanczos for diagonal moments of the self-energy.
+
+    This is a specialisation of :class:`MBLSE` for scalar moments.
+
+    Args:
+        static: Static part of the self-energy.
+        moments: Moments of the self-energy.
+    """
+
+    Coefficients = ScalarRecursionCoefficients  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if np.size(self.static.ndim) != 1:
+            raise ValueError("static must be scalar.")
+        if self.moments.ndim != 1:
+            raise ValueError("moments must be a 1D array of scalar elements for each order.")
+        if _infer_max_cycle(self.moments) < self.max_cycle:
+            raise ValueError("not enough moments provided for the specified max_cycle.")
+
+        # Print the input information
+        console.print("Number of physical states: [input]1[/input]")
+        console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
+
+    @classmethod
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> MBLSE:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError("Cannot instantiate MLSE from a self-energy.")
+
+    @classmethod
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> MBLSE:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError("Cannot instantiate MLSE from an expression.")
+
+    @property
+    def orthogonalisation_metric(self) -> Array:
+        """Get the orthogonalisation metric."""
+        return self.moments[0] ** -0.5
+
+    @property
+    def orthogonalisation_metric_inv(self) -> Array:
+        """Get the inverse of the orthogonalisation metric."""
+        return self.moments[0] ** 0.5
+
+    @functools.lru_cache(maxsize=64)
+    def orthogonalised_moment(self, order: int) -> Array:
+        """Compute an orthogonalised moment.
+
+        Args:
+            order: The order of the moment.
+
+        Returns:
+            The orthogonalised moment.
+        """
+        return self.moments[order] / self.moments[0]
+
+    def reconstruct_moments(self, iteration: int) -> Array:
+        """Reconstruct the moments.
+
+        Args:
+            iteration: The iteration number.
+
+        Returns:
+            The reconstructed moments.
+        """
+        self_energy = self.solve(iteration=iteration).get_self_energy()
+        return self_energy.moments(range(2 * iteration), reduction=Reduction.TRACE)
+
+    def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
+        """Initialise the recurrence (zeroth iteration).
+
+        Returns:
+            If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
+            block, the inverse square root of the off-diagonal block, and the error in the
+            recovered moments. If not, all three are `None`.
+        """
+        # Initialise the coefficients
+        for n in range(2 * self.max_cycle + 2):
+            self.coefficients[1, 1, n] = self.orthogonalised_moment(n)
+
+        # Initialise the blocks
+        self.off_diagonal[0] = self.moments[0] ** 0.5
+        self.on_diagonal[0] = self.static
+        self.on_diagonal[1] = self.coefficients[1, 1, 1]
+
+        # Get the error in the moments
+        error_moments: float | None = None
+        if self.calculate_errors:
+            error_moments = self.moment_error(iteration=0)
+
+        return 0.0, 0.0, error_moments
+
+    def _recurrence_iteration_hermitian(
+        self, iteration: int
+    ) -> tuple[float | None, float | None, float | None]:
+        """Perform an iteration of the recurrence for a Hermitian self-energy."""
+        i = iteration
+        coefficients = self.coefficients
+        on_diagonal = self.on_diagonal
+        off_diagonal = self.off_diagonal
+
+        # Find the squre of the off-diagonal block
+        off_diagonal_squared = coefficients[i, i, 2]
+        off_diagonal_squared -= coefficients[i, i - 1, 1] * off_diagonal[i - 1] * 2.0
+        off_diagonal_squared -= coefficients[i, i, 1] * coefficients[i, i, 1]
+        if iteration > 1:
+            off_diagonal_squared += off_diagonal[i - 1].conj() * off_diagonal[i - 1]
+
+        # Get the off-diagonal block
+        off_diagonal[i] = off_diagonal_squared**0.5
+
+        # Invert the off-diagonal block
+        off_diagonal_inv = off_diagonal_squared**-0.5
+
+        for n in range(2 * (self.max_cycle - iteration + 1)):
+            # Horizontal recursion
+            residual = coefficients[i, i, n + 1]
+            residual -= off_diagonal[i - 1].conj() * coefficients[i - 1, i, n]
+            residual -= on_diagonal[i] * coefficients[i, i, n]
+            coefficients[i + 1, i, n] = off_diagonal_inv * residual
+
+            # Diagonal recursion
+            residual = coefficients[i, i, n + 2]
+            residual -= coefficients[i, i - 1, n + 1] * off_diagonal[i - 1] * 2.0
+            residual -= coefficients[i, i, n + 1] * on_diagonal[i] * 2.0
+            residual += on_diagonal[i] * coefficients[i, i - 1, n] * off_diagonal[i - 1] * 2.0
+            residual += (
+                off_diagonal[i - 1].conj() * coefficients[i - 1, i - 1, n] * off_diagonal[i - 1]
+            )
+            residual += on_diagonal[i] * coefficients[i, i, n] * on_diagonal[i]
+            coefficients[i + 1, i + 1, n] = off_diagonal_inv * residual * off_diagonal_inv.conj()
+
+        # Extract the on-diagonal block
+        on_diagonal[i + 1] = coefficients[i + 1, i + 1, 1]
+
+        # Get the error in the moments
+        error_moments: float | None = None
+        if self.calculate_errors:
+            error_moments = self.moment_error(iteration=iteration)
+
+        return 0.0, 0.0, error_moments
+
+    _recurrence_iteration_non_hermitian = _recurrence_iteration_hermitian
+    _recurrence_iteration_non_hermitian.__doc__ = (
+        BaseMBL._recurrence_iteration_non_hermitian.__doc__
+    )
+
+    @property
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        return 1

@@ -22,6 +22,7 @@ from pyscf import cc
 from dyson import numpy as np
 from dyson import util
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from typing import Any
@@ -141,11 +142,12 @@ class BaseCCSD(BaseExpression):
         """
         pass
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction method to apply to the moments.
 
         Returns:
             Moments of the self-energy.

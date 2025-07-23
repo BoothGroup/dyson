@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from pyscf import ao2mo, fci
 
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from typing import Callable
@@ -157,11 +158,12 @@ class BaseFCI(BaseExpression):
             orbital,
         ).ravel()
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction method to apply to the moments.
 
         Returns:
             Moments of the self-energy.

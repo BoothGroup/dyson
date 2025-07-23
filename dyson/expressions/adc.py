@@ -20,6 +20,7 @@ from pyscf import adc, ao2mo
 from dyson import numpy as np
 from dyson import util
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -201,11 +202,12 @@ class ADC2_1h(BaseADC_1h):
 
     METHOD = "adc(2)"
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction type for the moments.
 
         Returns:
             Moments of the self-energy.
@@ -221,10 +223,20 @@ class ADC2_1h(BaseADC_1h):
         ooov = ooov.reshape(eo.size, eo.size, eo.size, ev.size)
         left = ooov * 2 - ooov.swapaxes(1, 2)
 
+        # Get the subscript based on the reduction
+        if Reduction(reduction) == Reduction.NONE:
+            subscript = "ikla,jkla->ij"
+        elif Reduction(reduction) == Reduction.DIAG:
+            subscript = "ikla,ikla->i"
+        elif Reduction(reduction) == Reduction.TRACE:
+            subscript = "ikla,ikla->"
+        else:
+            Reduction(reduction).raise_invalid_representation()
+
         # Recursively build the moments
         moments_occ: list[Array] = []
         for i in range(nmom):
-            moments_occ.append(util.einsum("ikla,jkla->ij", left, ooov.conj()))
+            moments_occ.append(util.einsum(subscript, left, ooov.conj()))
             if i < nmom - 1:
                 left = (
                     +util.einsum("ikla,k->ikla", left, eo)
@@ -233,9 +245,17 @@ class ADC2_1h(BaseADC_1h):
                 )
 
         # Include the virtual contributions
-        moments = np.array(
-            [util.block_diag(moment, np.zeros((self.nvir, self.nvir))) for moment in moments_occ]
-        )
+        if Reduction(reduction) == Reduction.NONE:
+            moments = np.array(
+                [
+                    util.block_diag(moment, np.zeros((self.nvir, self.nvir)))
+                    for moment in moments_occ
+                ]
+            )
+        elif Reduction(reduction) == Reduction.DIAG:
+            moments = np.array(
+                [np.concatenate((moment, np.zeros(self.nvir))) for moment in moments_occ]
+            )
 
         return moments
 
@@ -250,11 +270,12 @@ class ADC2_1p(BaseADC_1p):
 
     METHOD = "adc(2)"
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction type for the moments.
 
         Returns:
             Moments of the self-energy.
@@ -270,10 +291,20 @@ class ADC2_1p(BaseADC_1p):
         vvvo = vvvo.reshape(ev.size, ev.size, ev.size, eo.size)
         left = vvvo * 2 - vvvo.swapaxes(1, 2)
 
+        # Get the subscript based on the reduction
+        if Reduction(reduction) == Reduction.NONE:
+            subscript = "acdi,bcdi->ab"
+        elif Reduction(reduction) == Reduction.DIAG:
+            subscript = "acdi,acdi->a"
+        elif Reduction(reduction) == Reduction.TRACE:
+            subscript = "acdi,acdi->"
+        else:
+            Reduction(reduction).raise_invalid_representation()
+
         # Recursively build the moments
         moments_vir: list[Array] = []
         for i in range(nmom):
-            moments_vir.append(util.einsum("acdi,bcdi->ab", left, vvvo.conj()))
+            moments_vir.append(util.einsum(subscript, left, vvvo.conj()))
             if i < nmom - 1:
                 left = (
                     +util.einsum("acdi,c->acdi", left, ev)
@@ -282,9 +313,17 @@ class ADC2_1p(BaseADC_1p):
                 )
 
         # Include the occupied contributions
-        moments = np.array(
-            [util.block_diag(np.zeros((self.nocc, self.nocc)), moment) for moment in moments_vir]
-        )
+        if Reduction(reduction) == Reduction.NONE:
+            moments = np.array(
+                [
+                    util.block_diag(np.zeros((self.nocc, self.nocc)), moment)
+                    for moment in moments_vir
+                ]
+            )
+        elif Reduction(reduction) == Reduction.DIAG:
+            moments = np.array(
+                [np.concatenate((np.zeros(self.nocc), moment)) for moment in moments_vir]
+            )
 
         return moments
 
@@ -299,11 +338,12 @@ class ADC2x_1h(BaseADC_1h):
 
     METHOD = "adc(2)-x"
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction type for the moments.
 
         Returns:
             Moments of the self-energy.
@@ -321,11 +361,12 @@ class ADC2x_1p(BaseADC_1p):
 
     METHOD = "adc(2)-x"
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction type for the moments.
 
         Returns:
             Moments of the self-energy.

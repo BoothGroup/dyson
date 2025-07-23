@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, cast
 from dyson import numpy as np
 from dyson import util
 from dyson.expressions.expression import BaseExpression
+from dyson.representations.enums import Reduction
 
 if TYPE_CHECKING:
     from pyscf.gto.mole import Mole
@@ -148,11 +149,12 @@ class Hamiltonian(BaseExpression):
     get_excitation_vector = get_excitation_ket
     get_excitation_vector.__doc__ = BaseExpression.get_excitation_vector.__doc__
 
-    def build_se_moments(self, nmom: int) -> Array:
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
         """Build the self-energy moments.
 
         Args:
             nmom: Number of moments to compute.
+            reduction: Reduction method to apply to the moments.
 
         Returns:
             Moments of the self-energy.

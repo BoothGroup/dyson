@@ -9,6 +9,7 @@ import scipy.linalg
 
 from dyson import numpy as np
 from dyson import util
+from dyson.representations.enums import Reduction
 from dyson.representations.representation import BaseRepresentation
 from dyson.typing import Array
 
@@ -302,7 +303,7 @@ class Lehmann(BaseRepresentation):
 
     # Methods to calculate moments:
 
-    def moments(self, order: int | Iterable[int]) -> Array:
+    def moments(self, order: int | Iterable[int], reduction: Reduction = Reduction.NONE) -> Array:
         r"""Calculate the moment(s) of the Lehmann representation.
 
         The moments are defined as
@@ -321,6 +322,7 @@ class Lehmann(BaseRepresentation):
 
         Args:
             order: The order(s) of the moment(s).
+            reduction: The reduction to apply to the moments.
 
         Returns:
             The moment(s) of the Lehmann representation.
@@ -331,10 +333,20 @@ class Lehmann(BaseRepresentation):
             squeeze = True
         orders = np.asarray(order)
 
+        # Get the subscript depending on the reduction
+        if Reduction(reduction) == Reduction.NONE:
+            subscript = "pk,qk,nk->npq"
+        elif Reduction(reduction) == Reduction.DIAG:
+            subscript = "pk,pk,nk->np"
+        elif Reduction(reduction) == Reduction.TRACE:
+            subscript = "pk,pk,nk->n"
+        else:
+            Reduction(reduction).raise_invalid_representation()
+
         # Contract the moments
         left, right = self.unpack_couplings()
         moments = util.einsum(
-            "pk,qk,nk->npq",
+            subscript,
             right,
             left.conj(),
             self.energies[None] ** orders[:, None],
