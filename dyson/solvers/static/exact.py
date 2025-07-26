@@ -158,15 +158,15 @@ class Exact(StaticSolver):
             eigvecs = rotation @ eigvecs
         else:
             # Ensure biorthonormality of auxiliary vectors
-            overlap = vectors[1].T.conj() @ vectors[0]
-            overlap -= self.ket.T.conj() @ self.bra
+            overlap = vectors[0].T.conj() @ vectors[1]
+            overlap -= self.bra.T.conj() @ self.ket
             vectors = (
                 vectors[0],
                 vectors[1] @ util.matrix_power(overlap, -1, hermitian=False)[0],
             )
             rotation = (
-                np.concatenate([self.bra, vectors[1]], axis=0),
-                np.concatenate([self.ket, vectors[0]], axis=0),
+                np.concatenate([self.bra, vectors[0]], axis=0),
+                np.concatenate([self.ket, vectors[1]], axis=0),
             )
             eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
 

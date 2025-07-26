@@ -204,7 +204,7 @@ def eig_lr(
 def null_space_basis(
     bra: Array, ket: Array | None = None, threshold: float = 1e-11
 ) -> tuple[Array, Array]:
-    r"""Find a basis for the null space of :math:`\langle \text{bra} | \text{ket} \rangle`.
+    r"""Find a basis for the null space of :math:`| \text{ket} \rangle \langle \text{bra} |`.
 
     Args:
         bra: The bra vectors.
@@ -222,7 +222,7 @@ def null_space_basis(
         ket = bra
 
     # Find the null space
-    proj = bra.T @ ket.conj()
+    proj = ket.T @ bra.conj()
     null = np.eye(bra.shape[1]) - proj
 
     # Diagonalise the null space to find the basis

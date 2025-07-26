@@ -231,8 +231,14 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Output vector.
+
+        Notes:
+            The Hamiltonian is applied in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
         """
-        return -self.PYSCF_EOM.ipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
 
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
@@ -242,8 +248,14 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Output vector.
+
+        Notes:
+            The Hamiltonian is applied in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
         """
-        return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.ipccsd_matvec(self, vector, imds=self._imds)
 
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
@@ -269,10 +281,10 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             Bra excitation vector.
 
         Notes:
-            This is actually considered the ket vector in most contexts, with the :math:`\Lambda`
-            amplitudes acting on the bra state. The convention used here reflects the general
-            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
-            construction of moments.
+            The bra and ket are defined in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
 
         See Also:
             :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
@@ -304,10 +316,10 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             Ket excitation vector.
 
         Notes:
-            This is actually considered the bra vector in most contexts, with the :math:`\Lambda`
-            amplitudes acting on the ket state. The convention used here reflects the general
-            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
-            construction of moments.
+            The bra and ket are defined in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
 
         See Also:
             :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
