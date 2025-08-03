@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 import functools
-from typing import TYPE_CHECKING, cast
 import warnings
+from typing import TYPE_CHECKING, cast
 
 import scipy.linalg
 
@@ -24,13 +23,13 @@ einsum = functools.partial(np.einsum, optimize=True)
 On some platforms, mixing :mod:`numpy` and :mod:`scipy` eigenvalue solvers can lead to performance
 issues, likely from repeating warm-up overhead from conflicting BLAS and/or LAPACK libraries.
 """
-AVOID_SCIPY_EIG = True
+AVOID_SCIPY_EIG: bool = True
 
 """Default biorthonormalisation method."""
-BIORTH_METHOD = "lu"
+BIORTH_METHOD: Literal["lu", "eig", "eig-balanced"] = "lu"
 
 
-def is_orthonormal(vectors_left: Array, vectors_right: Array | None = None) -> Array:
+def is_orthonormal(vectors_left: Array, vectors_right: Array | None = None) -> bool:
     """Check if a set of vectors is orthonormal.
 
     Args:
@@ -157,44 +156,6 @@ def biorthonormalise(
         right = right.T.conj()
 
     return left, right
-
-
-@contextmanager
-def biorthonormal_context(
-    left: Array,
-    right: Array,
-    subspace_size: int | None = None,
-    method: Literal["eig", "eig-balanced", "lu"] = "lu",
-) -> tuple[Array, Array]:
-    """Context manager for biorthonormalising two sets of vectors and then restoring them.
-
-    Args:
-        left: The left set of vectors.
-        right: The right set of vectors.
-        subspace_size: The size of the subspace to be biorthonormalised. If ``None``, use the full
-            size of the vectors.
-        method: The method to use for biorthonormalisation. See :func:`biorthonormalise` for
-            available methods.
-
-    Returns:
-        The biorthonormalised left and right sets of vectors.
-
-    See Also:
-        :func:`biorthonormalise` for details on the available methods.
-    """
-    if subspace_size is None:
-        subspace_size = left.shape[0]
-    if method != "lu":
-        raise NotImplementedError(
-            f"Biorthonormal context with method {method} is not implemented. Use 'lu' for now."
-        )
-    overlap = left[:, :subspace_size].T.conj() @ right[:, :subspace_size]
-    l, u = scipy.linalg.lu(overlap, permute_l=True)
-    left[:, :subspace_size] = left[:, :subspace_size] @ np.linalg.inv(l).T.conj()
-    right[:, :subspace_size] = right[:, :subspace_size] @ np.linalg.inv(u)
-    yield left, right
-    left[:, :subspace_size] = left[:, :subspace_size] @ l.T.conj()
-    right[:, :subspace_size] = right[:, :subspace_size] @ u
 
 
 def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> tuple[Array, Array]:

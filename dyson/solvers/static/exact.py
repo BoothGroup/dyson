@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import scipy.linalg
-
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
@@ -41,9 +39,11 @@ def project_eigenvectors(
         raise ValueError(
             "bra and ket both passed implying a non-hermitian system, but eigvecs is 2D."
         )
+    if ket is None:
+        ket = bra
 
     # Find a basis for the null space of the bra and ket vectors
-    projector = (ket if not hermitian else bra).T @ bra.conj()
+    projector = ket.T @ bra.conj()
     vectors = util.null_space_basis(projector, hermitian=hermitian)
 
     # If the system is hermitian, the rotation is trivial
@@ -178,7 +178,20 @@ class Exact(StaticSolver):
                 static = orth @ static
                 self_energy = self_energy.rotate_couplings((eye, orth.T.conj()))
 
-        print("%20s %18.14f %18.14f %18.14f" % (("from_self_energy",) + tuple(np.sum(m).real for m in [bra.conj() @ ket.T, bra.conj() @ matrix @ ket.T, bra.conj() @ matrix @ matrix @ ket.T])))
+        print(
+            "%20s %18.14f %18.14f %18.14f"
+            % (
+                ("from_self_energy",)
+                + tuple(
+                    np.sum(m).real
+                    for m in [
+                        bra.conj() @ ket.T,
+                        bra.conj() @ matrix @ ket.T,
+                        bra.conj() @ matrix @ matrix @ ket.T,
+                    ]
+                )
+            )
+        )
 
         return cls(
             self_energy.matrix(static),
