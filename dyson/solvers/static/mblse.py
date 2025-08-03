@@ -1,6 +1,6 @@
-"""Moment block Lanczos for moments of the self-energy [backhouse2021]_.
+"""Moment block Lanczos for moments of the self-energy [1]_.
 
-.. [backhouse2021] Backhouse, O. J., Santana-Bonilla, A., & Booth, G. H. (2021). Scalable and
+.. [1] Backhouse, O. J., Santana-Bonilla, A., & Booth, G. H. (2021). Scalable and
    Predictive Spectra of Correlated Molecules with Moment Truncated Iterated Perturbation Theory.
    The Journal of Physical Chemistry Letters, 12(31), 7650–7658.
    https://doi.org/10.1021/acs.jpclett.1c02383

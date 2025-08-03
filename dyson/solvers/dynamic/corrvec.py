@@ -1,6 +1,6 @@
-"""Correction vector Green's function solver [nocera2016]_.
+"""Correction vector Green's function solver [1]_.
 
-.. [nocera2016] Nocera, A., & Alvarez, G. (2016). Spectral functions with the density matrix
+.. [1] Nocera, A., & Alvarez, G. (2016). Spectral functions with the density matrix
    renormalization group: Krylov-space approach for correction vectors. Physical Review. E, 94(5).
    https://doi.org/10.1103/physreve.94.053308
 """

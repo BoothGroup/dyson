@@ -1,6 +1,6 @@
-"""Moment block Lanczos for moments of the Green's function [backhouse2022]_.
+"""Moment block Lanczos for moments of the Green's function [1]_.
 
-.. [backhouse2022] Backhouse, O. J., & Booth, G. H. (2022). Constructing “Full-Frequency” spectra
+.. [1] Backhouse, O. J., & Booth, G. H. (2022). Constructing “Full-Frequency” spectra
    via moment constraints for coupled cluster Green’s functions. Journal of Chemical Theory and
    Computation, 18(11), 6622–6636. https://doi.org/10.1021/acs.jctc.2c00670
 """

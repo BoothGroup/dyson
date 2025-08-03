@@ -1,10 +1,10 @@
-"""Coupled cluster singles and doubles (CCSD) expressions [purvis1982]_ [stanton1993]_.
+"""Coupled cluster singles and doubles (CCSD) expressions [1]_ [2]_.
 
-.. [purvis1982] Purvis, G. D., & Bartlett, R. J. (1982). A full coupled-cluster singles and doubles
+.. [1] Purvis, G. D., & Bartlett, R. J. (1982). A full coupled-cluster singles and doubles
    model: The inclusion of disconnected triples. The Journal of Chemical Physics, 76(4), 1910–1918.
    https://doi.org/10.1063/1.443164
 
-.. [stanton1993] Stanton, J. F., & Bartlett, R. J. (1993). The equation of motion coupled-cluster
+.. [2] Stanton, J. F., & Bartlett, R. J. (1993). The equation of motion coupled-cluster
    method. A systematic biorthogonal approach to molecular excitation energies, transition
    probabilities, and excited state properties. The Journal of Chemical Physics, 98(9), 7029–7039.
    https://doi.org/10.1063/1.464746

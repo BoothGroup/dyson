@@ -1,6 +1,6 @@
-"""Chebyshev polynomial Green's function solver [ferreira2015]_.
+"""Chebyshev polynomial Green's function solver [1]_.
 
-.. [ferreira2015] Ferreira, A., & Mucciolo, E. R. (2015). Critical delocalization of Chiral zero
+.. [1] Ferreira, A., & Mucciolo, E. R. (2015). Critical delocalization of Chiral zero
    energy modes in graphene. Physical Review Letters, 115(10).
    https://doi.org/10.1103/physrevlett.115.106601
 """
