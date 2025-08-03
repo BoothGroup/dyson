@@ -34,7 +34,7 @@ def is_orthonormal(vectors_left: Array, vectors_right: Array | None = None) -> b
 
     Args:
         vectors_left: The left set of vectors to be checked.
-        vectors_right: The right set of vectors to be checked. If `None`, use the left vectors.
+        vectors_right: The right set of vectors to be checked. If ``None``, use the left vectors.
 
     Returns:
         A boolean array indicating whether each vector is orthonormal.
@@ -276,7 +276,7 @@ def null_space_basis(
     Args:
         matrix: The matrix for which to find the null space.
         threshold: Threshold for removing vectors to obtain the null space.
-        hermitian: Whether the matrix is hermitian. If `None`, infer from the matrix.
+        hermitian: Whether the matrix is hermitian. If ``None``, infer from the matrix.
 
     Returns:
         The basis for the null space.
@@ -430,7 +430,7 @@ def as_diagonal(matrix: Array, ndim: int) -> Array:
 
 
 def unit_vector(size: int, index: int, dtype: str = "float64") -> Array:
-    """Return a unit vector of size `size` with a 1 at index `index`.
+    """Return a unit vector of size ``size`` with a 1 at index ``index``.
 
     Args:
         size: The size of the vector.
@@ -487,8 +487,8 @@ def unpack_vectors(vector: Array) -> tuple[Array, Array]:
     """Unpack a block vector in the :mod:`dyson` convention.
 
     Args:
-        vector: The vector to be unpacked. The vector should either be a 2D array `(n, m)` or a 3D
-            array `(2, n, m)`. The latter case is non-Hermitian.
+        vector: The vector to be unpacked. The vector should either be a 2D array ``(n, m)`` or a 3D
+            array ``(2, n, m)``. The latter case is non-Hermitian.
 
     Returns:
         Left- and right-hand vectors.
@@ -532,8 +532,8 @@ def set_subspace(vectors: Array, subspace: Array) -> Array:
         The vectors with the subspace applied.
 
     Note:
-        This operation is equivalent to applying `vectors[: n] = subspace` where `n` is the size of
-        both dimensions in the subspace.
+        This operation is equivalent to applying ``vectors[: n] = subspace`` where ``n`` is the size
+        of both dimensions in the subspace.
     """
     size = subspace.shape[0]
     return np.concatenate([subspace, vectors[size:]], axis=0)
@@ -550,8 +550,8 @@ def rotate_subspace(vectors: Array, rotation: Array) -> Array:
         The rotated vectors.
 
     Note:
-        This operation is equivalent to applying `vectors[: n] = rotation @ vectors[: n]` where `n`
-        is the size of both dimensions in the rotation matrix.
+        This operation is equivalent to applying ``vectors[: n] = rotation @ vectors[: n]`` where
+        ``n`` is the size of both dimensions in the rotation matrix.
     """
     if rotation.shape[0] != rotation.shape[1]:
         raise ValueError(f"Rotation matrix must be square, got shape {rotation.shape}.")

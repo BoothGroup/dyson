@@ -62,10 +62,10 @@ class CorrectionVector(DynamicSolver):
             nphys: The number of physical degrees of freedom.
             grid: Real frequency grid upon which to evaluate the Green's function.
             get_state_bra: Function to get the bra vector corresponding to a fermion operator acting
-                on the ground state. If `None`, the state vector is :math:`v_{i} = \delta_{ij}` for
-                orbital :math:`j`.
+                on the ground state. If ``None``, the state vector is :math:`v_{i} = \delta_{ij}`
+                for orbital :math:`j`.
             get_state_ket: Function to get the ket vector corresponding to a fermion operator acting
-                on the ground state. If `None`, the :arg:`get_state_bra` function is used.
+                on the ground state. If ``None``, the :arg:`get_state_bra` function is used.
             component: The component of the dynamic representation to solve for.
             reduction: The reduction of the dynamic representation to solve for.
             conv_tol: Convergence tolerance for the solver.

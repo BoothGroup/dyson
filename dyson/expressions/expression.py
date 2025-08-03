@@ -336,10 +336,10 @@ class BaseExpression(ABC):
                 memory overhead scale worse, but the CPU overhead scales better.
             left: Whether to use the left-handed Hamiltonian application.
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is
-                in `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`. If
-                `None`, the default scaling is computed as
-                `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
-                `(max(energies) + min(energies)) / 2.0`, respectively.
+                in ``[-1, 1]``. The scaling is applied as ``(energies - scaling[1]) / scaling[0]``.
+                If ``None``, the default scaling is computed as
+                ``(max(energies) - min(energies)) / (2.0 - 1e-3)`` and
+                ``(max(energies) + min(energies)) / 2.0``, respectively.
             reduction: Reduction to apply to the moments.
 
         Returns:

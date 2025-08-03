@@ -222,7 +222,7 @@ class DensityRelaxation(StaticSolver):
             Solver instance.
 
         Notes:
-            To initialise this solver from a self-energy, the `nelec` and `get_static` keyword
+            To initialise this solver from a self-energy, the ``nelec`` and ``get_static`` keyword
             arguments must be provided.
         """
         if "nelec" not in kwargs:

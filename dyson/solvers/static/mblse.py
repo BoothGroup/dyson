@@ -242,7 +242,7 @@ class MBLSE(BaseMBL):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         # Get the inverse square-root error
         error_inv_sqrt: float | None = None
@@ -568,7 +568,7 @@ class MLSE(MBLSE):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         # Initialise the coefficients
         for n in range(2 * self.max_cycle + 2):

@@ -109,7 +109,7 @@ class Davidson(StaticSolver):
             diagonal: The diagonal of the self-energy supermatrix.
             bra: The bra excitation vector mapping the supermatrix to the physical space.
             ket: The ket excitation vector mapping the supermatrix to the physical space. If `None`,
-                use the same vectors as `bra`.
+                use the same vectors as ``bra``.
             hermitian: Whether the matrix is hermitian.
             nroots: Number of roots to find.
             max_cycle: Maximum number of iterations.

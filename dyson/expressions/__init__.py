@@ -50,7 +50,7 @@ in the case of correlated ground states. The interface can provide these vectors
 >>> bra = fci.get_excitation_bras()
 >>> ket = fci.get_excitation_kets()
 
-which are vectors with shape `(nphys, nconfig)` where `nphys` is the number of physical states.
+which are vectors with shape ``(nphys, nconfig)`` where ``nphys`` is the number of physical states.
 
 These methods can be used to construct the moments of the Green's function
 

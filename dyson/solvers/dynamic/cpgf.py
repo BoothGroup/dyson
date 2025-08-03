@@ -36,7 +36,7 @@ class CPGF(DynamicSolver):
         moments: Chebyshev moments of the Green's function.
         grid: Real frequency grid upon which to evaluate the Green's function.
         scaling: Scaling factors to ensure the energy scale of the Lehmann representation is in
-            `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`.
+            ``[-1, 1]``. The scaling is applied as ``(energies - scaling[1]) / scaling[0]``.
     """
 
     reduction: Reduction = Reduction.NONE
