@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
 
-    from .conftest import ExactGetter
+    from .conftest import ExactGetter, Helper
 
 
 def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
@@ -44,6 +44,17 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     assert hamiltonian.shape == expression.shape
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 
+    vector = np.random.random(expression.nconfig + expression.nsingle)
+    hv = expression.apply_hamiltonian_right(vector)
+    try:
+        vh = expression.apply_hamiltonian_left(vector)
+    except NotImplementedError:
+        vh = None
+
+    assert np.allclose(hv, hamiltonian @ vector)
+    if vh is not None:
+        assert np.allclose(vh, vector @ hamiltonian)
+
 
 def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Green's function moments of the expression."""
@@ -58,8 +69,8 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
     for i, j in itertools.product(range(expression.nphys), repeat=2):
         bra = expression.get_excitation_bra(j)
         ket = expression.get_excitation_ket(i)
-        moments[0, i, j] += bra.conj() @ ket
-        moments[1, i, j] += util.einsum("j,i,ij->", bra.conj(), ket, hamiltonian)
+        moments[0, j, i] += bra.conj() @ ket
+        moments[1, j, i] += bra.conj() @ hamiltonian @ ket
 
     # Compare the moments to the reference
     ref = expression.build_gf_moments(2)
@@ -69,6 +80,7 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
 
 
 def test_static(
+    helper: Helper,
     mf: scf.hf.RHF,
     expression_cls: type[BaseExpression],
     exact_cache: ExactGetter,
@@ -83,8 +95,10 @@ def test_static(
     # Get the static self-energy
     exact = exact_cache(mf, expression_cls)
     assert exact.result is not None
+    greens_function = exact.result.get_greens_function()
     static = exact.result.get_static_self_energy()
 
+    assert helper.have_equal_moments(gf_moments, greens_function, 2)
     assert np.allclose(static, gf_moments[1])
 
 

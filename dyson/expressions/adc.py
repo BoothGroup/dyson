@@ -104,6 +104,17 @@ class BaseADC(BaseExpression):
             vector = vector.real
         return self.PYSCF_ADC.matvec(self._adc_obj, self._imds, self._eris)(vector) * self.SIGN
 
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        raise NotImplementedError("Left application of Hamiltonian is not implemented for ADC.")
+
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 

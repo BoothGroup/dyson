@@ -277,7 +277,7 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
-        dtype = coefficients.dtype
+        dtype = np.result_type(coefficients.dtype, off_diagonal[i - 1].dtype)
 
         # Find the squre of the off-diagonal block
         off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)
@@ -340,7 +340,7 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
-        dtype = coefficients.dtype
+        dtype = np.result_type(coefficients.dtype, off_diagonal[i - 1].dtype)
 
         # Find the squre of the off-diagonal block
         off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)

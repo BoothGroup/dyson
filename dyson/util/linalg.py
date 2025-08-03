@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import functools
 from typing import TYPE_CHECKING, cast
+import warnings
 
 import scipy.linalg
 
@@ -11,6 +13,8 @@ from dyson import numpy as np
 from dyson.util import cache_by_id
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from dyson.typing import Array
 
 einsum = functools.partial(np.einsum, optimize=True)
@@ -22,32 +26,98 @@ issues, likely from repeating warm-up overhead from conflicting BLAS and/or LAPA
 """
 AVOID_SCIPY_EIG = True
 
+"""Default biorthonormalisation method."""
+BIORTH_METHOD = "lu"
+
+
+def is_orthonormal(vectors_left: Array, vectors_right: Array | None = None) -> Array:
+    """Check if a set of vectors is orthonormal.
+
+    Args:
+        vectors_left: The left set of vectors to be checked.
+        vectors_right: The right set of vectors to be checked. If `None`, use the left vectors.
+
+    Returns:
+        A boolean array indicating whether each vector is orthonormal.
+    """
+    if vectors_right is None:
+        vectors_right = vectors_left
+    if vectors_left.ndim == 1:
+        vectors_left = vectors_left[:, None]
+    if vectors_right.ndim == 1:
+        vectors_right = vectors_right[:, None]
+    overlap = einsum("ij,ik->jk", vectors_left.conj(), vectors_right)
+    return np.allclose(overlap, np.eye(overlap.shape[0]), atol=1e-10, rtol=0.0)
+
 
 @cache_by_id
-def orthonormalise(
-    vectors: Array, transpose: bool = False, add_to_overlap: Array | None = None
-) -> Array:
+def orthonormalise(vectors: Array, transpose: bool = False) -> Array:
     """Orthonormalise a set of vectors.
 
     Args:
         vectors: The set of vectors to be orthonormalised.
         transpose: Whether to transpose the vectors before and after orthonormalisation.
-        add_to_overlap: An optional matrix to be added to the overlap matrix before
-            orthonormalisation.
 
     Returns:
         The orthonormalised set of vectors.
     """
     if transpose:
         vectors = vectors.T.conj()
+
     overlap = vectors.T.conj() @ vectors
-    if add_to_overlap is not None:
-        overlap += add_to_overlap
     orth = matrix_power(overlap, -0.5, hermitian=False)
-    vectors = vectors @ orth
+    vectors = vectors @ orth.T.conj()
+
     if transpose:
         vectors = vectors.T.conj()
+
     return vectors
+
+
+def biorthonormalise_with_overlap(
+    left: Array,
+    right: Array,
+    overlap: Array,
+    method: Literal["eig", "eig-balanced", "lu"] = BIORTH_METHOD,
+) -> tuple[Array, Array]:
+    """Biorthonormalise two sets of vectors with a given overlap matrix.
+
+    Args:
+        left: The left set of vectors.
+        right: The right set of vectors.
+        overlap: The overlap matrix to be used for biorthonormalisation.
+        method: The method to use for biorthonormalisation. See :func:`biorthonormalise` for
+            available methods.
+
+    Returns:
+        The biorthonormalised left and right sets of vectors.
+
+    See Also:
+        :func:`biorthonormalise` for details on the available methods.
+    """
+    if method == "eig":
+        orth, error = matrix_power(overlap, -1, hermitian=False, return_error=True)
+        right = right @ orth
+    elif method == "eig-balanced":
+        orth, error = matrix_power(overlap, -0.5, hermitian=False, return_error=True)
+        left = left @ orth.T.conj()
+        right = right @ orth
+    elif method == "lu":
+        l, u = scipy.linalg.lu(overlap, permute_l=True)
+        try:
+            left = left @ np.linalg.inv(l).T.conj()
+            right = right @ np.linalg.inv(u)
+        except np.linalg.LinAlgError as e:
+            warnings.warn(
+                f"Inverse of LU decomposition failed with error: {e}. "
+                "Falling back to eigenvalue decomposition.",
+                UserWarning,
+            )
+            return biorthonormalise_with_overlap(left, right, overlap, method="eig-balanced")
+    else:
+        raise ValueError(f"Unknown biorthonormalisation method: {method}")
+
+    return left, right
 
 
 @cache_by_id
@@ -55,8 +125,7 @@ def biorthonormalise(
     left: Array,
     right: Array,
     transpose: bool = False,
-    split: bool = False,
-    add_to_overlap: Array | None = None,
+    method: Literal["eig", "eig-balanced", "lu"] = BIORTH_METHOD,
 ) -> tuple[Array, Array]:
     """Biorthonormalise two sets of vectors.
 
@@ -64,31 +133,68 @@ def biorthonormalise(
         left: The left set of vectors.
         right: The right set of vectors.
         transpose: Whether to transpose the vectors before and after biorthonormalisation.
-        split: Whether to square root the orthogonalisation metric to factor each of the left and
-            right vectors, rather than just applying the metric to the right vectors.
-        add_to_overlap: An optional matrix to be added to the overlap matrix before
-            biorthonormalisation.
+        method: The method to use for biorthonormalisation. The ``"eig"`` method uses the
+            eigenvalue decomposition, the ``"eig-balanced"`` method uses the same decomposition but
+            applies a balanced transformation to the left- and right-hand vectors, and the ``"lu"``
+            method uses the LU decomposition.
 
     Returns:
         The biorthonormalised left and right sets of vectors.
+
+    See Also:
+        :func:`biorthonormalise_with_overlap` for a more general method that allows for a custom
+        overlap matrix.
     """
     if transpose:
         left = left.T.conj()
         right = right.T.conj()
+
     overlap = left.T.conj() @ right
-    if add_to_overlap is not None:
-        overlap += add_to_overlap
-    if not split:
-        orth, error = matrix_power(overlap, -1, hermitian=False, return_error=True)
-        right = right @ orth
-    else:
-        orth, error = matrix_power(overlap, -0.5, hermitian=False, return_error=True)
-        left = left @ orth
-        right = right @ orth
+    left, right = biorthonormalise_with_overlap(left, right, overlap, method=method)
+
     if transpose:
         left = left.T.conj()
         right = right.T.conj()
+
     return left, right
+
+
+@contextmanager
+def biorthonormal_context(
+    left: Array,
+    right: Array,
+    subspace_size: int | None = None,
+    method: Literal["eig", "eig-balanced", "lu"] = "lu",
+) -> tuple[Array, Array]:
+    """Context manager for biorthonormalising two sets of vectors and then restoring them.
+
+    Args:
+        left: The left set of vectors.
+        right: The right set of vectors.
+        subspace_size: The size of the subspace to be biorthonormalised. If ``None``, use the full
+            size of the vectors.
+        method: The method to use for biorthonormalisation. See :func:`biorthonormalise` for
+            available methods.
+
+    Returns:
+        The biorthonormalised left and right sets of vectors.
+
+    See Also:
+        :func:`biorthonormalise` for details on the available methods.
+    """
+    if subspace_size is None:
+        subspace_size = left.shape[0]
+    if method != "lu":
+        raise NotImplementedError(
+            f"Biorthonormal context with method {method} is not implemented. Use 'lu' for now."
+        )
+    overlap = left[:, :subspace_size].T.conj() @ right[:, :subspace_size]
+    l, u = scipy.linalg.lu(overlap, permute_l=True)
+    left[:, :subspace_size] = left[:, :subspace_size] @ np.linalg.inv(l).T.conj()
+    right[:, :subspace_size] = right[:, :subspace_size] @ np.linalg.inv(u)
+    yield left, right
+    left[:, :subspace_size] = left[:, :subspace_size] @ l.T.conj()
+    right[:, :subspace_size] = right[:, :subspace_size] @ u
 
 
 def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> tuple[Array, Array]:
@@ -202,34 +308,32 @@ def eig_lr(
 
 @cache_by_id
 def null_space_basis(
-    bra: Array, ket: Array | None = None, threshold: float = 1e-11
+    matrix: Array, threshold: float = 1e-11, hermitian: bool | None = None
 ) -> tuple[Array, Array]:
-    r"""Find a basis for the null space of :math:`| \text{ket} \rangle \langle \text{bra} |`.
+    r"""Find a basis for the null space of a matrix.
 
     Args:
-        bra: The bra vectors.
-        ket: The ket vectors. If `None`, use the same vectors as `bra`.
+        matrix: The matrix for which to find the null space.
         threshold: Threshold for removing vectors to obtain the null space.
+        hermitian: Whether the matrix is hermitian. If `None`, infer from the matrix.
 
     Returns:
-        The basis for the null space for the `bra` and `ket` vectors.
+        The basis for the null space.
 
     Note:
         The full vector space may not be biorthonormal.
     """
-    hermitian = ket is None or bra is ket
-    if ket is None:
-        ket = bra
+    if hermitian is None:
+        hermitian = np.allclose(matrix, matrix.T.conj())
 
     # Find the null space
-    proj = ket.T @ bra.conj()
-    null = np.eye(bra.shape[1]) - proj
+    null = np.eye(matrix.shape[1]) - matrix
 
     # Diagonalise the null space to find the basis
     weights, (left, right) = eig_lr(null, hermitian=hermitian)
     mask = (1 - np.abs(weights)) < threshold
-    left = left[:, mask].T.conj()
-    right = right[:, mask].T.conj()
+    left = left[:, mask]
+    right = right[:, mask]
 
     return (left, right) if hermitian else (left, left)
 
@@ -290,6 +394,10 @@ def matrix_power(
             error = 0.0
         else:
             error = cast(float, np.linalg.norm(null, ord=ord))
+
+    # See if we can remove the imaginary part of the matrix power
+    if np.iscomplexobj(matrix_power) and np.all(np.isclose(matrix_power.imag, 0.0)):
+        matrix_power = matrix_power.real
 
     return matrix_power, error
 

@@ -104,7 +104,7 @@ class BaseExpression(ABC):
                 UserWarning,
                 2,
             )
-        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)])
+        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)]).T
 
     @abstractmethod
     def get_excitation_vector(self, orbital: int) -> Array:

@@ -283,7 +283,7 @@ class CorrectionVector(DynamicSolver):
                     failed.add(w)
                 elif self.reduction == Reduction.NONE:
                     for j in range(self.nphys):
-                        greens_function[w, i, j] = bras[j] @ x
+                        greens_function[w, j, i] = bras[j] @ x
                 elif self.reduction == Reduction.DIAG:
                     greens_function[w, i] = bras[i] @ x
                 elif self.reduction == Reduction.TRACE:

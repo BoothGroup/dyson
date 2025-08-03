@@ -171,7 +171,6 @@ class Spectral(BaseRepresentation):
             return energies, couplings
 
         # Diagonalise the subspace to get the energies and basis for the couplings
-        # TODO: check if already diagonal
         energies, rotation = util.eig_lr(subspace, hermitian=self.hermitian)
 
         # Project back to the couplings

@@ -21,6 +21,7 @@ from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
 from dyson.solvers.solver import StaticSolver
+from dyson.solvers.static.exact import project_eigenvectors
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -307,23 +308,7 @@ class Davidson(StaticSolver):
         converged = converged[mask]
 
         # Get the full map onto physical + auxiliary and rotate the eigenvectors
-        vectors = util.null_space_basis(self.bra, ket=self.ket if not self.hermitian else None)
-        if self.ket is None or self.hermitian:
-            rotation = np.concatenate([self.bra, vectors[0]], axis=0)
-            eigvecs = rotation @ eigvecs
-        else:
-            # Ensure biorthonormality of auxiliary vectors
-            overlap = vectors[0].T.conj() @ vectors[1]
-            overlap -= self.bra.T.conj() @ self.ket
-            vectors = (
-                vectors[0],
-                vectors[1] @ util.matrix_power(overlap, -1, hermitian=False)[0],
-            )
-            rotation = (
-                np.concatenate([self.bra, vectors[0]], axis=0),
-                np.concatenate([self.ket, vectors[1]], axis=0),
-            )
-            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
+        eigvecs = project_eigenvectors(eigvecs, self.bra, self.ket if not self.hermitian else None)
 
         # Store the results
         self.result = Spectral(eigvals, eigvecs, self.nphys)

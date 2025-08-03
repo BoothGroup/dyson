@@ -204,6 +204,17 @@ class TDAGW_Dyson(BaseGW_Dyson):
 
         return np.concatenate([r_o1, r_v1, r_o2.ravel(), r_v2.ravel()])
 
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        raise NotImplementedError("Left application of Hamiltonian is not implemented for TDA-GW.")
+
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 

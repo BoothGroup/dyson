@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import scipy.linalg
+
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
@@ -15,6 +17,62 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
+
+
+def project_eigenvectors(
+    eigvecs: Array,
+    bra: Array,
+    ket: Array | None = None,
+) -> Array:
+    """Project eigenvectors onto the physical plus auxiliary space.
+
+    Args:
+        eigvecs: Eigenvectors to be projected.
+        bra: Bra state vector mapping the supermatrix to the physical space.
+        ket: Ket state vector mapping the supermatrix to the physical space. If ``None``, use the
+            same vectors as ``bra``.
+
+    Returns:
+        Projected eigenvectors.
+    """
+    hermitian = ket is None
+    nphys = bra.shape[0]
+    if not hermitian and eigvecs.ndim == 2:
+        raise ValueError(
+            "bra and ket both passed implying a non-hermitian system, but eigvecs is 2D."
+        )
+
+    # Find a basis for the null space of the bra and ket vectors
+    projector = (ket if not hermitian else bra).T @ bra.conj()
+    vectors = util.null_space_basis(projector, hermitian=hermitian)
+
+    # If the system is hermitian, the rotation is trivial
+    if hermitian:
+        rotation = np.concatenate([bra.T, vectors[0]], axis=1)
+        return rotation.T.conj() @ eigvecs
+
+    # If the system is not hermitian, we need to ensure biorthonormality
+    overlap = ket.conj() @ bra.T
+    orth, orth_error = util.matrix_power(overlap, -0.5, hermitian=hermitian, return_error=True)
+    unorth, unorth_error = util.matrix_power(overlap, 0.5, hermitian=hermitian, return_error=True)
+
+    # Work in an orthonormal physical basis
+    bra = bra.T @ orth
+    ket = ket.T @ orth.T.conj()
+
+    # Biorthonormalise the physical plus auxiliary vectors
+    left = np.concatenate([ket, vectors[0]], axis=1)
+    right = np.concatenate([bra, vectors[1]], axis=1)
+    left, right = util.biorthonormalise(left, right)
+
+    # Return the physical vectors to the original basis
+    left[:, :nphys] = left[:, :nphys] @ unorth.T.conj()
+    right[:, :nphys] = right[:, :nphys] @ unorth
+
+    # Rotate the eigenvectors
+    eigvecs = np.array([left.T.conj() @ eigvecs[0], right.T.conj() @ eigvecs[1]])
+
+    return eigvecs
 
 
 class Exact(StaticSolver):
@@ -99,17 +157,29 @@ class Exact(StaticSolver):
             Solver instance.
         """
         size = self_energy.nphys + self_energy.naux
+        matrix = self_energy.matrix(static)
         bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
         if overlap is not None:
             hermitian = self_energy.hermitian
-            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-            bra = util.rotate_subspace(bra, orth.T.conj())
-            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
-            static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(
-                unorth if hermitian else (unorth, unorth.T.conj())
-            )
+
+            if self_energy.hermitian:
+                orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
+                unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
+                bra = util.rotate_subspace(bra, orth)
+                ket = util.rotate_subspace(ket, orth.T.conj()) if not hermitian else bra
+                static = unorth @ static @ unorth
+                self_energy = self_energy.rotate_couplings(
+                    unorth if hermitian else (unorth, unorth.T.conj())
+                )
+            else:
+                bra = util.rotate_subspace(bra, overlap)
+                orth = util.matrix_power(overlap, -1, hermitian=hermitian)[0]
+                eye = np.eye(self_energy.nphys)
+                static = orth @ static
+                self_energy = self_energy.rotate_couplings((eye, orth.T.conj()))
+
+        print("%20s %18.14f %18.14f %18.14f" % (("from_self_energy",) + tuple(np.sum(m).real for m in [bra.conj() @ ket.T, bra.conj() @ matrix @ ket.T, bra.conj() @ matrix @ matrix @ ket.T])))
+
         return cls(
             self_energy.matrix(static),
             bra,
@@ -152,23 +222,7 @@ class Exact(StaticSolver):
             eigvecs = np.array([left, right])
 
         # Get the full map onto physical + auxiliary and rotate the eigenvectors
-        vectors = util.null_space_basis(self.bra, ket=self.ket if not self.hermitian else None)
-        if self.ket is None or self.hermitian:
-            rotation = np.concatenate([self.bra, vectors[0]], axis=0)
-            eigvecs = rotation @ eigvecs
-        else:
-            # Ensure biorthonormality of auxiliary vectors
-            overlap = vectors[0].T.conj() @ vectors[1]
-            overlap -= self.bra.T.conj() @ self.ket
-            vectors = (
-                vectors[0],
-                vectors[1] @ util.matrix_power(overlap, -1, hermitian=False)[0],
-            )
-            rotation = (
-                np.concatenate([self.bra, vectors[0]], axis=0),
-                np.concatenate([self.ket, vectors[1]], axis=0),
-            )
-            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
+        eigvecs = project_eigenvectors(eigvecs, self.bra, self.ket if not self.hermitian else None)
 
         # Store the result
         self.result = Spectral(eigvals, eigvecs, self.nphys)

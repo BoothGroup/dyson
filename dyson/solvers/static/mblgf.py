@@ -252,6 +252,8 @@ class MBLGF(BaseMBL):
         dtype = np.result_type(
             coefficients.dtype,
             *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+            on_diagonal[i].dtype,
+            off_diagonal[i - 1].dtype if i else np.float64,
         )
 
         # Find the squre of the off-diagonal block
@@ -309,6 +311,8 @@ class MBLGF(BaseMBL):
             coefficients[0].dtype,
             coefficients[1].dtype,
             *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+            on_diagonal[i].dtype,
+            off_diagonal_upper[i - 1].dtype if i else np.float64,
         )
 
         # Find the square of the off-diagonal blocks

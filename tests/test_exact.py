@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from dyson import util
 from dyson.representations.spectral import Spectral
 from dyson.solvers import Exact
 
@@ -28,6 +29,7 @@ def test_exact_solver(
     expression = expression_cls.from_mf(mf)
     if expression.nconfig > 1024:
         pytest.skip("Skipping test for large Hamiltonian")
+    gf_moments = expression.build_gf_moments(4)
 
     # Solve the Hamiltonian
     solver = exact_cache(mf, expression_cls)
@@ -43,6 +45,8 @@ def test_exact_solver(
 
     assert self_energy.nphys == expression.nphys
     assert greens_function.nphys == expression.nphys
+    assert helper.are_equal_arrays(static, gf_moments[1])
+    assert helper.have_equal_moments(greens_function, gf_moments, 4)
 
     # Recover the Green's function from the recovered self-energy
     overlap = greens_function.moment(0)
