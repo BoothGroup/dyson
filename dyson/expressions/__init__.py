@@ -82,6 +82,7 @@ Submodules
     fci
     adc
     gw
+    hamiltonian
 
 """
 
