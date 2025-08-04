@@ -313,6 +313,11 @@ class DensityRelaxation(StaticSolver):
                 # Update the static self-energy
                 static = self.get_static(rdm1, rdm1_prev=rdm1_prev, static_prev=static)
                 try:
+                    if not self_energy.hermitian and not np.iscomplexobj(static):
+                        # Avoid casting errors if non-Hermitian self-energy starts as real and
+                        # becomes complex during the iterations... probably more efficient to
+                        # subclass DIIS to handle this.
+                        static = static.astype(np.complex128)
                     static = diis.update(static, xerr=None)
                 except np.linalg.LinAlgError:
                     pass
