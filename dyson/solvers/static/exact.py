@@ -178,21 +178,6 @@ class Exact(StaticSolver):
                 static = orth @ static
                 self_energy = self_energy.rotate_couplings((eye, orth.T.conj()))
 
-        print(
-            "%20s %18.14f %18.14f %18.14f"
-            % (
-                ("from_self_energy",)
-                + tuple(
-                    np.sum(m).real
-                    for m in [
-                        bra.conj() @ ket.T,
-                        bra.conj() @ matrix @ ket.T,
-                        bra.conj() @ matrix @ matrix @ ket.T,
-                    ]
-                )
-            )
-        )
-
         return cls(
             self_energy.matrix(static),
             bra,
