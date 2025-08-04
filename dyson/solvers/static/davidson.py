@@ -21,7 +21,7 @@ from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
 from dyson.solvers.solver import StaticSolver
-from dyson.solvers.static.exact import project_eigenvectors
+from dyson.solvers.static.exact import orthogonalise_self_energy, project_eigenvectors
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -175,18 +175,9 @@ class Davidson(StaticSolver):
         Returns:
             Solver instance.
         """
-        size = self_energy.nphys + self_energy.naux
-        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if overlap is not None:
-            hermitian = self_energy.hermitian
-            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-            bra = util.rotate_subspace(bra, orth.T.conj())
-            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
-            static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(
-                unorth if hermitian else (unorth, unorth.T.conj())
-            )
+        static, self_energy, bra, ket = orthogonalise_self_energy(
+            static, self_energy, overlap=overlap
+        )
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),

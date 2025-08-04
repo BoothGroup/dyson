@@ -11,12 +11,13 @@ from typing import TYPE_CHECKING, cast
 
 from scipy.sparse.linalg import LinearOperator, lgmres
 
-from dyson import console, printing, util
+from dyson import console, printing
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.representations.dynamic import Dynamic
 from dyson.representations.enums import Component, Ordering, Reduction
 from dyson.solvers.solver import DynamicSolver
+from dyson.solvers.static.exact import orthogonalise_self_energy
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -112,25 +113,16 @@ class CorrectionVector(DynamicSolver):
         """
         if "grid" not in kwargs:
             raise ValueError("Missing required argument grid.")
-        size = self_energy.nphys + self_energy.naux
-        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if overlap is not None:
-            hermitian = self_energy.hermitian
-            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-            bra = util.rotate_subspace(bra, orth.T.conj())
-            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
-            static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(
-                unorth if hermitian else (unorth, unorth.T.conj())
-            )
+        static, self_energy, bra, ket = orthogonalise_self_energy(
+            static, self_energy, overlap=overlap
+        )
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),
             self_energy.nphys,
             kwargs.pop("grid"),
             bra.__getitem__,
-            ket.__getitem__,
+            ket.__getitem__ if ket is not None else None,
             **kwargs,
         )
 

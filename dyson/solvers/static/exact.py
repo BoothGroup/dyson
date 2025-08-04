@@ -32,6 +32,10 @@ def project_eigenvectors(
 
     Returns:
         Projected eigenvectors.
+
+    Notes:
+        The physical space is defined by the ``bra`` and ``ket`` vectors, while the auxiliary part
+        is defined by the null space of the projector formed by the outer product of these vectors.
     """
     hermitian = ket is None
     nphys = bra.shape[0]
@@ -73,6 +77,52 @@ def project_eigenvectors(
     eigvecs = np.array([left.T.conj() @ eigvecs[0], right.T.conj() @ eigvecs[1]])
 
     return eigvecs
+
+
+def orthogonalise_self_energy(
+    static: Array,
+    self_energy: Lehmann,
+    overlap: Array | None = None,
+) -> tuple[Array, Lehmann, Array, Array | None]:
+    """Orthogonalise a self-energy.
+
+    Args:
+        static: Static part of the self-energy.
+        self_energy: Self-energy.
+        overlap: Overlap matrix for the physical space. If ``None``, assume identity.
+
+    Returns:
+        The static part of the self-energy and the self-energy itself, projected into an orthogonal
+        basis, along with the ``bra`` and ``ket`` vectors to map the supermatrix to the original
+        physical space.
+
+    Notes:
+        The ``bra`` and ``ket`` vectors essentially transform the orthogonalised self-energy from
+        the orthogonal basis to the original basis. The main use of this function is to generate a
+        self-energy and corresponding ``bra`` and ``ket`` vectors that can reproduce a Green's
+        function with a non-identity zeroth moment (overlap).
+    """
+    size = self_energy.nphys + self_energy.naux
+    hermitian = self_energy.hermitian
+    bra = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
+    ket = bra if not hermitian else None
+
+    if overlap is not None:
+        if hermitian:
+            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
+            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
+            bra = util.rotate_subspace(bra, orth)
+            ket = util.rotate_subspace(ket, orth.T.conj()) if ket is not None else None
+            static = unorth @ static @ unorth
+            self_energy = self_energy.rotate_couplings(unorth)
+        else:
+            bra = util.rotate_subspace(bra, overlap)
+            orth = util.matrix_power(overlap, -1, hermitian=hermitian)[0]
+            eye = np.eye(self_energy.nphys)
+            static = orth @ static
+            self_energy = self_energy.rotate_couplings((eye, orth.T.conj()))
+
+    return static, self_energy, bra, ket
 
 
 class Exact(StaticSolver):
@@ -156,28 +206,9 @@ class Exact(StaticSolver):
         Returns:
             Solver instance.
         """
-        size = self_energy.nphys + self_energy.naux
-        matrix = self_energy.matrix(static)
-        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if overlap is not None:
-            hermitian = self_energy.hermitian
-
-            if self_energy.hermitian:
-                orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-                unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-                bra = util.rotate_subspace(bra, orth)
-                ket = util.rotate_subspace(ket, orth.T.conj()) if not hermitian else bra
-                static = unorth @ static @ unorth
-                self_energy = self_energy.rotate_couplings(
-                    unorth if hermitian else (unorth, unorth.T.conj())
-                )
-            else:
-                bra = util.rotate_subspace(bra, overlap)
-                orth = util.matrix_power(overlap, -1, hermitian=hermitian)[0]
-                eye = np.eye(self_energy.nphys)
-                static = orth @ static
-                self_energy = self_energy.rotate_couplings((eye, orth.T.conj()))
-
+        static, self_energy, bra, ket = orthogonalise_self_energy(
+            static, self_energy, overlap=overlap
+        )
         return cls(
             self_energy.matrix(static),
             bra,
