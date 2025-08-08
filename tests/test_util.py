@@ -42,6 +42,7 @@ def test_moments_conversion(
 
     assert self_energy.nphys == expression.nphys
     assert greens_function.nphys == expression.nphys
+    assert helper.recovers_greens_function(static, self_energy, greens_function)
 
     # Get the moments from the self-energy and Green's function
     se_moments = self_energy.moments(range(4))

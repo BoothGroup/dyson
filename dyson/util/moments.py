@@ -20,7 +20,7 @@ def se_moments_to_gf_moments(
     Args:
         static: Static part of the self-energy.
         se_moments: Moments of the self-energy.
-        overlap: The overlap matrix (zeroth moment of the Green's function). If `None`, the zeroth
+        overlap: The overlap matrix (zeroth moment of the Green's function). If ``None``, the zeroth
             moment of the Green's function is assumed to be the identity matrix.
         check_error: Whether to check the errors in the orthogonalisation of the moments.
 
@@ -167,7 +167,7 @@ def build_block_tridiagonal(
         on_diagonal: On-diagonal blocks.
         off_diagonal_upper: Off-diagonal blocks for the upper half of the matrix.
         off_diagonal_lower: Off-diagonal blocks for the lower half of the matrix. If
-            `None`, use the transpose of `off_diagonal_upper`.
+            ``None``, use the transpose of ``off_diagonal_upper``.
 
     Returns:
         A block tridiagonal matrix with the given blocks.

@@ -563,7 +563,7 @@ class AuxiliaryShift(ChemicalPotentialSolver):
         """Minimise the objective function.
 
         Returns:
-            The :class:`OptimizeResult` object from the minimizer.
+            The :class:`scipy.optimize.OptimizeResult` object from the minimizer.
         """
         # Get the table and callback function
         table = printing.ConvergencePrinter(

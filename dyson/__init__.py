@@ -105,7 +105,7 @@ spin symmetries left to the user to implement as needed. The available expressio
     * - :data:`~dyson.expressions.gw.TDAGW`
       - GW theory with the Tamm--Dancoff approximation for the excited states, based on a
         mean-field ground state.
-    * - :data:`~dyson.expressions.expression.Hamiltonian`
+    * - :data:`~dyson.expressions.hamiltonian.Hamiltonian`
       - General Hamiltonian expression, which accepts an array representing the supermatrix of the
         self-energy, and supports :mod:`scipy.sparse` matrices.
 

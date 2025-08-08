@@ -1,6 +1,6 @@
-"""Moment block Lanczos for moments of the Green's function [backhouse2022]_.
+"""Moment block Lanczos for moments of the Green's function [1]_.
 
-.. [backhouse2022] Backhouse, O. J., & Booth, G. H. (2022). Constructing “Full-Frequency” spectra
+.. [1] Backhouse, O. J., & Booth, G. H. (2022). Constructing “Full-Frequency” spectra
    via moment constraints for coupled cluster Green’s functions. Journal of Chemical Theory and
    Computation, 18(11), 6622–6636. https://doi.org/10.1021/acs.jctc.2c00670
 """
@@ -254,7 +254,7 @@ class MBLGF(BaseMBL):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         # Get the inverse square-root error
         error_inv_sqrt: float | None = None
@@ -288,6 +288,8 @@ class MBLGF(BaseMBL):
         dtype = np.result_type(
             coefficients.dtype,
             *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+            on_diagonal[i].dtype,
+            off_diagonal[i - 1].dtype if i else np.float64,
         )
 
         # Find the squre of the off-diagonal block
@@ -345,6 +347,8 @@ class MBLGF(BaseMBL):
             coefficients[0].dtype,
             coefficients[1].dtype,
             *[self.orthogonalised_moment(k).dtype for k in range(2 * i + 3)],
+            on_diagonal[i].dtype,
+            off_diagonal_upper[i - 1].dtype if i else np.float64,
         )
 
         # Find the square of the off-diagonal blocks
@@ -432,7 +436,7 @@ class MBLGF(BaseMBL):
             iteration: The iteration to get the results for.
 
         Returns:
-            The :cls:`Spectral` object.
+            The :class:`~dyson.representations.spectral.Spectral` object.
         """
         if iteration is None:
             iteration = self.max_cycle

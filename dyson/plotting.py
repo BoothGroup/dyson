@@ -163,14 +163,14 @@ def plot_dynamic(
         raise ValueError(
             f"Dynamic object reduction must be {Reduction.TRACE.name} to plot as a line plot, but "
             f"got {dynamic.reduction.name}. If you intended to plot the trace, use "
-            '`dynamic.copy(reduction="trace")` to create a copy with the trace reduction.'
+            'dynamic.copy(reduction="trace") to create a copy with the trace reduction.'
         )
     if dynamic.component == Component.FULL:
         raise ValueError(
             f"Dynamic object component must be {Component.REAL.name} or {Component.IMAG.name} to "
             f"plot as a line plot, but got {dynamic.component.name}. If you intended to plot the "
-            'real or imaginary part, use `dynamic.copy(component="real")` or '
-            '`dynamic.copy(component="imag")` to create a copy with the desired component.'
+            'real or imaginary part, use dynamic.copy(component="real") or '
+            'dynamic.copy(component="imag") to create a copy with the desired component.'
         )
     grid = _convert(dynamic.grid, "Ha", energy_unit)
     array = dynamic.array

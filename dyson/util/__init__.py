@@ -18,6 +18,7 @@ from dyson.util.linalg import (
     einsum,
     orthonormalise,
     biorthonormalise,
+    biorthonormalise_with_overlap,
     eig,
     eig_lr,
     matrix_power,

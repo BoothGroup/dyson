@@ -51,8 +51,8 @@ class Lehmann(BaseRepresentation):
     :math:`q`, and may be non-Hermitian. The couplings :math:`v` are right-handed vectors, and
     :math:`u` are left-handed vectors.
 
-    Note that the order of the couplings is `(left, right)`, whilst they act in the order
-    `(right, left)` in the numerator. The naming convention is chosen to be consistent with the
+    Note that the order of the couplings is ``(left, right)``, whilst they act in the order
+    ``(right, left)`` in the numerator. The naming convention is chosen to be consistent with the
     eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a matrix,
     and :math:`u` is an eigenvector acting on the left of a matrix.
     """
@@ -69,7 +69,8 @@ class Lehmann(BaseRepresentation):
         Args:
             energies: Energies of the poles.
             couplings: Couplings of the poles to a physical space. For a non-Hermitian system, they
-                should be have three dimensions, with the first dimension indexing `(left, right)`.
+                should be have three dimensions, with the first dimension indexing
+                ``(left, right)``.
             chempot: Chemical potential.
             sort: Sort the poles by energy.
         """
@@ -242,7 +243,7 @@ class Lehmann(BaseRepresentation):
         """Return a copy of the Lehmann representation.
 
         Args:
-            chempot: The chemical potential to use for the copy. If `None`, the original
+            chempot: The chemical potential to use for the copy. If ``None``, the original
                 chemical potential is used.
             deep: Whether to return a deep copy of the energies and couplings.
 
@@ -376,10 +377,10 @@ class Lehmann(BaseRepresentation):
         Args:
             order: The order(s) of the moment(s).
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is
-                in `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`. If
-                `None`, the default scaling is computed as
-                `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
-                `(max(energies) + min(energies)) / 2.0`, respectively.
+                in ``[-1, 1]``. The scaling is applied as ``(energies - scaling[1]) / scaling[0]``.
+                If ``None``, the default scaling is computed as
+                ``(max(energies) - min(energies)) / (2.0 - 1e-3)`` and
+                ``(max(energies) + min(energies)) / 2.0``, respectively.
             scale_couplings: Scale the couplings as well as the energy spectrum. This is generally
                 necessary for Chebyshev moments of a self-energy, but not for a Green's function.
 
@@ -581,11 +582,11 @@ class Lehmann(BaseRepresentation):
 
         Args:
             physical: The matrix to use for the physical space part of the supermatrix.
-            chempot: Whether to include the chemical potential in the supermatrix. If `True`, the
+            chempot: Whether to include the chemical potential in the supermatrix. If ``True``, the
                 chemical potential from :attr:`chempot` is used. If a float is given, that value is
                 used.
             overlap: The overlap matrix to use for the physical space part of the supermatrix. If
-                `None`, the identity matrix is used.
+                ``None``, the identity matrix is used.
 
         Returns:
             The eigenvalues and eigenvectors of the supermatrix.
@@ -646,11 +647,11 @@ class Lehmann(BaseRepresentation):
 
         Args:
             physical: The matrix to use for the physical space part of the supermatrix.
-            chempot: Whether to include the chemical potential in the supermatrix. If `True`, the
+            chempot: Whether to include the chemical potential in the supermatrix. If ``True``, the
                 chemical potential from :attr:`chempot` is used. If a float is given, that value is
                 used.
             overlap: The overlap matrix to use for the physical space part of the supermatrix. If
-                `None`, the identity matrix is used.
+                ``None``, the identity matrix is used.
 
         Returns:
             The eigenvalues and eigenvectors of the supermatrix, with the eigenvectors projected

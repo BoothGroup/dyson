@@ -207,7 +207,7 @@ class BaseMBL(StaticSolver):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         pass
 
@@ -236,7 +236,7 @@ class BaseMBL(StaticSolver):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         if iteration == 0:
             return self.initialise_recurrence()

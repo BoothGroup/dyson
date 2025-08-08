@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
 
-    from .conftest import ExactGetter
+    from .conftest import ExactGetter, Helper
 
 
 def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
@@ -44,6 +44,17 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     assert hamiltonian.shape == expression.shape
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 
+    vector = np.random.random(expression.nconfig + expression.nsingle)
+    hv = expression.apply_hamiltonian_right(vector)
+    try:
+        vh = expression.apply_hamiltonian_left(vector)
+    except NotImplementedError:
+        vh = None
+
+    assert np.allclose(hv, hamiltonian @ vector)
+    if vh is not None:
+        assert np.allclose(vh, vector @ hamiltonian)
+
 
 def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Green's function moments of the expression."""
@@ -58,8 +69,8 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
     for i, j in itertools.product(range(expression.nphys), repeat=2):
         bra = expression.get_excitation_bra(j)
         ket = expression.get_excitation_ket(i)
-        moments[0, i, j] += bra.conj() @ ket
-        moments[1, i, j] += np.einsum("j,i,ij->", bra.conj(), ket, hamiltonian)
+        moments[0, j, i] += bra.conj() @ ket
+        moments[1, j, i] += bra.conj() @ hamiltonian @ ket
 
     # Compare the moments to the reference
     ref = expression.build_gf_moments(2)
@@ -69,6 +80,7 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
 
 
 def test_static(
+    helper: Helper,
     mf: scf.hf.RHF,
     expression_cls: type[BaseExpression],
     exact_cache: ExactGetter,
@@ -83,8 +95,10 @@ def test_static(
     # Get the static self-energy
     exact = exact_cache(mf, expression_cls)
     assert exact.result is not None
+    greens_function = exact.result.get_greens_function()
     static = exact.result.get_static_self_energy()
 
+    assert helper.have_equal_moments(gf_moments, greens_function, 2)
     assert np.allclose(static, gf_moments[1])
 
 
@@ -124,22 +138,28 @@ def test_hf(mf: scf.hf.RHF) -> None:
 
 def test_ccsd(mf: scf.hf.RHF) -> None:
     """Test the CCSD expression."""
-    ccsd = CCSD.h.from_mf(mf)
+    ccsd_h = CCSD.h.from_mf(mf)
+    ccsd_p = CCSD.p.from_mf(mf)
     pyscf_ccsd = pyscf.cc.CCSD(mf)
     pyscf_ccsd.run(conv_tol=1e-10, conv_tol_normt=1e-8)
-    gf_moments = ccsd.build_gf_moments(2)
+    gf_moments_h = ccsd_h.build_gf_moments(2)
+    gf_moments_p = ccsd_p.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
-    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy = util.gf_moments_galitskii_migdal(gf_moments_h, h1e, factor=1.0)
     energy_ref = pyscf_ccsd.e_tot - mf.mol.energy_nuc()
 
-    with pytest.raises(AssertionError):
-        # Galitskii--Migdal should not capture the energy for CCSD
-        assert np.abs(energy - energy_ref) < 1e-8
+    correct_energy = np.abs(energy - energy_ref) < 1e-8
+    if mf.mol.nelectron > 2:
+        # Galitskii--Migdal should not capture the energy for CCSD for >2 electrons
+        with pytest.raises(AssertionError):
+            assert correct_energy
+    else:
+        assert correct_energy
 
     # Get the Green's function from the Davidson solver
-    davidson = Davidson.from_expression(ccsd, nroots=3)
+    davidson = Davidson.from_expression(ccsd_h, nroots=3)
     davidson.kernel()
     ip_ref, _ = pyscf_ccsd.ipccsd(nroots=3)
 
@@ -147,48 +167,70 @@ def test_ccsd(mf: scf.hf.RHF) -> None:
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM
-    rdm1 = ccsd.build_gf_moments(1)[0]
+    rdm1 = gf_moments_h[0].copy()
     rdm1 += rdm1.T.conj()
     rdm1_ref = pyscf_ccsd.make_rdm1(with_mf=True)
 
     assert np.allclose(rdm1, rdm1_ref)
 
+    # Check the zeroth moments add to identity
+    gf_moment_0 = gf_moments_h[0] + gf_moments_p[0]
+
+    assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
+
 
 def test_fci(mf: scf.hf.RHF) -> None:
     """Test the FCI expression."""
-    fci = FCI.h.from_mf(mf)
+    fci_h = FCI.h.from_mf(mf)
+    fci_p = FCI.p.from_mf(mf)
     pyscf_fci = pyscf.fci.FCI(mf)
-    gf_moments = fci.build_gf_moments(2)
+    gf_moments_h = fci_h.build_gf_moments(2)
+    gf_moments_p = fci_p.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
-    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy = util.gf_moments_galitskii_migdal(gf_moments_h, h1e, factor=1.0)
     energy_ref = pyscf_fci.kernel()[0] - mf.mol.energy_nuc()
 
     assert np.abs(energy - energy_ref) < 1e-8
 
     # Check the RDM
-    rdm1 = fci.build_gf_moments(1)[0] * 2
+    rdm1 = fci_h.build_gf_moments(1)[0] * 2
     rdm1_ref = pyscf_fci.make_rdm1(pyscf_fci.ci, mf.mol.nao, mf.mol.nelectron)
 
     assert np.allclose(rdm1, rdm1_ref)
 
+    # Check the zeroth moments add to identity
+    gf_moment_0 = gf_moments_h[0] + gf_moments_p[0]
+
+    assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
+
+    if mf.mol.nelectron <= 2:
+        # CCSD should match FCI for <=2 electrons for the hole moments
+        ccsd = CCSD.h.from_mf(mf)
+        gf_moments_ccsd = ccsd.build_gf_moments(2)
+
+        assert np.allclose(gf_moments_ccsd[0], gf_moments_h[0])
+        assert np.allclose(gf_moments_ccsd[1], gf_moments_h[1])
+
 
 def test_adc2(mf: scf.hf.RHF) -> None:
     """Test the ADC(2) expression."""
-    adc = ADC2.h.from_mf(mf)
+    adc_h = ADC2.h.from_mf(mf)
+    adc_p = ADC2.p.from_mf(mf)
     pyscf_adc = pyscf.adc.ADC(mf)
-    gf_moments = adc.build_gf_moments(2)
+    gf_moments_h = adc_h.build_gf_moments(2)
+    gf_moments_p = adc_p.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
-    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy = util.gf_moments_galitskii_migdal(gf_moments_h, h1e, factor=1.0)
     energy_ref = mf.energy_elec()[0] + pyscf_adc.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8
 
     # Get the Green's function from the Davidson solver
-    davidson = Davidson.from_expression(adc, nroots=3)
+    davidson = Davidson.from_expression(adc_h, nroots=3)
     davidson.kernel()
     ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
 
@@ -196,28 +238,35 @@ def test_adc2(mf: scf.hf.RHF) -> None:
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM
-    rdm1 = adc.build_gf_moments(1)[0] * 2
+    rdm1 = adc_h.build_gf_moments(1)[0] * 2
     rdm1_ref = np.diag(mf.mo_occ)  # No correlated ground state!
 
     assert np.allclose(rdm1, rdm1_ref)
+
+    # Check the zeroth moments add to identity
+    gf_moment_0 = gf_moments_h[0] + gf_moments_p[0]
+
+    assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
 
 
 def test_adc2x(mf: scf.hf.RHF) -> None:
     """Test the ADC(2)-x expression."""
-    adc = ADC2x.h.from_mf(mf)
+    adc_h = ADC2x.h.from_mf(mf)
+    adc_p = ADC2x.p.from_mf(mf)
     pyscf_adc = pyscf.adc.ADC(mf)
     pyscf_adc.method = "adc(2)-x"
-    gf_moments = adc.build_gf_moments(2)
+    gf_moments_h = adc_h.build_gf_moments(2)
+    gf_moments_p = adc_p.build_gf_moments(2)
 
     # Get the energy from the hole moments
     h1e = np.einsum("pq,pi,qj->ij", mf.get_hcore(), mf.mo_coeff, mf.mo_coeff)
-    energy = util.gf_moments_galitskii_migdal(gf_moments, h1e, factor=1.0)
+    energy = util.gf_moments_galitskii_migdal(gf_moments_h, h1e, factor=1.0)
     energy_ref = mf.energy_elec()[0] + pyscf_adc.kernel_gs()[0]
 
     assert np.abs(energy - energy_ref) < 1e-8
 
     # Get the Green's function from the Davidson solver
-    davidson = Davidson.from_expression(adc, nroots=3)
+    davidson = Davidson.from_expression(adc_h, nroots=3)
     davidson.kernel()
     ip_ref, _, _, _ = pyscf_adc.kernel(nroots=3)
 
@@ -225,10 +274,15 @@ def test_adc2x(mf: scf.hf.RHF) -> None:
     assert np.allclose(davidson.result.eigvals[0], -ip_ref[-1])
 
     # Check the RDM
-    rdm1 = adc.build_gf_moments(1)[0] * 2
+    rdm1 = adc_h.build_gf_moments(1)[0] * 2
     rdm1_ref = np.diag(mf.mo_occ)  # No correlated ground state!
 
     assert np.allclose(rdm1, rdm1_ref)
+
+    # Check the zeroth moments add to identity
+    gf_moment_0 = gf_moments_h[0] + gf_moments_p[0]
+
+    assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
 
 
 def test_tdagw(mf: scf.hf.RHF, exact_cache: ExactGetter) -> None:

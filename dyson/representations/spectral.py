@@ -26,10 +26,10 @@ class Spectral(BaseRepresentation):
     where the eigenvectors have right-handed components :math:`v` and left-handed components
     :math:`u`.
 
-    Note that the order of eigenvectors is `(left, right)`, whilst they act in the order
-    `(right, left)` in the above equation. The naming convention is chosen to be consistent with the
-    eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a matrix,
-    and :math:`u` is an eigenvector acting on the left of a matrix.
+    Note that the order of eigenvectors is ``(left, right)``, whilst they act in the order
+    ``(right, left)`` in the above equation. The naming convention is chosen to be consistent with
+    the eigenvalue decomposition, where :math:`v` may be an eigenvector acting on the right of a
+    matrix, and :math:`u` is an eigenvector acting on the left of a matrix.
     """
 
     def __init__(
@@ -171,7 +171,6 @@ class Spectral(BaseRepresentation):
             return energies, couplings
 
         # Diagonalise the subspace to get the energies and basis for the couplings
-        # TODO: check if already diagonal
         energies, rotation = util.eig_lr(subspace, hermitian=self.hermitian)
 
         # Project back to the couplings

@@ -128,8 +128,8 @@ def rate_error(
     Args:
         value: The value to rate.
         threshold: The threshold for the rating.
-        threshold_okay: Separate threshold for `"okay"` rating. Default is 10 times
-            :param:`threshold`.
+        threshold_okay: Separate threshold for ``"okay"`` rating. Default is 10 times
+            ``threshold``.
 
     Returns:
         str: The rating, one of "good", "okay", or "bad".

@@ -1,6 +1,6 @@
-"""Correction vector Green's function solver [nocera2016]_.
+"""Correction vector Green's function solver [1]_.
 
-.. [nocera2016] Nocera, A., & Alvarez, G. (2016). Spectral functions with the density matrix
+.. [1] Nocera, A., & Alvarez, G. (2016). Spectral functions with the density matrix
    renormalization group: Krylov-space approach for correction vectors. Physical Review. E, 94(5).
    https://doi.org/10.1103/physreve.94.053308
 """
@@ -11,12 +11,13 @@ from typing import TYPE_CHECKING, cast
 
 from scipy.sparse.linalg import LinearOperator, lgmres
 
-from dyson import console, printing, util
+from dyson import console, printing
 from dyson import numpy as np
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.representations.dynamic import Dynamic
 from dyson.representations.enums import Component, Ordering, Reduction
 from dyson.solvers.solver import DynamicSolver
+from dyson.solvers.static.exact import orthogonalise_self_energy
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -62,10 +63,10 @@ class CorrectionVector(DynamicSolver):
             nphys: The number of physical degrees of freedom.
             grid: Real frequency grid upon which to evaluate the Green's function.
             get_state_bra: Function to get the bra vector corresponding to a fermion operator acting
-                on the ground state. If `None`, the state vector is :math:`v_{i} = \delta_{ij}` for
-                orbital :math:`j`.
+                on the ground state. If ``None``, the state vector is :math:`v_{i} = \delta_{ij}`
+                for orbital :math:`j`.
             get_state_ket: Function to get the ket vector corresponding to a fermion operator acting
-                on the ground state. If `None`, the :arg:`get_state_bra` function is used.
+                on the ground state. If ``None``, the :arg:`get_state_bra` function is used.
             component: The component of the dynamic representation to solve for.
             reduction: The reduction of the dynamic representation to solve for.
             conv_tol: Convergence tolerance for the solver.
@@ -112,25 +113,16 @@ class CorrectionVector(DynamicSolver):
         """
         if "grid" not in kwargs:
             raise ValueError("Missing required argument grid.")
-        size = self_energy.nphys + self_energy.naux
-        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if overlap is not None:
-            hermitian = self_energy.hermitian
-            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-            bra = util.rotate_subspace(bra, orth.T.conj())
-            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
-            static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(
-                unorth if hermitian else (unorth, unorth.T.conj())
-            )
+        static, self_energy, bra, ket = orthogonalise_self_energy(
+            static, self_energy, overlap=overlap
+        )
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),
             self_energy.nphys,
             kwargs.pop("grid"),
             bra.__getitem__,
-            ket.__getitem__,
+            ket.__getitem__ if ket is not None else None,
             **kwargs,
         )
 
@@ -283,7 +275,7 @@ class CorrectionVector(DynamicSolver):
                     failed.add(w)
                 elif self.reduction == Reduction.NONE:
                     for j in range(self.nphys):
-                        greens_function[w, i, j] = bras[j] @ x
+                        greens_function[w, j, i] = bras[j] @ x
                 elif self.reduction == Reduction.DIAG:
                     greens_function[w, i] = bras[i] @ x
                 elif self.reduction == Reduction.TRACE:

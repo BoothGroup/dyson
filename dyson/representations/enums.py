@@ -24,9 +24,9 @@ class Reduction(RepresentationEnum):
 
     The valid reductions are:
 
-    * `none`: No reduction, i.e. the full 2D array.
-    * `diag`: Reduction to the diagonal, i.e. a 1D array of diagonal elements.
-    * `trace`: Reduction to the trace, i.e. a scalar value.
+    * ``none``: No reduction, i.e. the full 2D array.
+    * ``diag``: Reduction to the diagonal, i.e. a 1D array of diagonal elements.
+    * ``trace``: Reduction to the trace, i.e. a scalar value.
     """
 
     NONE = "none"
@@ -44,9 +44,9 @@ class Component(RepresentationEnum):
 
     The valid components are:
 
-    * `full`: The full (real-valued or complex-valued) representation.
-    * `real`: The real part of the representation.
-    * `imag`: The imaginary part of the representation, represented as a real-valued array.
+    * ``full``: The full (real-valued or complex-valued) representation.
+    * ``real``: The real part of the representation.
+    * ``imag``: The imaginary part of the representation, represented as a real-valued array.
     """
 
     FULL = "full"
@@ -64,9 +64,9 @@ class Ordering(RepresentationEnum):
 
     The valid orderings are:
 
-    * `ordered`: Time-ordered representation.
-    * `advanced`: Advanced representation, i.e. affects the past (non-causal).
-    * `retarded`: Retarded representation, i.e. affects the future (causal).
+    * ``ordered``: Time-ordered representation.
+    * ``advanced``: Advanced representation, i.e. affects the past (non-causal).
+    * ``retarded``: Retarded representation, i.e. affects the future (causal).
     """
 
     ORDERED = "ordered"

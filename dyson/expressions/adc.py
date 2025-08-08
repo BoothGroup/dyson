@@ -1,11 +1,11 @@
-"""Algebraic diagrammatic construction theory (ADC) expressions [schirmer1983]_ [banerjee2019]_.
+"""Algebraic diagrammatic construction theory (ADC) expressions [1]_ [2]_.
 
-.. [banerjee2019] Banerjee, S., & Sokolov, A. Y. (2019). Third-order algebraic diagrammatic
+.. [1] Banerjee, S., & Sokolov, A. Y. (2019). Third-order algebraic diagrammatic
    construction theory for electron attachment and ionization energies: Conventional and Green’s
    function implementation. The Journal of Chemical Physics, 151(22).
    https://doi.org/10.1063/1.5131771
 
-.. [schirmer1983] Schirmer, J., Cederbaum, L. S., & Walter, O. (1983). New approach to the
+.. [2] Schirmer, J., Cederbaum, L. S., & Walter, O. (1983). New approach to the
    one-particle Green’s function for finite Fermi systems. Physical Review. A, General Physics,
    28(3), 1237–1259. https://doi.org/10.1103/physreva.28.1237
 """
@@ -103,6 +103,17 @@ class BaseADC(BaseExpression):
                 raise ValueError("ADC does not support complex vectors.")
             vector = vector.real
         return self.PYSCF_ADC.matvec(self._adc_obj, self._imds, self._eris)(vector) * self.SIGN
+
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        raise NotImplementedError("Left application of Hamiltonian is not implemented for ADC.")
 
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.

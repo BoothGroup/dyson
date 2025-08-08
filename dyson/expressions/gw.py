@@ -1,13 +1,13 @@
-"""GW approximation expressions [hedin1965]_ [aryasetiawan1998]_ [zhu2021]_.
+"""GW approximation expressions [1]_ [2]_ [3]_.
 
-.. [hedin1965] Hedin, L. (1965). New Method for Calculating the One-Particle Green’s Function with
+.. [1] Hedin, L. (1965). New Method for Calculating the One-Particle Green’s Function with
    Application to the Electron-Gas Problem. Physical Review, 139(3A), A796–A823.
    https://doi.org/10.1103/physrev.139.a796
 
-.. [aryasetiawan1998] Aryasetiawan, F., & Gunnarsson, O. (1998). The GW method. Reports on Progress
+.. [2] Aryasetiawan, F., & Gunnarsson, O. (1998). The GW method. Reports on Progress
    in Physics, 61(3), 237–312. https://doi.org/10.1088/0034-4885/61/3/002
 
-.. [zhu2021] Zhu, T., & Chan, G. K. (2021). All-Electron Gaussian-Based G0W0 for valence and core
+.. [3] Zhu, T., & Chan, G. K. (2021). All-Electron Gaussian-Based G0W0 for valence and core
    excitation energies of periodic systems. Journal of Chemical Theory and Computation, 17(2),
    727–741. https://doi.org/10.1021/acs.jctc.0c00704
 
@@ -203,6 +203,17 @@ class TDAGW_Dyson(BaseGW_Dyson):
         r_v2 += util.einsum("Qia,Qkc,kcb->iab", Lia, Lia, vector_v2) * 2
 
         return np.concatenate([r_o1, r_v1, r_o2.ravel(), r_v2.ravel()])
+
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        raise NotImplementedError("Left application of Hamiltonian is not implemented for TDA-GW.")
 
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.

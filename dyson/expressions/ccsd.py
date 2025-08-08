@@ -1,10 +1,10 @@
-"""Coupled cluster singles and doubles (CCSD) expressions [purvis1982]_ [stanton1993]_.
+"""Coupled cluster singles and doubles (CCSD) expressions [1]_ [2]_.
 
-.. [purvis1982] Purvis, G. D., & Bartlett, R. J. (1982). A full coupled-cluster singles and doubles
+.. [1] Purvis, G. D., & Bartlett, R. J. (1982). A full coupled-cluster singles and doubles
    model: The inclusion of disconnected triples. The Journal of Chemical Physics, 76(4), 1910–1918.
    https://doi.org/10.1063/1.443164
 
-.. [stanton1993] Stanton, J. F., & Bartlett, R. J. (1993). The equation of motion coupled-cluster
+.. [2] Stanton, J. F., & Bartlett, R. J. (1993). The equation of motion coupled-cluster
    method. A systematic biorthogonal approach to molecular excitation energies, transition
    probabilities, and excited state properties. The Journal of Chemical Physics, 98(9), 7029–7039.
    https://doi.org/10.1063/1.464746
@@ -231,8 +231,14 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Output vector.
+
+        Notes:
+            The Hamiltonian is applied in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
         """
-        return -self.PYSCF_EOM.ipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
 
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
@@ -242,8 +248,14 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
 
         Returns:
             Output vector.
+
+        Notes:
+            The Hamiltonian is applied in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
         """
-        return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
+        return -self.PYSCF_EOM.ipccsd_matvec(self, vector, imds=self._imds)
 
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
@@ -269,10 +281,10 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             Bra excitation vector.
 
         Notes:
-            This is actually considered the ket vector in most contexts, with the :math:`\Lambda`
-            amplitudes acting on the bra state. The convention used here reflects the general
-            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
-            construction of moments.
+            The bra and ket are defined in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
 
         See Also:
             :func:`get_excitation_vector`: Function to get the excitation vector when the bra and
@@ -304,10 +316,10 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
             Ket excitation vector.
 
         Notes:
-            This is actually considered the bra vector in most contexts, with the :math:`\Lambda`
-            amplitudes acting on the ket state. The convention used here reflects the general
-            :math:`T_{pq} = \langle \mathrm{bra}_p | \mathrm{ket}_q \rangle` notation used in
-            construction of moments.
+            The bra and ket are defined in the opposite direction compared to canonical IP-EOM-CCSD,
+            which reflects the opposite ordering of the excitation operators with respect to the
+            physical indices in the Green's function. This is only of consequence to non-Hermitian
+            Green's functions.
 
         See Also:
             :func:`get_excitation_vector`: Function to get the excitation vector when the bra and

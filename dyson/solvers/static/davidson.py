@@ -1,10 +1,10 @@
-"""Davidson algorithm [davidson1975]_ [morgan1990]_.
+"""Davidson algorithm [1]_ [2]_.
 
-.. [davidson1975] Davidson, E. R. (1975). The iterative calculation of a few of the lowest
+.. [1] Davidson, E. R. (1975). The iterative calculation of a few of the lowest
    eigenvalues and corresponding eigenvectors of large real-symmetric matrices. Journal of
    Computational Physics, 17(1), 87–94. https://doi.org/10.1016/0021-9991(75)90065-0
 
-.. [morgan1990] Morgan, R. B. (1990). Davidson’s method and preconditioning for generalized
+.. [2] Morgan, R. B. (1990). Davidson’s method and preconditioning for generalized
    eigenvalue problems. Journal of Computational Physics, 89(1), 241–245.
    https://doi.org/10.1016/0021-9991(90)90124-j
 """
@@ -21,6 +21,7 @@ from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
 from dyson.solvers.solver import StaticSolver
+from dyson.solvers.static.exact import orthogonalise_self_energy, project_eigenvectors
 
 if TYPE_CHECKING:
     from typing import Any, Callable
@@ -108,7 +109,7 @@ class Davidson(StaticSolver):
             diagonal: The diagonal of the self-energy supermatrix.
             bra: The bra excitation vector mapping the supermatrix to the physical space.
             ket: The ket excitation vector mapping the supermatrix to the physical space. If `None`,
-                use the same vectors as `bra`.
+                use the same vectors as ``bra``.
             hermitian: Whether the matrix is hermitian.
             nroots: Number of roots to find.
             max_cycle: Maximum number of iterations.
@@ -174,18 +175,9 @@ class Davidson(StaticSolver):
         Returns:
             Solver instance.
         """
-        size = self_energy.nphys + self_energy.naux
-        bra = ket = np.array([util.unit_vector(size, i) for i in range(self_energy.nphys)])
-        if overlap is not None:
-            hermitian = self_energy.hermitian
-            orth = util.matrix_power(overlap, 0.5, hermitian=hermitian)[0]
-            unorth = util.matrix_power(overlap, -0.5, hermitian=hermitian)[0]
-            bra = util.rotate_subspace(bra, orth.T.conj())
-            ket = util.rotate_subspace(ket, orth) if not hermitian else bra
-            static = unorth @ static @ unorth
-            self_energy = self_energy.rotate_couplings(
-                unorth if hermitian else (unorth, unorth.T.conj())
-            )
+        static, self_energy, bra, ket = orthogonalise_self_energy(
+            static, self_energy, overlap=overlap
+        )
         return cls(
             lambda vector: self_energy.matvec(static, vector),
             self_energy.diagonal(static),
@@ -307,23 +299,7 @@ class Davidson(StaticSolver):
         converged = converged[mask]
 
         # Get the full map onto physical + auxiliary and rotate the eigenvectors
-        vectors = util.null_space_basis(self.bra, ket=self.ket if not self.hermitian else None)
-        if self.ket is None or self.hermitian:
-            rotation = np.concatenate([self.bra, vectors[0]], axis=0)
-            eigvecs = rotation @ eigvecs
-        else:
-            # Ensure biorthonormality of auxiliary vectors
-            overlap = vectors[1].T.conj() @ vectors[0]
-            overlap -= self.ket.T.conj() @ self.bra
-            vectors = (
-                vectors[0],
-                vectors[1] @ util.matrix_power(overlap, -1, hermitian=False)[0],
-            )
-            rotation = (
-                np.concatenate([self.bra, vectors[1]], axis=0),
-                np.concatenate([self.ket, vectors[0]], axis=0),
-            )
-            eigvecs = np.array([rotation[0] @ eigvecs[0], rotation[1] @ eigvecs[1]])
+        eigvecs = project_eigenvectors(eigvecs, self.bra, self.ket if not self.hermitian else None)
 
         # Store the results
         self.result = Spectral(eigvals, eigvecs, self.nphys)

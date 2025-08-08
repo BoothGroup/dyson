@@ -20,7 +20,13 @@ if TYPE_CHECKING:
 
 
 class BaseExpression(ABC):
-    """Base class for expressions."""
+    """Base class for expressions.
+
+    Attributes:
+        hermitian_downfolded: Whether the expression is Hermitian when downfolded into the physical
+            space.
+        hermitian_upfolded: Whether the expression is Hermitian when upfolded as a supermatrix.
+    """
 
     hermitian_downfolded: bool = True
     hermitian_upfolded: bool = True
@@ -98,7 +104,7 @@ class BaseExpression(ABC):
                 UserWarning,
                 2,
             )
-        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)])
+        return np.array([self.apply_hamiltonian(util.unit_vector(size, i)) for i in range(size)]).T
 
     @abstractmethod
     def get_excitation_vector(self, orbital: int) -> Array:
@@ -223,9 +229,9 @@ class BaseExpression(ABC):
                         bra = bras[j] if store_vectors else get_bra(j)
 
                         # Contract the bra and ket vectors
-                        moments[n, i, j] = bra.conj() @ ket
+                        moments[n, j, i] = bra.conj() @ ket
                         if self.hermitian_downfolded:
-                            moments[n, j, i] = moments[n, i, j].conj()
+                            moments[n, i, j] = moments[n, j, i].conj()
 
                 else:
                     # Contract the bra and ket vectors
@@ -248,7 +254,7 @@ class BaseExpression(ABC):
             )
             moments_array = moments_array.reshape(nmom, self.nphys, self.nphys)
 
-            # If left-handed, transpose the moments
+            # Transpose if necessary
             if left:
                 moments_array = moments_array.transpose(0, 2, 1).conj()
 
@@ -330,10 +336,10 @@ class BaseExpression(ABC):
                 memory overhead scale worse, but the CPU overhead scales better.
             left: Whether to use the left-handed Hamiltonian application.
             scaling: Scaling factors to ensure the energy scale of the Lehmann representation is
-                in `[-1, 1]`. The scaling is applied as `(energies - scaling[1]) / scaling[0]`. If
-                `None`, the default scaling is computed as
-                `(max(energies) - min(energies)) / (2.0 - 1e-3)` and
-                `(max(energies) + min(energies)) / 2.0`, respectively.
+                in ``[-1, 1]``. The scaling is applied as ``(energies - scaling[1]) / scaling[0]``.
+                If ``None``, the default scaling is computed as
+                ``(max(energies) - min(energies)) / (2.0 - 1e-3)`` and
+                ``(max(energies) + min(energies)) / 2.0``, respectively.
             reduction: Reduction to apply to the moments.
 
         Returns:

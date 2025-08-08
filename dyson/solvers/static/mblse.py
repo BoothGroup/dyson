@@ -1,6 +1,6 @@
-"""Moment block Lanczos for moments of the self-energy [backhouse2021]_.
+"""Moment block Lanczos for moments of the self-energy [1]_.
 
-.. [backhouse2021] Backhouse, O. J., Santana-Bonilla, A., & Booth, G. H. (2021). Scalable and
+.. [1] Backhouse, O. J., Santana-Bonilla, A., & Booth, G. H. (2021). Scalable and
    Predictive Spectra of Correlated Molecules with Moment Truncated Iterated Perturbation Theory.
    The Journal of Physical Chemistry Letters, 12(31), 7650–7658.
    https://doi.org/10.1021/acs.jpclett.1c02383
@@ -242,7 +242,7 @@ class MBLSE(BaseMBL):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         # Get the inverse square-root error
         error_inv_sqrt: float | None = None
@@ -277,7 +277,7 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
-        dtype = coefficients.dtype
+        dtype = np.result_type(coefficients.dtype, off_diagonal[i - 1].dtype).char
 
         # Find the squre of the off-diagonal block
         off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)
@@ -340,7 +340,7 @@ class MBLSE(BaseMBL):
         coefficients = self.coefficients
         on_diagonal = self.on_diagonal
         off_diagonal = self.off_diagonal
-        dtype = coefficients.dtype
+        dtype = np.result_type(coefficients.dtype, off_diagonal[i - 1].dtype).char
 
         # Find the squre of the off-diagonal block
         off_diagonal_squared = coefficients[i, i, 2].astype(dtype, copy=True)
@@ -568,7 +568,7 @@ class MLSE(MBLSE):
         Returns:
             If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
             block, the inverse square root of the off-diagonal block, and the error in the
-            recovered moments. If not, all three are `None`.
+            recovered moments. If not, all three are ``None``.
         """
         # Initialise the coefficients
         for n in range(2 * self.max_cycle + 2):

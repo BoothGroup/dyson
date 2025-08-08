@@ -1,6 +1,6 @@
-"""Hartree--Fock (HF) expressions [slater1928]_.
+"""Hartree--Fock (HF) expressions [1]_.
 
-.. [slater1928] Slater, J. C. (1928). The self consistent field and the structure of atoms. Physical
+.. [1] Slater, J. C. (1928). The self consistent field and the structure of atoms. Physical
    Review, 32(3), 339–348. https://doi.org/10.1103/physrev.32.339
 """
 
