@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
 from dyson import util
 from dyson.representations.spectral import Spectral
-from dyson.solvers import MBLGF
+from dyson.solvers import MBLGF, MLGF
+from dyson.expressions.hf import HF
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -131,3 +133,45 @@ def test_vs_exact_solver_central(
     assert helper.have_equal_moments(self_energy, self_energy_exact, nmom_gf - 2)
     assert helper.have_equal_moments(greens_function, greens_function_exact, nmom_gf)
     assert helper.recovers_greens_function(static, self_energy, greens_function, 4)
+
+
+@pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])
+def test_mlgf(
+    helper: Helper,
+    mf: scf.hf.RHF,
+    expression_method: ExpressionCollection,
+    max_cycle: int,
+) -> None:
+    """Test MLGF solver against MBLGF solver."""
+    # Get the quantities required from the expression
+    if "h" not in expression_method or "p" not in expression_method:
+        pytest.skip("Skipping test for Dyson only expression")
+    if expression_method == HF:
+        pytest.skip("Skipping test for HF expression, numerical issues for MLSE")
+    expression_h = expression_method.h.from_mf(mf)
+    expression_p = expression_method.p.from_mf(mf)
+    nmom_gf = max_cycle * 2 + 2
+    nmom_se = nmom_gf - 2
+    gf_moments = expression_h.build_gf_moments(nmom_gf) + expression_p.build_gf_moments(nmom_gf)
+    gf_moments = util.einsum("...ij,ij->...ij", gf_moments, np.eye(gf_moments.shape[-1]))
+
+    # Check if we need a non-Hermitian solver
+    hermitian = expression_h.hermitian_downfolded and expression_p.hermitian_downfolded
+
+    # Run the MBLGF solver
+    solver = MBLGF(gf_moments, hermitian=hermitian)
+    solver.kernel()
+    assert solver.result is not None
+
+    # Recover the Green's function and self-energy
+    moments_mblgf = solver.result.get_greens_function().moments(range(nmom_gf))
+
+    # Run the MLGF solver
+    for i in range(gf_moments.shape[-1]):
+        solver_mlgf = MLGF(gf_moments[:, i, i], hermitian=True)
+        solver_mlgf.kernel()
+
+        # Recover the moments
+        moments_mlgf = solver_mlgf.result.get_greens_function().moments(range(nmom_gf))
+
+        assert helper.have_equal_moments(moments_mblgf[:, i, i], moments_mlgf, nmom_gf)

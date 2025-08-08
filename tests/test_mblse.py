@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
 from dyson import util
 from dyson.representations.spectral import Spectral
-from dyson.solvers import MBLSE
+from dyson.solvers import MBLSE, MLSE
+from dyson.expressions.hf import HF
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -117,3 +119,51 @@ def test_vs_exact_solver_central(
     assert helper.have_equal_moments(self_energy, self_energy_exact, nmom_se)
     assert helper.recovers_greens_function(static, self_energy, greens_function, 4)
     assert helper.have_equal_moments(greens_function, greens_function_exact, nmom_se)
+
+
+@pytest.mark.parametrize("max_cycle", [0, 1, 2, 3])
+def test_mlse(
+    helper: Helper,
+    mf: scf.hf.RHF,
+    expression_method: ExpressionCollection,
+    max_cycle: int,
+) -> None:
+    """Test MLSE solver against MBLSE solver."""
+    # Get the quantities required from the expression
+    if "h" not in expression_method or "p" not in expression_method:
+        pytest.skip("Skipping test for Dyson only expression")
+    if expression_method == HF:
+        pytest.skip("Skipping test for HF expression, numerical issues for MLSE")
+    expression_h = expression_method.h.from_mf(mf)
+    expression_p = expression_method.p.from_mf(mf)
+    nmom_gf = max_cycle * 2 + 4
+    nmom_se = nmom_gf - 2
+    gf_moments = expression_h.build_gf_moments(nmom_gf) + expression_p.build_gf_moments(nmom_gf)
+    static, se_moments = util.gf_moments_to_se_moments(gf_moments)
+    gf_moments = util.einsum("...ij,ij->...ij", gf_moments, np.eye(gf_moments.shape[-1]))
+    se_moments = util.einsum("...ij,ij->...ij", se_moments, np.eye(se_moments.shape[-1]))
+    static = gf_moments[1]
+
+    # Check if we need a non-Hermitian solver
+    hermitian = expression_h.hermitian_downfolded and expression_p.hermitian_downfolded
+
+    # Run the MBLSE solver
+    solver = MBLSE(static, se_moments, hermitian=hermitian)
+    solver.kernel()
+    assert solver.result is not None
+
+    # Recover the moments
+    static_mblse = solver.result.get_static_self_energy()
+    moments_mblse = solver.result.get_self_energy().moments(range(nmom_se))
+
+    # Run the MLSE solver
+    for i in range(gf_moments.shape[-1]):
+        solver_mlse = MLSE(static[i, i], se_moments[:, i, i], hermitian=True)
+        solver_mlse.kernel()
+
+        # Recover the moments
+        static_mlse = solver_mlse.result.get_static_self_energy()
+        moments_mlse = solver_mlse.result.get_self_energy().moments(range(nmom_se))
+
+        assert helper.are_equal_arrays(static_mblse[i, i], static_mlse)
+        assert helper.have_equal_moments(moments_mblse[:, i, i], moments_mlse, nmom_se)

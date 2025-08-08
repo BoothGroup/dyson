@@ -602,11 +602,12 @@ class MLSE(MBLSE):
         if iteration > 1:
             off_diagonal_squared += off_diagonal[i - 1].conjugate() * off_diagonal[i - 1]
 
-        # Get the off-diagonal block
-        off_diagonal[i] = off_diagonal_squared**0.5
-
-        # Invert the off-diagonal block
-        off_diagonal_inv = off_diagonal_squared**-0.5
+        # Get and invert the off-diagonal block
+        if np.abs(off_diagonal_squared) > 1e-7:  # ~sqrt(eps)
+            off_diagonal[i] = off_diagonal_squared**0.5
+            off_diagonal_inv = off_diagonal_squared**-0.5
+        else:
+            off_diagonal[i] = off_diagonal_inv = 0.0
 
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
