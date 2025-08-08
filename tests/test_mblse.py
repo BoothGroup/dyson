@@ -8,9 +8,9 @@ import numpy as np
 import pytest
 
 from dyson import util
+from dyson.expressions.hf import HF
 from dyson.representations.spectral import Spectral
 from dyson.solvers import MBLSE, MLSE
-from dyson.expressions.hf import HF
 
 if TYPE_CHECKING:
     from pyscf import scf
@@ -157,6 +157,7 @@ def test_mlse(
     moments_mblse = solver.result.get_self_energy().moments(range(nmom_se))
 
     # Run the MLSE solver
+    eigvals = []
     for i in range(gf_moments.shape[-1]):
         solver_mlse = MLSE(static[i, i], se_moments[:, i, i], hermitian=True)
         solver_mlse.kernel()
@@ -167,3 +168,6 @@ def test_mlse(
 
         assert helper.are_equal_arrays(static_mblse[i, i], static_mlse)
         assert helper.have_equal_moments(moments_mblse[:, i, i], moments_mlse, nmom_se)
+
+    eigvals = np.sort(np.concatenate(eigvals, axis=0))
+    assert helper.are_equal_arrays(eigvals, np.sort(solver.result.eigvals))

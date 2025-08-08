@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 
 from dyson import console, printing, util
 from dyson import numpy as np
-from dyson.representations.spectral import Spectral
 from dyson.representations.enums import Reduction
+from dyson.representations.spectral import Spectral
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 
 if TYPE_CHECKING:
@@ -504,7 +504,7 @@ class MLGF(MBLGF):
         moments: Moments of the Green's function.
     """
 
-    Coefficients = ScalarRecursionCoefficients
+    Coefficients = ScalarRecursionCoefficients  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         """Hook called after :meth:`__init__`."""
@@ -515,7 +515,7 @@ class MLGF(MBLGF):
             raise ValueError("not enough moments provided for the specified max_cycle.")
 
         # Print the input information
-        console.print(f"Number of physical states: [input]1[/input]")
+        console.print("Number of physical states: [input]1[/input]")
         console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
 
     @classmethod
@@ -613,8 +613,8 @@ class MLGF(MBLGF):
             recovered moments. If not, all three are `None`.
         """
         # Initialise the blocks
-        self.off_diagonal_upper[-1] = 0.0
-        self.off_diagonal_lower[-1] = 0.0
+        self.off_diagonal_upper[-1] = 0.0  # type: ignore[assignment]
+        self.off_diagonal_lower[-1] = 0.0  # type: ignore[assignment]
         self.on_diagonal[0] = self.orthogonalised_moment(1)
 
         # Get the error in the moments
@@ -634,7 +634,7 @@ class MLGF(MBLGF):
         off_diagonal = self.off_diagonal_upper
 
         # Find the squre of the off-diagonal block
-        off_diagonal_squared = 0.0
+        off_diagonal_squared: Array = 0.0  # type: ignore[assignment]
         for j in range(i + 2):
             for k in range(i + 1):
                 off_diagonal_squared += self._rotated_moment(i + 1, j, k + 1, j + k + 1)
@@ -644,10 +644,10 @@ class MLGF(MBLGF):
 
         # Get and invert the off-diagonal block
         if np.abs(off_diagonal_squared) > 1e-7:  # ~sqrt(eps)
-            off_diagonal[i] = off_diagonal_squared ** 0.5
-            off_diagonal_inv = off_diagonal_squared ** -0.5
+            off_diagonal[i] = off_diagonal_squared**0.5
+            off_diagonal_inv = off_diagonal_squared**-0.5
         else:
-            off_diagonal[i] = off_diagonal_inv = 0.0
+            off_diagonal[i] = off_diagonal_inv = 0.0  # type: ignore[assignment]
 
         for j in range(i + 2):
             # Horizontal recursion
@@ -657,7 +657,7 @@ class MLGF(MBLGF):
             coefficients[i + 2, j + 1] = residual * off_diagonal_inv
 
         # Calculate the on-diagonal block
-        on_diagonal[i + 1] = 0.0
+        on_diagonal[i + 1] = 0.0  # type: ignore[assignment]
         for j in range(i + 2):
             for k in range(i + 2):
                 on_diagonal[i + 1] += self._rotated_moment(i + 2, j + 1, k + 1, j + k + 1)

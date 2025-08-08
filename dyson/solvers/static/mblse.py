@@ -607,7 +607,7 @@ class MLSE(MBLSE):
             off_diagonal[i] = off_diagonal_squared**0.5
             off_diagonal_inv = off_diagonal_squared**-0.5
         else:
-            off_diagonal[i] = off_diagonal_inv = 0.0
+            off_diagonal[i] = off_diagonal_inv = 0.0  # type: ignore[assignment]
 
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
@@ -622,10 +622,14 @@ class MLSE(MBLSE):
             residual -= coefficients[i, i, n + 1] * on_diagonal[i] * 2.0
             residual += on_diagonal[i] * coefficients[i, i - 1, n] * off_diagonal[i - 1] * 2.0
             residual += (
-                off_diagonal[i - 1].conjugate() * coefficients[i - 1, i - 1, n] * off_diagonal[i - 1]
+                off_diagonal[i - 1].conjugate()
+                * coefficients[i - 1, i - 1, n]
+                * off_diagonal[i - 1]
             )
             residual += on_diagonal[i] * coefficients[i, i, n] * on_diagonal[i]
-            coefficients[i + 1, i + 1, n] = off_diagonal_inv * residual * off_diagonal_inv.conjugate()
+            coefficients[i + 1, i + 1, n] = (
+                off_diagonal_inv * residual * off_diagonal_inv.conjugate()
+            )
 
         # Extract the on-diagonal block
         on_diagonal[i + 1] = coefficients[i + 1, i + 1, 1]
