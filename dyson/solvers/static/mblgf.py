@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from dyson import console, printing, util
 from dyson import numpy as np
 from dyson.representations.spectral import Spectral
+from dyson.representations.enums import Reduction
 from dyson.solvers.static._mbl import BaseMBL, BaseRecursionCoefficients
 
 if TYPE_CHECKING:
@@ -54,6 +55,41 @@ class RecursionCoefficients(BaseRecursionCoefficients):
             value: The recursion coefficients.
         """
         self._data[key] = value
+
+
+class ScalarRecursionCoefficients(BaseRecursionCoefficients):
+    """Scalar recursion coeffs for the moment block Lanczos algorithm for the Green's function.
+
+    Args:
+        nphys: Number of physical degrees of freedom.
+    """
+
+    NDIM = 0
+
+    def __getitem__(self, key: tuple[int, ...]) -> Array:
+        """Get the recursion coefficients for the given key.
+
+        Args:
+            key: The key for the recursion coefficients.
+
+        Returns:
+            The recursion coefficients.
+        """
+        i, j = key
+        if i == j == 1:
+            return 1.0  # type: ignore[return-value]
+        if i < 1 or j < 1 or i < j:
+            return 0.0  # type: ignore[return-value]
+        return self._data[i, j]
+
+    def __setitem__(self, key: tuple[int, ...], value: Array) -> None:
+        """Set the recursion coefficients for the given key.
+
+        Args:
+            key: The key for the recursion coefficients.
+            value: The recursion coefficients.
+        """
+        self._data[key] = np.asarray(value).item()
 
 
 def _infer_max_cycle(moments: Array) -> int:
@@ -191,12 +227,12 @@ class MBLGF(BaseMBL):
         Equivalent to the expression
 
         .. code-block:: python
-            coefficients[0][i, k].T.conj() @ moments[jk] @ coefficients[0][i, j]
+            coefficients[0][i, k].T.conj() @ moments[jk] @ coefficients[0][i, j],
 
         for Hermitian Green's functions, or
 
         .. code-block:: python
-            coefficients[1][i, k] @ moments[jk] @ coefficients[0][i, j]
+            coefficients[1][i, k] @ moments[jk] @ coefficients[0][i, j],
 
         for non-Hermitian Green's functions.
 
@@ -423,12 +459,12 @@ class MBLGF(BaseMBL):
         # Unorthogonalise the eigenvectors
         metric_inv = self.orthogonalisation_metric_inv
         if self.hermitian:
-            eigvecs[: self.nphys] = metric_inv @ eigvecs[: self.nphys]
+            eigvecs[: self.nphys] = np.atleast_2d(metric_inv) @ eigvecs[: self.nphys]
         else:
             eigvecs[:, : self.nphys] = np.array(
                 [
-                    metric_inv.T.conj() @ eigvecs[0, : self.nphys],
-                    metric_inv @ eigvecs[1, : self.nphys],
+                    np.atleast_2d(metric_inv).T.conj() @ eigvecs[0, : self.nphys],
+                    np.atleast_2d(metric_inv) @ eigvecs[1, : self.nphys],
                 ],
             )
 
@@ -453,3 +489,187 @@ class MBLGF(BaseMBL):
     def off_diagonal_lower(self) -> dict[int, Array]:
         """Get the lower off-diagonal blocks of the self-energy."""
         return self._off_diagonal_lower
+
+
+class MLGF(MBLGF):
+    """Moment Lanczos for scalar moments of the Green's function.
+
+    This is a specialisation of :class:`MBLGF` for scalar moments.
+
+    Args:
+        moments: Moments of the Green's function.
+    """
+
+    Coefficients = ScalarRecursionCoefficients
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        # Check the input
+        if self.moments.ndim != 1:
+            raise ValueError("moments must be a 1D array of scalar elements for each order.")
+        if _infer_max_cycle(self.moments) < self.max_cycle:
+            raise ValueError("not enough moments provided for the specified max_cycle.")
+
+        # Print the input information
+        console.print(f"Number of physical states: [input]1[/input]")
+        console.print(f"Number of moments: [input]{self.moments.shape[0]}[/input]")
+
+    @classmethod
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> MLGF:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError("Cannot instantiate MLGF from a self-energy.")
+
+    @classmethod
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> MLGF:
+        """Create a solver from an expression.
+
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+        """
+        raise NotImplementedError("Cannot instantiate MLGF from an expression.")
+
+    @property
+    def orthogonalisation_metric(self) -> Array:
+        """Get the orthogonalisation metric."""
+        return self.moments[0] ** -0.5
+
+    @property
+    def orthogonalisation_metric_inv(self) -> Array:
+        """Get the inverse of the orthogonalisation metric."""
+        return self.moments[0] ** 0.5
+
+    @functools.lru_cache(maxsize=64)
+    def orthogonalised_moment(self, order: int) -> Array:
+        """Compute an orthogonalised moment.
+
+        Args:
+            order: The order of the moment.
+
+        Returns:
+            The orthogonalised moment.
+        """
+        return self.moments[order] / self.moments[0]
+
+    def reconstruct_moments(self, iteration: int) -> Array:
+        """Reconstruct the moments.
+
+        Args:
+            iteration: The iteration number.
+
+        Returns:
+            The reconstructed moments.
+        """
+        greens_function = self.solve(iteration=iteration).get_greens_function()
+        return greens_function.moments(range(2 * iteration + 2), reduction=Reduction.TRACE)
+
+    @functools.lru_cache(maxsize=None)
+    def _rotated_moment(self, i: int, j: int, k: int, jk: int) -> Array:  # noqa: D417
+        """Compute an orthogonalised moment rotated by given coefficients.
+
+        Equivalent to the expression
+
+        .. code-block:: python
+            coefficients[0][i, k].conjugate() * moments[jk] * coefficients[0][i, j].
+
+        Args:
+            i, j, k, jk: Indices for the coefficients and moments, as defined above.
+
+        Returns:
+            The orthogonalised moment rotated by the coefficients.
+        """
+        moment = self.orthogonalised_moment(jk)
+        return self.coefficients[0][i, k].conjugate() * moment * self.coefficients[0][i, j]
+
+    def initialise_recurrence(self) -> tuple[float | None, float | None, float | None]:
+        """Initialise the recurrence (zeroth iteration).
+
+        Returns:
+            If :attr:`calculate_errors`, the error metrics in the square root of the off-diagonal
+            block, the inverse square root of the off-diagonal block, and the error in the
+            recovered moments. If not, all three are `None`.
+        """
+        # Initialise the blocks
+        self.off_diagonal_upper[-1] = 0.0
+        self.off_diagonal_lower[-1] = 0.0
+        self.on_diagonal[0] = self.orthogonalised_moment(1)
+
+        # Get the error in the moments
+        error_moments: float | None = None
+        if self.calculate_errors:
+            error_moments = self.moment_error(iteration=0)
+
+        return 0.0, 0.0, error_moments
+
+    def _recurrence_iteration_hermitian(
+        self, iteration: int
+    ) -> tuple[float | None, float | None, float | None]:
+        """Perform an iteration of the recurrence for a Hermitian Green's function."""
+        i = iteration - 1
+        coefficients = self.coefficients[0]
+        on_diagonal = self.on_diagonal
+        off_diagonal = self.off_diagonal_upper
+
+        # Find the squre of the off-diagonal block
+        off_diagonal_squared = 0.0
+        for j in range(i + 2):
+            for k in range(i + 1):
+                off_diagonal_squared += self._rotated_moment(i + 1, j, k + 1, j + k + 1)
+        off_diagonal_squared -= on_diagonal[i] * on_diagonal[i]
+        if i:
+            off_diagonal_squared -= off_diagonal[i - 1] * off_diagonal[i - 1]
+
+        # Get the off-diagonal block
+        off_diagonal[i] = off_diagonal_squared ** 0.5
+
+        # Invert the off-diagonal block
+        off_diagonal_inv = off_diagonal_squared ** -0.5
+
+        for j in range(i + 2):
+            # Horizontal recursion
+            residual = coefficients[i + 1, j]
+            residual -= coefficients[i + 1, j + 1] * on_diagonal[i]
+            residual -= coefficients[i, j + 1] * off_diagonal[i - 1]
+            coefficients[i + 2, j + 1] = residual * off_diagonal_inv
+
+        # Calculate the on-diagonal block
+        on_diagonal[i + 1] = 0.0
+        for j in range(i + 2):
+            for k in range(i + 2):
+                on_diagonal[i + 1] += self._rotated_moment(i + 2, j + 1, k + 1, j + k + 1)
+
+        # Get the error in the moments
+        error_moments: float | None = None
+        if self.calculate_errors:
+            error_moments = self.moment_error(iteration=iteration)
+
+        return 0.0, 0.0, error_moments
+
+    _recurrence_iteration_non_hermitian = _recurrence_iteration_hermitian
+    _recurrence_iteration_non_hermitian.__doc__ = (
+        BaseMBL._recurrence_iteration_non_hermitian.__doc__
+    )
+
+    @property
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        return 1

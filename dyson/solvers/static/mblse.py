@@ -501,7 +501,7 @@ class MLSE(MBLSE):
         self_energy: Lehmann,
         overlap: Array | None = None,
         **kwargs: Any,
-    ) -> MBLSE:
+    ) -> MLSE:
         """Create a solver from a self-energy.
 
         Args:
@@ -600,7 +600,7 @@ class MLSE(MBLSE):
         off_diagonal_squared -= coefficients[i, i - 1, 1] * off_diagonal[i - 1] * 2.0
         off_diagonal_squared -= coefficients[i, i, 1] * coefficients[i, i, 1]
         if iteration > 1:
-            off_diagonal_squared += off_diagonal[i - 1].conj() * off_diagonal[i - 1]
+            off_diagonal_squared += off_diagonal[i - 1].conjugate() * off_diagonal[i - 1]
 
         # Get the off-diagonal block
         off_diagonal[i] = off_diagonal_squared**0.5
@@ -611,7 +611,7 @@ class MLSE(MBLSE):
         for n in range(2 * (self.max_cycle - iteration + 1)):
             # Horizontal recursion
             residual = coefficients[i, i, n + 1]
-            residual -= off_diagonal[i - 1].conj() * coefficients[i - 1, i, n]
+            residual -= off_diagonal[i - 1].conjugate() * coefficients[i - 1, i, n]
             residual -= on_diagonal[i] * coefficients[i, i, n]
             coefficients[i + 1, i, n] = off_diagonal_inv * residual
 
@@ -621,10 +621,10 @@ class MLSE(MBLSE):
             residual -= coefficients[i, i, n + 1] * on_diagonal[i] * 2.0
             residual += on_diagonal[i] * coefficients[i, i - 1, n] * off_diagonal[i - 1] * 2.0
             residual += (
-                off_diagonal[i - 1].conj() * coefficients[i - 1, i - 1, n] * off_diagonal[i - 1]
+                off_diagonal[i - 1].conjugate() * coefficients[i - 1, i - 1, n] * off_diagonal[i - 1]
             )
             residual += on_diagonal[i] * coefficients[i, i, n] * on_diagonal[i]
-            coefficients[i + 1, i + 1, n] = off_diagonal_inv * residual * off_diagonal_inv.conj()
+            coefficients[i + 1, i + 1, n] = off_diagonal_inv * residual * off_diagonal_inv.conjugate()
 
         # Extract the on-diagonal block
         on_diagonal[i + 1] = coefficients[i + 1, i + 1, 1]

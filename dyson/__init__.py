@@ -48,6 +48,10 @@ The available static solvers are, along with their expected inputs:
      - Static self-energy and moments of the dynamic self-energy.
    * - :class:`~dyson.solvers.static.mblgf.MBLGF`
      - Moments of the dynamic Green's function.
+   * - :class:`~dyson.solvers.static.mlse.MLSE`
+     - Scalar elements of the static self-energy and moments of the dynamic self-energy.
+   * - :class:`~dyson.solvers.static.mlgf.MLGF`
+     - Scalar elements of the moments of the dynamic Green's function.
    * - :class:`~dyson.solvers.static.chempot.AufbauPrinciple`
      - Static self-energy, Lehmann representation of the dynamic self-energy, and the target
        number of electrons.
@@ -133,6 +137,8 @@ from dyson.solvers import (
     Downfolded,
     MBLSE,
     MBLGF,
+    MLSE,
+    MLGF,
     AufbauPrinciple,
     AuxiliaryShift,
     DensityRelaxation,

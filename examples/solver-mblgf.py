@@ -8,7 +8,7 @@ cycle) used in the calculation.
 
 from pyscf import gto, scf
 
-from dyson import ADC2, MBLGF, Exact
+from dyson import ADC2, MBLGF, MLGF, Exact
 
 # Get a molecule and mean-field from PySCF
 mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="sto-3g", verbose=0)
@@ -37,8 +37,18 @@ solver.kernel()
 
 # 3) Create the solver directly from the moments
 max_cycle = 1
+greens_function = solver.result.get_greens_function()
 solver = MBLGF(
-    solver.result.get_greens_function().moments(range(2 * max_cycle + 2)),
+    greens_function.moments(range(2 * max_cycle + 2)),
     hermitian=exp.hermitian_downfolded,
     max_cycle=max_cycle,
 )
+
+# One can also use the MLGF solver, which a specialised implementation of MBLGF for single elements
+# of the Green's function moments. In a diagonal approximation, this can be used to reduce the
+# scaling of MBLGF by treating each diagonal element separately.
+solver = MLGF(
+    greens_function.moments(range(2 * max_cycle + 2))[:, 0, 0],
+    max_cycle=max_cycle,
+)
+solver.kernel()

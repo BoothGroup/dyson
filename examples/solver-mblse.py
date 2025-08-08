@@ -7,7 +7,7 @@ improved by increasing the number of moments (maximum algorithm cycle) used in t
 
 from pyscf import gto, scf
 
-from dyson import ADC2, MBLSE, Exact
+from dyson import ADC2, MBLSE, MLSE, Exact
 
 # Get a molecule and mean-field from PySCF
 mol = gto.M(atom="Li 0 0 0; H 0 0 1.64", basis="sto-3g", verbose=0)
@@ -41,6 +41,17 @@ solver = MBLSE(
     self_energy.moments(range(2 * max_cycle + 2)),
     overlap=overlap,
     hermitian=exp.hermitian_downfolded,
+    max_cycle=max_cycle,
+)
+solver.kernel()
+
+# One can also use the MLSE solver, which a specialised implementation of MBLSE for single elements
+# of the static self-energy and self-energy moments. In a diagonal approximation, this can be used
+# to reduce the scaling of MBLSE by treating each diagonal element separately.
+solver = MLSE(
+    static[0, 0],
+    self_energy.moments(range(2 * max_cycle + 2))[:, 0, 0],
+    overlap=overlap[0, 0],
     max_cycle=max_cycle,
 )
 solver.kernel()
