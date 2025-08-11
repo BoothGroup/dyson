@@ -48,7 +48,9 @@ def _same_grid(first: Dynamic[_TGrid], second: Dynamic[_TGrid]) -> bool:
         return False
     if len(first.grid) != len(second.grid):
         return False
-    if not all(getattr(first, attr) == getattr(second, attr) for attr in first.grid._options):
+    if not all(
+        getattr(first.grid, attr) == getattr(second.grid, attr) for attr in first.grid._options
+    ):
         return False
     if not np.allclose(first.grid.weights, second.grid.weights):
         return False

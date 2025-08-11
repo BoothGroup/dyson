@@ -172,7 +172,7 @@ def plot_dynamic(
             'real or imaginary part, use dynamic.copy(component="real") or '
             'dynamic.copy(component="imag") to create a copy with the desired component.'
         )
-    grid = _convert(dynamic.grid, "Ha", energy_unit)
+    grid = _convert(dynamic.grid.points, "Ha", energy_unit)
     array = dynamic.array
     if normalise:
         array = array / np.max(np.abs(array))
@@ -210,15 +210,15 @@ def unknown_pleasures(dynamics: list[Dynamic]) -> Axes:
     """Channel your inner Ian Curtis."""
     fig, ax = plt.subplots(figsize=(5, 7), facecolor="black")
     norm = max([np.max(np.abs(d.array)) for d in dynamics])
-    xmin = min([d.grid.min() for d in dynamics])
-    xmax = max([d.grid.max() for d in dynamics])
+    xmin = min([d.grid.points.min() for d in dynamics])
+    xmax = max([d.grid.points.max() for d in dynamics])
     xmin -= (xmax - xmin) * 0.05  # Add some padding
     xmax += (xmax - xmin) * 0.05  # Add some padding
     ymax = 0.0
     spacing = 0.2
     zorder = 1
     for i, dynamic in list(enumerate(dynamics))[::-1]:
-        grid = _convert(dynamic.grid, "Ha", "eV")
+        grid = _convert(dynamic.grid.points, "Ha", "eV")
         array = dynamic.array / norm
         array += i * spacing
         array += np.random.uniform(-0.015, 0.015, size=array.shape)  # Add some noise
