@@ -200,7 +200,10 @@ def format_axes_spectral_function(
     ax.set_xlabel(xlabel.format(energy_unit))
     ax.set_ylabel(ylabel)
     ax.set_yticks([])
-    ax.set_xlim(_convert(grid.min(), "Ha", energy_unit), _convert(grid.max(), "Ha", energy_unit))
+    ax.set_xlim(
+        _convert(grid.points.min(), "Ha", energy_unit),
+        _convert(grid.points.max(), "Ha", energy_unit),
+    )
 
 
 def unknown_pleasures(dynamics: list[Dynamic]) -> Axes:

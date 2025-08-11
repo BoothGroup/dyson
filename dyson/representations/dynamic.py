@@ -44,11 +44,15 @@ def _cast_arrays(first: Dynamic[_TGrid], second: Dynamic[_TGrid]) -> tuple[Array
 def _same_grid(first: Dynamic[_TGrid], second: Dynamic[_TGrid]) -> bool:
     """Check if two dynamic representations have the same grid."""
     # TODO: Move to BaseGrid
-    if first.grid.size != second.grid.size:
+    if not isinstance(second.grid, type(first.grid)):
+        return False
+    if len(first.grid) != len(second.grid):
+        return False
+    if not all(getattr(first, attr) == getattr(second, attr) for attr in first.grid._options):
         return False
     if not np.allclose(first.grid.weights, second.grid.weights):
         return False
-    return np.allclose(first.grid, second.grid)
+    return np.allclose(first.grid.points, second.grid.points)
 
 
 class Dynamic(BaseRepresentation, Generic[_TGrid]):
@@ -80,10 +84,10 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
         self._hermitian = hermitian
         self._reduction = Reduction(reduction)
         self._component = Component(component)
-        if array.shape[0] != grid.size:
+        if array.shape[0] != len(grid):
             raise ValueError(
                 f"Array must have the same size as the grid in the first dimension, but got "
-                f"{array.shape[0]} for grid size {grid.size}."
+                f"{array.shape[0]} for grid size {len(grid)}."
             )
         if (array.ndim - 1) != self.reduction.ndim:
             raise ValueError(
@@ -194,7 +198,7 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
             elif (self.reduction, reduction) == (Reduction.DIAG, Reduction.TRACE):
                 array = np.sum(array, axis=1)
             elif (self.reduction, reduction) == (Reduction.DIAG, Reduction.NONE):
-                array_new = np.zeros((grid.size, self.nphys, self.nphys), dtype=array.dtype)
+                array_new = np.zeros((len(grid), self.nphys, self.nphys), dtype=array.dtype)
                 np.fill_diagonal(array_new, array)
                 array = array_new
             else:
@@ -326,7 +330,7 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
             return NotImplemented
         if other.nphys != self.nphys:
             return False
-        if other.grid.size != self.grid.size:
+        if len(other.grid) != len(self.grid):
             return False
         if other.hermitian != self.hermitian:
             return False
@@ -337,5 +341,10 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
     def __hash__(self) -> int:
         """Return a hash of the dynamic representation."""
         return hash(
-            (tuple(self.grid), tuple(self.grid.weights), tuple(self.array.ravel()), self.hermitian)
+            (
+                tuple(self.grid.points),
+                tuple(self.grid.weights),
+                tuple(self.array.ravel()),
+                self.hermitian,
+            )
         )

@@ -229,14 +229,14 @@ class CorrectionVector(DynamicSolver):
             The Green's function on the real frequency grid.
         """
         # Get the printing helpers
-        progress = printing.IterationsPrinter(self.nphys * self.grid.size, description="Frequency")
+        progress = printing.IterationsPrinter(self.nphys * len(self.grid), description="Frequency")
         progress.start()
 
         # Precompute bra vectors  # TODO: Optional
         bras = list(map(self.get_state_bra, range(self.nphys)))
 
         # Loop over ket vectors
-        shape = (self.grid.size,) + (self.nphys,) * self.reduction.ndim
+        shape = (len(self.grid),) + (self.nphys,) * self.reduction.ndim
         greens_function = np.zeros(shape, dtype=complex)
         failed: set[int] = set()
         for i in range(self.nphys):
@@ -245,8 +245,8 @@ class CorrectionVector(DynamicSolver):
             # Loop over frequencies
             x: Array | None = None
             outer_v: list[tuple[Array, Array]] = []
-            for w in range(self.grid.size):
-                progress.update(i * self.grid.size + w + 1)
+            for w in range(len(self.grid)):
+                progress.update(i * len(self.grid) + w + 1)
                 if w in failed:
                     continue
 
@@ -291,11 +291,11 @@ class CorrectionVector(DynamicSolver):
             greens_function = greens_function.imag
 
         progress.stop()
-        rating = printing.rate_error(len(failed) / self.grid.size, 1e-100, 1e-2)
+        rating = printing.rate_error(len(failed) / len(self.grid), 1e-100, 1e-2)
         console.print("")
         console.print(
-            f"Converged [output]{self.grid.size - len(failed)} of {self.grid.size}[/output] "
-            f"frequencies ([{rating}]{1 - len(failed) / self.grid.size:.2%}[/{rating}])."
+            f"Converged [output]{len(self.grid) - len(failed)} of {len(self.grid)}[/output] "
+            f"frequencies ([{rating}]{1 - len(failed) / len(self.grid):.2%}[/{rating}])."
         )
 
         return Dynamic(

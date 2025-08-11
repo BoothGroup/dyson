@@ -127,8 +127,7 @@ class Downfolded(StaticSolver):
 
         def _function(freq: float) -> Array:
             """Evaluate the self-energy at the frequency."""
-            grid = RealFrequencyGrid(1, buffer=np.array([freq]))
-            grid.eta = eta
+            grid = RealFrequencyGrid(np.array([freq]), eta=eta)
             return grid.evaluate_lehmann(self_energy, ordering=Ordering.ORDERED).array[0]
 
         return cls(

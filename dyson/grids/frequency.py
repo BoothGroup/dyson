@@ -117,24 +117,23 @@ class BaseFrequencyGrid(BaseGrid):
 class RealFrequencyGrid(BaseFrequencyGrid):
     """Real frequency grid."""
 
-    _eta: float = 1e-2
+    eta: float = 1e-2
 
-    def __new__(cls, *args: Any, eta: float | None = None, **kwargs: Any) -> RealFrequencyGrid:
-        """Create a new instance of the grid.
+    _options = {"eta"}
+
+    def __init__(  # noqa: D417
+        self, points: Array, weights: Array | None = None, **kwargs: Any
+    ) -> None:
+        """Initialise the grid.
 
         Args:
-            args: Positional arguments for :class:`BaseGrid`.
-            eta: Broadening factor, used as a small imaginary part to shift poles away from the real
-                axis.
-            kwargs: Keyword arguments for :class:`BaseGrid`.
-
-        Returns:
-            New instance of the grid.
+            points: Points of the grid.
+            weights: Weights of the grid.
+            eta: Broadening factor.
         """
-        obj = super().__new__(cls, *args, **kwargs).view(cls)
-        if eta is not None:
-            obj._eta = eta
-        return obj
+        self._points = np.asarray(points)
+        self._weights = np.asarray(weights) if weights is not None else None
+        self.set_options(**kwargs)
 
     @property
     def reality(self) -> bool:
@@ -144,24 +143,6 @@ class RealFrequencyGrid(BaseFrequencyGrid):
             Reality of the grid.
         """
         return True
-
-    @property
-    def eta(self) -> float:
-        """Get the broadening factor.
-
-        Returns:
-            Broadening factor.
-        """
-        return self._eta
-
-    @eta.setter
-    def eta(self, value: float) -> None:
-        """Set the broadening factor.
-
-        Args:
-            value: Broadening factor.
-        """
-        self._eta = value
 
     @staticmethod
     def _resolvent_signs(energies: Array, ordering: Ordering) -> Array:
@@ -208,7 +189,7 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         if kwargs:
             raise TypeError(f"resolvent() got unexpected keyword argument: {next(iter(kwargs))}")
         signs = self._resolvent_signs(energies - chempot, ordering)
-        grid = np.expand_dims(self, axis=tuple(range(1, energies.ndim + 1)))
+        grid = np.expand_dims(self.points, axis=tuple(range(1, energies.ndim + 1)))
         energies = np.expand_dims(energies, axis=0)
         denominator = grid + (signs * 1.0j * self.eta - energies)
         return 1.0 / denominator if invert else denominator
@@ -228,24 +209,8 @@ class RealFrequencyGrid(BaseFrequencyGrid):
         Returns:
             Uniform real frequency grid.
         """
-        grid = np.linspace(start, stop, num, endpoint=True).view(cls)
-        if eta is not None:
-            grid.eta = eta
-        return grid
-
-    def __array_finalize__(self, obj: Array | None, *args: Any, **kwargs: Any) -> None:
-        """Finalize the array.
-
-        Args:
-            obj: Array to finalize.
-            args: Additional arguments.
-            kwargs: Additional keyword arguments.
-        """
-        if obj is None:
-            return
-        super().__array_finalize__(obj, *args, **kwargs)
-        self._weights = getattr(obj, "_weights", None)
-        self._eta = getattr(obj, "_eta", RealFrequencyGrid._eta)
+        points = np.linspace(start, stop, num, endpoint=True)
+        return cls(points, eta=eta)
 
 
 GridRF = RealFrequencyGrid
@@ -254,25 +219,23 @@ GridRF = RealFrequencyGrid
 class ImaginaryFrequencyGrid(BaseFrequencyGrid):
     """Imaginary frequency grid."""
 
-    _beta: float = 256
+    beta: float = 256
 
-    def __new__(
-        cls, *args: Any, beta: float | None = None, **kwargs: Any
-    ) -> ImaginaryFrequencyGrid:
-        """Create a new instance of the grid.
+    _options = {"beta"}
+
+    def __init__(  # noqa: D417
+        self, points: Array, weights: Array | None = None, **kwargs: Any
+    ) -> None:
+        """Initialise the grid.
 
         Args:
-            args: Positional arguments for :class:`BaseGrid`.
+            points: Points of the grid.
+            weights: Weights of the grid.
             beta: Inverse temperature.
-            kwargs: Keyword arguments for :class:`BaseGrid`.
-
-        Returns:
-            New instance of the grid.
         """
-        obj = super().__new__(cls, *args, **kwargs).view(cls)
-        if beta is not None:
-            obj._beta = beta
-        return obj
+        self._points = np.asarray(points)
+        self._weights = np.asarray(weights) if weights is not None else None
+        self.set_options(**kwargs)
 
     @property
     def reality(self) -> bool:
@@ -282,24 +245,6 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
             Reality of the grid.
         """
         return False
-
-    @property
-    def beta(self) -> float:
-        """Get the inverse temperature.
-
-        Returns:
-            Inverse temperature.
-        """
-        return self._beta
-
-    @beta.setter
-    def beta(self, value: float) -> None:
-        """Set the inverse temperature.
-
-        Args:
-            value: Inverse temperature.
-        """
-        self._beta = value
 
     def resolvent(  # noqa: D417
         self,
@@ -327,7 +272,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         """
         if kwargs:
             raise TypeError(f"resolvent() got unexpected keyword argument: {next(iter(kwargs))}")
-        grid = np.expand_dims(self, axis=tuple(range(1, energies.ndim + 1)))
+        grid = np.expand_dims(self.points, axis=tuple(range(1, energies.ndim + 1)))
         energies = np.expand_dims(energies, axis=0)
         denominator = 1.0j * grid - energies
         return 1.0 / denominator if invert else denominator
@@ -344,15 +289,12 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
             Uniform imaginary frequency grid.
         """
         if beta is None:
-            beta = cls._beta
-        if beta is None:
-            beta = 256
+            beta = cls.beta
         separation = 2.0 * np.pi / beta
         start = 0.5 * separation
         stop = (num - 0.5) * separation
-        grid = np.linspace(start, stop, num, endpoint=True).view(cls)
-        grid.beta = beta
-        return grid
+        points = np.linspace(start, stop, num, endpoint=True)
+        return cls(points, beta=beta)
 
     @classmethod
     def from_legendre(
@@ -368,29 +310,9 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         Returns:
             Legendre imaginary frequency grid.
         """
-        if beta is None:
-            beta = cls._beta
-        if beta is None:
-            beta = 256
         points, weights = scipy.special.roots_legendre(num)
-        grid = ((1 - points) / (diffuse_factor * (1 + points))).view(cls)
-        grid.weights = weights
-        grid.beta = beta
-        return grid
-
-    def __array_finalize__(self, obj: Array | None, *args: Any, **kwargs: Any) -> None:
-        """Finalize the array.
-
-        Args:
-            obj: Array to finalize.
-            args: Additional arguments.
-            kwargs: Additional keyword arguments.
-        """
-        if obj is None:
-            return
-        super().__array_finalize__(obj, *args, **kwargs)
-        self._weights = getattr(obj, "_weights", None)
-        self._beta = getattr(obj, "_beta", ImaginaryFrequencyGrid._beta)
+        points = (1 - points) / (diffuse_factor * (1 + points))
+        return cls(points, weights=weights, beta=beta)
 
 
 GridIF = ImaginaryFrequencyGrid

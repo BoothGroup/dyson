@@ -186,7 +186,7 @@ class CPGF(DynamicSolver):
             )
 
         # Scale the grid
-        scaled_grid = (self.grid - self.scaling[1]) / self.scaling[0]
+        scaled_grid = (self.grid.points - self.scaling[1]) / self.scaling[0]
         scaled_eta = self.grid.eta / self.scaling[0]
         shifted_grid = scaled_grid + 1j * scaled_eta
 
