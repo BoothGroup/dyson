@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, cast
 
 from dyson import numpy as np
-from dyson import util, scipy
+from dyson import scipy, util
 from dyson.representations.enums import Reduction
 from dyson.representations.representation import BaseRepresentation
 from dyson.typing import Array

@@ -77,6 +77,7 @@ def pytest_generate_tests(metafunc):  # type: ignore
     if "backend" in metafunc.fixturenames:
         try:
             import jax  # noqa: F401
+
             metafunc.parametrize("backend", ["numpy", "jax"], scope="function")
         except ImportError:
             # If JAX is not available, only use numpy backend

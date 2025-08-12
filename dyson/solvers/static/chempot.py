@@ -6,7 +6,7 @@ import functools
 import warnings
 from typing import TYPE_CHECKING
 
-from dyson import console, printing, util, scipy
+from dyson import console, printing, scipy, util
 from dyson import numpy as np
 from dyson.representations.lehmann import Lehmann, shift_energies
 from dyson.solvers.solver import StaticSolver

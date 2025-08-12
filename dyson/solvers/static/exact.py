@@ -38,7 +38,6 @@ def project_eigenvectors(
         is defined by the null space of the projector formed by the outer product of these vectors.
     """
     hermitian = ket is None
-    nphys = bra.shape[0]
     if not hermitian and eigvecs.ndim == 2:
         raise ValueError(
             "bra and ket both passed implying a non-hermitian system, but eigvecs is 2D."
@@ -77,7 +76,6 @@ def project_eigenvectors(
     eigvecs = np.array([left.T.conj() @ eigvecs[0], right.T.conj() @ eigvecs[1]])
 
     return eigvecs
-
 
 
 def orthogonalise_self_energy(

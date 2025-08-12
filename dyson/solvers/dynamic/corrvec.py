@@ -27,9 +27,11 @@ if TYPE_CHECKING:
     from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
-if _BACKEND == "jax":
+if _BACKEND == "jax" and not TYPE_CHECKING:
     # No LGMRES in JAX, so use GMRES
-    from dyson.scipy.sprase.linalg import gmres as lgmres
+    from dyson import scipy
+
+    lgmres = scipy.sparse.linalg.gmres
 
 
 class CorrectionVector(DynamicSolver):

@@ -43,7 +43,8 @@ if TYPE_CHECKING:
             """
             ...
 
-if _BACKEND == "jax":
+
+if _BACKEND == "jax" and not TYPE_CHECKING:
     # Try to get the JAX version of DIIS
     try:
         from pyscfad.lib.diis import DIIS

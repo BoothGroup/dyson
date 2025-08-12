@@ -6,7 +6,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson import util, scipy
+from dyson import scipy, util
 from dyson.grids.grid import BaseGrid
 from dyson.representations.enums import Component, Ordering, Reduction
 

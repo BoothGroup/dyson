@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from dyson.solvers import AufbauPrinciple, AuxiliaryShift
 from dyson import numpy as np
+from dyson.solvers import AufbauPrinciple, AuxiliaryShift
 
 from .conftest import _get_central_result
 

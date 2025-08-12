@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
 
-if _BACKEND == "jax":
+if _BACKEND == "jax" and not TYPE_CHECKING:
     # Try to get the JAX version of the Davidson algorithm, only available for Hermitian case
     try:
         from pyscfad.lib.linalg_helper import davidson1

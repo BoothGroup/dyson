@@ -119,6 +119,10 @@ ignore_missing_imports = true
 module = "pyscf.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "pyscfad.*"
+ignore_missing_imports = true
+
 [tool.coverage.run]
 branch = true
 source = [

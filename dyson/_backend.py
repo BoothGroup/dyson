@@ -5,13 +5,12 @@ from __future__ import annotations
 import functools
 import importlib
 import os
-
 from types import ModuleType
-from typing import Callable, Any
-
+from typing import TYPE_CHECKING, Any, Callable
 
 try:
     import jax
+
     jax.config.update("jax_enable_x64", True)
 except ImportError:
     pass
@@ -34,7 +33,7 @@ _BACKENDS = {
 
 def set_backend(backend: str) -> None:
     """Set the backend for :mod:`dyson`."""
-    global _BACKEND
+    global _BACKEND  # noqa: PLW0603
     if backend not in _BACKENDS:
         raise ValueError(
             f"Invalid backend: {backend}. Available backends are: {list(_BACKENDS.keys())}"
@@ -42,7 +41,7 @@ def set_backend(backend: str) -> None:
     _BACKEND = backend
 
 
-def cast_returned_array(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+def cast_returned_array(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorate a function to coerce its returned array to the backend type."""
 
     @functools.wraps(func)
@@ -85,6 +84,10 @@ class ProxyModule(ModuleType):
         return _MODULE_CACHE[key]
 
 
-numpy = ProxyModule("numpy")
-scipy = ProxyModule("scipy")
-scipy.optimize = ProxyModule("scipy.optimize")  # SciPy doesn't seem to export this
+if TYPE_CHECKING:
+    import numpy
+    import scipy
+else:
+    numpy = ProxyModule("numpy")  # type: ignore[assignment]
+    scipy = ProxyModule("scipy")  # type: ignore[assignment]
+    scipy.optimize = ProxyModule("scipy.optimize")  # type: ignore[assignment]
