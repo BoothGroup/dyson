@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
+import dyson
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.representation import BaseRepresentation
 
@@ -112,6 +113,61 @@ class Spectral(BaseRepresentation):
             self_energy.nphys,
             chempot=self_energy.chempot,
         )
+    
+    @classmethod
+    def from_poles(cls, 
+                   energies: Array, 
+                   residues: Array,
+                   chempot: float | None = None,
+                   tol: float = 1e-12,
+                   assume_non_degenerate: bool = False) -> Spectral:
+        """ Build a spectral represntation from a set of pole energies and residues.
+
+            Args:
+                energies: Pole energies.
+                residues: Pole residues.
+                tol: Tolerance for considering eigenvalues as positive.
+                assume_non_degenerate: Whether to assume non-degenerate residues.
+
+            Returns:
+                Spectrum object
+        """
+
+        energies = np.array(energies)
+        residues = np.array(residues)
+        naux, nphys = residues.shape[0], residues.shape[1]
+        new_energies, new_couplings = [], []
+
+        for a in range(naux):
+            val, vec = np.linalg.eigh(residues[a])
+            if assume_non_degenerate:
+                # Assume at most one positive eigenvalue
+                if val[-1] > tol:
+                    coup = vec[:,-1:] @ np.diag([np.sqrt(val[-1])])
+                else:
+                    coup = np.array([[]])
+            else:    
+                # Keep all positive eigenvalues
+                idx = val > tol 
+                coup = vec[:,idx] @ np.diag(np.sqrt(val[idx]))
+            if coup.shape[1] > 0:
+                new_energies += [energies[a]] * coup.shape[1]
+                new_couplings.append(coup)
+
+        new_energies, new_couplings = np.array(new_energies), np.hstack(new_couplings)
+        u = np.zeros((new_energies.shape[0], new_energies.shape[0]), dtype=np.complex128)
+
+        # Apply orthogonalisation metric to obtain orthogonal couplings
+        orthogonalisation_metric = util.linalg.matrix_power(residues.sum(axis=0), -0.5)[0]
+        u[:nphys, :] = orthogonalisation_metric @ new_couplings
+
+        # Use QR factorisation to perform Gram-Schmidt to complete rest of space
+        eigvecs, R = np.linalg.qr(u.T, mode='complete')
+
+        # Transform back to non-orthogonal couplings
+        eigvecs[:nphys, :] = np.linalg.inv(orthogonalisation_metric) @ eigvecs[:nphys, :]
+
+        return Spectral(new_energies, eigvecs, nphys, chempot=chempot, sort=True)
 
     def sort_(self) -> None:
         """Sort the eigenfunctions by eigenvalue.
@@ -295,7 +351,48 @@ class Spectral(BaseRepresentation):
         )
 
         return result
+    
 
+    def combine_from_poles(self, *args: Spectral, chempot: float | None = None, hermitize=True) -> Spectral:
+        args = (self, *args)
+        if len(set(arg.nphys for arg in args)) != 1:
+            raise ValueError(
+                "All Spectral objects must have the same number of physical degrees of freedom."
+            )
+        nphys = args[0].nphys
+
+        # Sum the overlap and static self-energy matrices -- double counting is not an issue
+        # with shared static parts because the overlap matrix accounts for the separation
+        static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
+        overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
+
+        # Check the chemical potentials
+        if chempot is None:
+            if any(arg.chempot is not None for arg in args):
+                chempots = [arg.chempot for arg in args if arg.chempot is not None]
+                if not all(np.isclose(chempots[0], part) for part in chempots[1:]):
+                    raise ValueError(
+                        "If not chempot is passed to combine, all chemical potentials must be "
+                        "equal in the inputs."
+                    )
+                chempot = chempots[0]
+
+        # Get the auxiliaries
+        energies = []
+        residues = []
+        for arg in args:
+            energies.append(arg.eigvals)
+            left, right = util.unpack_vectors(arg.get_dyson_orbitals()[1])
+            res = util.einsum('pa,qa->apq', left, right.conj())
+            if hermitize:
+                res = 0.5 * (res + res.transpose(0,1,2))
+            residues.append(res)
+
+        energies = np.concatenate(energies)
+        residues = np.concatenate(residues)
+
+        return Spectral.from_poles(energies, residues, chempot=chempot, assume_non_degenerate=True)
+    
     @cached_property
     def overlap(self) -> Array:
         """Get the overlap matrix (the zeroth moment of the Green's function)."""
