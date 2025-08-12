@@ -76,7 +76,7 @@ def pytest_generate_tests(metafunc):  # type: ignore
         metafunc.parametrize("expression_method", expressions, ids=ids)
     if "backend" in metafunc.fixturenames:
         try:
-            import jax  # noqa: F401
+            import jax  # noqa: PLC0415, F401
 
             metafunc.parametrize("backend", ["numpy", "jax"], scope="function")
         except ImportError:
