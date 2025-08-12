@@ -8,7 +8,7 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
-from dyson._backend import set_backend, _BACKENDS
+from dyson._backend import _BACKENDS, set_backend
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
