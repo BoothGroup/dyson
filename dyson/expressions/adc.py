@@ -19,6 +19,7 @@ from pyscf import adc, ao2mo
 
 from dyson import numpy as np
 from dyson import util
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 from dyson.representations.enums import Reduction
 
@@ -89,6 +90,7 @@ class BaseADC(BaseExpression):
         adc_obj.kernel_gs()
         return cls.from_adc(adc_obj)
 
+    @cast_returned_array
     def apply_hamiltonian(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector.
 
@@ -115,6 +117,7 @@ class BaseADC(BaseExpression):
         """
         raise NotImplementedError("Left application of Hamiltonian is not implemented for ADC.")
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -234,6 +237,12 @@ class ADC2_1h(BaseADC_1h):
         ooov = ooov.reshape(eo.size, eo.size, eo.size, ev.size)
         left = ooov * 2 - ooov.swapaxes(1, 2)
 
+        # Cast arrays
+        eo = np.asarray(eo)
+        ev = np.asarray(ev)
+        ooov = np.asarray(ooov)
+        left = np.asarray(left)
+
         # Get the subscript based on the reduction
         if Reduction(reduction) == Reduction.NONE:
             subscript = "ikla,jkla->ij"
@@ -301,6 +310,12 @@ class ADC2_1p(BaseADC_1p):
         vvvo = ao2mo.kernel(self._adc_obj.mol, (cv, cv, cv, co), compact=False)
         vvvo = vvvo.reshape(ev.size, ev.size, ev.size, eo.size)
         left = vvvo * 2 - vvvo.swapaxes(1, 2)
+
+        # Cast arrays
+        eo = np.asarray(eo)
+        ev = np.asarray(ev)
+        vvvo = np.asarray(vvvo)
+        left = np.asarray(left)
 
         # Get the subscript based on the reduction
         if Reduction(reduction) == Reduction.NONE:

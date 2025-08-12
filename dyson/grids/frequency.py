@@ -5,10 +5,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import scipy.special
-
 from dyson import numpy as np
-from dyson import util
+from dyson import util, scipy
 from dyson.grids.grid import BaseGrid
 from dyson.representations.enums import Component, Ordering, Reduction
 

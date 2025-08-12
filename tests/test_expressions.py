@@ -5,10 +5,10 @@ from __future__ import annotations
 import itertools
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pyscf
 import pytest
 
+from dyson import numpy as np
 from dyson import util
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 from dyson.solvers import Davidson, Exact
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .conftest import ExactGetter, Helper
 
 
-def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
+def test_init(backend: str, mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the instantiation of the expression from a mean-field object."""
     expression = expression_cls.from_mf(mf)
     assert expression.mol is mf.mol
@@ -30,7 +30,7 @@ def test_init(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     assert expression.nvir == mf.mol.nao - mf.mol.nelectron // 2
 
 
-def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
+def test_hamiltonian(backend: str, mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Hamiltonian of the expression."""
     expression = expression_cls.from_mf(mf)
     if expression.nconfig > 1024:
@@ -41,6 +41,7 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     if expression_cls in ADC2._classes:
         # ADC(2)-x diagonal is set to ADC(2) diagonal in PySCF for better Davidson convergence
         assert np.allclose(np.diag(hamiltonian), diagonal)
+    assert isinstance(hamiltonian, np.ndarray)
     assert hamiltonian.shape == expression.shape
     assert (expression.nconfig + expression.nsingle) == diagonal.size
 
@@ -51,12 +52,14 @@ def test_hamiltonian(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> No
     except NotImplementedError:
         vh = None
 
+    assert isinstance(hv, np.ndarray)
     assert np.allclose(hv, hamiltonian @ vector)
     if vh is not None:
+        assert isinstance(vh, np.ndarray)
         assert np.allclose(vh, vector @ hamiltonian)
 
 
-def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
+def test_gf_moments(backend: str, mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> None:
     """Test the Green's function moments of the expression."""
     # Get the quantities required from the expression
     expression = expression_cls.from_mf(mf)
@@ -69,17 +72,22 @@ def test_gf_moments(mf: scf.hf.RHF, expression_cls: type[BaseExpression]) -> Non
     for i, j in itertools.product(range(expression.nphys), repeat=2):
         bra = expression.get_excitation_bra(j)
         ket = expression.get_excitation_ket(i)
+        assert isinstance(bra, np.ndarray)
+        assert isinstance(ket, np.ndarray)
         moments[0, j, i] += bra.conj() @ ket
         moments[1, j, i] += bra.conj() @ hamiltonian @ ket
 
     # Compare the moments to the reference
     ref = expression.build_gf_moments(2)
 
+    assert isinstance(ref, np.ndarray)
+    assert isinstance(moments, np.ndarray)
     assert np.allclose(ref[0], moments[0])
     assert np.allclose(ref[1], moments[1])
 
 
 def test_static(
+    backend: str,
     helper: Helper,
     mf: scf.hf.RHF,
     expression_cls: type[BaseExpression],
@@ -98,11 +106,13 @@ def test_static(
     greens_function = exact.result.get_greens_function()
     static = exact.result.get_static_self_energy()
 
+    assert isinstance(gf_moments, np.ndarray)
+    assert isinstance(static, np.ndarray)
     assert helper.have_equal_moments(gf_moments, greens_function, 2)
     assert np.allclose(static, gf_moments[1])
 
 
-def test_hf(mf: scf.hf.RHF) -> None:
+def test_hf(backend: str, mf: scf.hf.RHF) -> None:
     """Test the HF expression."""
     hf_h = HF.h.from_mf(mf)
     hf_p = HF.p.from_mf(mf)
@@ -136,7 +146,7 @@ def test_hf(mf: scf.hf.RHF) -> None:
     assert np.allclose(result.get_greens_function().as_perturbed_mo_energy(), mf.mo_energy)
 
 
-def test_ccsd(mf: scf.hf.RHF) -> None:
+def test_ccsd(backend: str, mf: scf.hf.RHF) -> None:
     """Test the CCSD expression."""
     ccsd_h = CCSD.h.from_mf(mf)
     ccsd_p = CCSD.p.from_mf(mf)
@@ -179,7 +189,7 @@ def test_ccsd(mf: scf.hf.RHF) -> None:
     assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
 
 
-def test_fci(mf: scf.hf.RHF) -> None:
+def test_fci(backend: str, mf: scf.hf.RHF) -> None:
     """Test the FCI expression."""
     fci_h = FCI.h.from_mf(mf)
     fci_p = FCI.p.from_mf(mf)
@@ -214,7 +224,7 @@ def test_fci(mf: scf.hf.RHF) -> None:
         assert np.allclose(gf_moments_ccsd[1], gf_moments_h[1])
 
 
-def test_adc2(mf: scf.hf.RHF) -> None:
+def test_adc2(backend: str, mf: scf.hf.RHF) -> None:
     """Test the ADC(2) expression."""
     adc_h = ADC2.h.from_mf(mf)
     adc_p = ADC2.p.from_mf(mf)
@@ -249,7 +259,7 @@ def test_adc2(mf: scf.hf.RHF) -> None:
     assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
 
 
-def test_adc2x(mf: scf.hf.RHF) -> None:
+def test_adc2x(backend: str, mf: scf.hf.RHF) -> None:
     """Test the ADC(2)-x expression."""
     adc_h = ADC2x.h.from_mf(mf)
     adc_p = ADC2x.p.from_mf(mf)
@@ -285,7 +295,7 @@ def test_adc2x(mf: scf.hf.RHF) -> None:
     assert np.allclose(gf_moment_0, np.eye(mf.mol.nao))
 
 
-def test_tdagw(mf: scf.hf.RHF, exact_cache: ExactGetter) -> None:
+def test_tdagw(backend: str, mf: scf.hf.RHF, exact_cache: ExactGetter) -> None:
     """Test the TDAGW expression."""
     tdagw = TDAGW["dyson"].from_mf(mf)
     dft = mf.to_rks()

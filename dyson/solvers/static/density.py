@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pyscf import lib
+from pyscf.lib.diis import DIIS
 
 from dyson import console, printing
 from dyson import numpy as np
+from dyson._backend import _BACKEND
 from dyson.representations.lehmann import Lehmann
 from dyson.solvers.solver import StaticSolver
 from dyson.solvers.static.chempot import AufbauPrinciple, AuxiliaryShift
@@ -41,6 +42,13 @@ if TYPE_CHECKING:
                 Static self-energy.
             """
             ...
+
+if _BACKEND == "jax":
+    # Try to get the JAX version of DIIS
+    try:
+        from pyscfad.lib.diis import DIIS
+    except ImportError:
+        pass
 
 
 def get_fock_matrix_function(mf: scf.hf.RHF) -> StaticFunction:
@@ -290,7 +298,7 @@ class DensityRelaxation(StaticSolver):
                     self_energy = result.get_self_energy()
 
             # Initialise DIIS for the inner loop
-            diis = lib.diis.DIIS()
+            diis = DIIS()
             diis.space = self.diis_min_space
             diis.max_space = self.diis_max_space
             diis.incore = True

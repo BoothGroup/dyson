@@ -5,10 +5,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, cast
 
-import scipy.linalg
-
 from dyson import numpy as np
-from dyson import util
+from dyson import util, scipy
 from dyson.representations.enums import Reduction
 from dyson.representations.representation import BaseRepresentation
 from dyson.typing import Array

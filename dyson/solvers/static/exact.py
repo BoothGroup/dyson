@@ -70,13 +70,14 @@ def project_eigenvectors(
     left, right = util.biorthonormalise(left, right)
 
     # Return the physical vectors to the original basis
-    left[:, :nphys] = left[:, :nphys] @ unorth.T.conj()
-    right[:, :nphys] = right[:, :nphys] @ unorth
+    left = util.rotate_subspace(left.T, unorth.conj()).T
+    right = util.rotate_subspace(right.T, unorth).T
 
     # Rotate the eigenvectors
     eigvecs = np.array([left.T.conj() @ eigvecs[0], right.T.conj() @ eigvecs[1]])
 
     return eigvecs
+
 
 
 def orthogonalise_self_energy(

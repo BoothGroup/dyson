@@ -14,10 +14,11 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from pyscf import lib
+from pyscf.lib.linalg_helper import davidson1, davidson_nosym1
 
 from dyson import console, printing, util
 from dyson import numpy as np
+from dyson._backend import _BACKEND
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
 from dyson.solvers.solver import StaticSolver
@@ -28,6 +29,13 @@ if TYPE_CHECKING:
 
     from dyson.expressions.expression import BaseExpression
     from dyson.typing import Array
+
+if _BACKEND == "jax":
+    # Try to get the JAX version of the Davidson algorithm, only available for Hermitian case
+    try:
+        from pyscfad.lib.linalg_helper import davidson1
+    except:
+        pass
 
 
 def _pick_real_eigenvalues(
@@ -249,7 +257,7 @@ class Davidson(StaticSolver):
 
         # Call the Davidson function
         if self.hermitian:
-            converged, eigvals, eigvecs = lib.linalg_helper.davidson1(
+            converged, eigvals, eigvecs = davidson1(
                 lambda vectors: [self.matvec(vector) for vector in vectors],
                 self.get_guesses(),
                 self.diagonal,
@@ -268,7 +276,7 @@ class Davidson(StaticSolver):
 
         else:
             with util.catch_warnings(UserWarning):
-                converged, eigvals, left, right = lib.linalg_helper.davidson_nosym1(
+                converged, eigvals, left, right = davidson_nosym1(
                     lambda vectors: [self.matvec(vector) for vector in vectors],
                     self.get_guesses(),
                     self.diagonal,

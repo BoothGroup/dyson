@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 
+from dyson import numpy as np
 from dyson.representations.spectral import Spectral
 from dyson.solvers import DensityRelaxation
 from dyson.solvers.static.density import get_fock_matrix_function
