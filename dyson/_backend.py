@@ -12,23 +12,24 @@ try:
     import jax
 
     jax.config.update("jax_enable_x64", True)
+    _HAVE_JAX = True
 except ImportError:
-    pass
+    _HAVE_JAX = False
 
 _BACKEND = os.environ.get("DYSON_BACKEND", "numpy")
 _BACKEND_WARNINGS = os.environ.get("DYSON_BACKEND_WARNINGS", "0") == "1"
 
 _MODULE_CACHE: dict[tuple[str, str], ModuleType] = {}
-_BACKENDS = {
-    "numpy": {
-        "numpy": "numpy",
-        "scipy": "scipy",
-    },
-    "jax": {
+_BACKENDS: dict[str, dict[str, str]] = {}
+_BACKENDS["numpy"] = {
+    "numpy": "numpy",
+    "scipy": "scipy",
+}
+if _HAVE_JAX:
+    _BACKENDS["jax"] = {
         "numpy": "jax.numpy",
         "scipy": "jax.scipy",
-    },
-}
+    }
 
 
 def set_backend(backend: str) -> None:
