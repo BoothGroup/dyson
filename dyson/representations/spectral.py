@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
-import dyson
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.representation import BaseRepresentation
 
