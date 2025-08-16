@@ -15,3 +15,4 @@ Submodules
 
 from dyson.grids.frequency import RealFrequencyGrid, GridRF
 from dyson.grids.frequency import ImaginaryFrequencyGrid, GridIF
+from dyson.grids.time import RealTimeGrid, GridRT

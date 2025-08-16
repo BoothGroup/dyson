@@ -290,10 +290,11 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         """
         if beta is None:
             beta = cls.beta
-        separation = 2.0 * np.pi / beta
-        start = 0.5 * separation
-        stop = (num - 0.5) * separation
-        points = np.linspace(start, stop, num, endpoint=True)
+        #separation = 2.0 * np.pi / beta
+        #start = 0.5 * separation
+        #stop = (num - 0.5) * separation
+        #points = np.linspace(start, stop, num, endpoint=True)
+        points = (2 * np.arange(num) + 1) * np.pi / beta
         return cls(points, beta=beta)
 
     @classmethod
