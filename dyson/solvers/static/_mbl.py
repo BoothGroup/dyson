@@ -85,7 +85,8 @@ class BaseMBL(StaticSolver):
     hermitian: bool = True
     force_orthogonality: bool = True
     calculate_errors: bool = True
-    _options: set[str] = {"max_cycle", "hermitian", "force_orthogonality", "calculate_errors"}
+    hermitize_tridiagonal: bool = False
+    _options: set[str] = {"max_cycle", "hermitian", "force_orthogonality", "calculate_errors", "hermitize_tridiagonal"}
 
     def __post_kernel__(self) -> None:
         """Hook called after :meth:`kernel`."""

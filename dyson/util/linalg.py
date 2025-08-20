@@ -215,16 +215,17 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
     return _sort_eigvals(eigvals, eigvecs)
 
 
-@cache_by_id
+#@cache_by_id
 def eig_lr(
-    matrix: Array, hermitian: bool = True, overlap: Array | None = None
+    matrix: Array, hermitian: bool = True, overlap: Array | None = None, left: Literal["inv", "biorth", "none"] = "biorth"
 ) -> tuple[Array, tuple[Array, Array]]:
-    """Compute the eigenvalues and biorthogonal left- and right-hand eigenvectors of a matrix.
+    """Compute the eigenvalues left- and right-hand eigenvectors of a matrix.
 
     Args:
         matrix: The matrix to be diagonalised.
         hermitian: Whether the matrix is hermitian.
         overlap: An optional overlap matrix to be used for the eigenvalue decomposition.
+        biorth: Whether to biorthonormalise the eigenvectors.
 
     Returns:
         The eigenvalues and biorthogonal left- and right-hand eigenvectors of the matrix.
@@ -243,8 +244,9 @@ def eig_lr(
             matrix_right = np.linalg.solve(overlap, matrix_right)
             matrix_left = np.linalg.solve(overlap.T.conj(), matrix_left)
         eigvals, eigvecs_right = _sort_eigvals(*np.linalg.eig(matrix_right))
-        eigvals_left, eigvecs_left = np.linalg.eig(matrix_left)
-        eigvals_left, eigvecs_left = _sort_eigvals(eigvals_left.conj(), eigvecs_left)
+        if left != 'inv':
+            eigvals_left, eigvecs_left = np.linalg.eig(matrix_left)
+            eigvals_left, eigvecs_left = _sort_eigvals(eigvals_left.conj(), eigvecs_left)
     elif hermitian:
         eigvals, eigvecs_right = _sort_eigvals(*scipy.linalg.eigh(matrix, b=overlap))
         eigvecs_left = eigvecs_right
@@ -256,9 +258,12 @@ def eig_lr(
             b=overlap,
         )
         eigvals, eigvecs_right = _sort_eigvals(eigvals_raw, eigvecs_right)
-        eigvals, eigvecs_left = _sort_eigvals(eigvals_raw, eigvecs_left)
-    if not hermitian:
+        if left != 'inv':
+            eigvals, eigvecs_left = _sort_eigvals(eigvals_raw, eigvecs_left)
+    if not hermitian and left == 'biorth':
         eigvecs_left, eigvecs_right = biorthonormalise(eigvecs_left, eigvecs_right)
+    elif not hermitian and left == 'inv':
+        eigvecs_left = np.linalg.inv(eigvecs_right).T.conj()
 
     # See if we can remove the imaginary part of the eigenvalues
     if not hermitian and np.all(eigvals.imag == 0.0):
@@ -269,9 +274,12 @@ def eig_lr(
 
 @cache_by_id
 def null_space_basis(
-    matrix: Array, threshold: float = 1e-11, hermitian: bool | None = None
+    matrix: Array, 
+    threshold: float = 1e-11, 
+    hermitian: bool | None = None,
+    method: Literal[ "qr", "svd"] = 'svd',
 ) -> tuple[Array, Array]:
-    r"""Find a basis for the null space of a matrix.
+    """Find a basis for the null space of a matrix.
 
     Args:
         matrix: The matrix for which to find the null space.
@@ -285,18 +293,47 @@ def null_space_basis(
         The full vector space may not be biorthonormal.
     """
     if hermitian is None:
-        hermitian = np.allclose(matrix, matrix.T.conj())
+        if matrix.shape[0] != matrix.shape[1]:
+            hermitian = False
+        else:
+            hermitian = np.allclose(matrix, matrix.T.conj())
 
-    # Find the null space
-    null = np.eye(matrix.shape[1]) - matrix
 
-    # Diagonalise the null space to find the basis
-    weights, (left, right) = eig_lr(null, hermitian=hermitian)
-    mask = (1 - np.abs(weights)) < threshold
-    left = left[:, mask]
-    right = right[:, mask]
+    if method == "eig-compliment":
+        null = np.eye(matrix.shape[1]) - matrix 
+        # Diagonalise projector onto nullspace 
+        weights, (left, right) = eig_lr(null, hermitian=hermitian, biorth=False)
+        mask = np.abs((1 - np.abs(weights))) < threshold
+        left = left[:, mask]
+        right = right[:, mask]
 
-    return (left, right) if hermitian else (left, left)
+    elif method == "eig":        
+        # Diagonalise matrix to find the null space basis
+        weights, (left, right) = eig_lr(matrix, hermitian=hermitian, biorth=False)
+        mask = np.abs(weights) < threshold
+        left = left[:, mask]
+        right = right[:, mask]
+        
+    elif method == "qr":
+        # QR decomposition to find the null space
+        q, r = np.linalg.qr(matrix.T.conj(), mode="complete")
+        idx = np.sum(np.abs(np.diag(r)) > threshold)
+        right = q[:, idx:]
+        if not hermitian:
+            q, r = np.linalg.qr(matrix, mode="complete")
+            idx = np.sum(np.abs(np.diag(r)) > threshold)
+            left = q[:, idx:] 
+
+    elif method == "svd":
+        # SVD to find left and right null space
+        u, s, vh = np.linalg.svd(matrix, full_matrices=True)
+        idx = np.sum(s > threshold)
+        left = u[:, idx:]
+        right = vh[idx:, :].T.conj()
+    else:
+        raise ValueError(f"Unknown null space method: {method}")   
+
+    return (right, right) if hermitian else (left, right)
 
 
 @cache_by_id

@@ -81,6 +81,7 @@ class MBLGF(BaseMBL):
             moments: Moments of the Green's function.
             max_cycle: Maximum number of cycles.
             hermitian: Whether the Green's function is hermitian.
+            hermitize_tridiagonal: Whether to hermitize the tridiagonal Hamiltonian.
             force_orthogonality: Whether to force orthogonality of the recursion coefficients.
             calculate_errors: Whether to calculate errors.
         """
@@ -417,8 +418,11 @@ class MBLGF(BaseMBL):
         )
         hamiltonian = util.build_block_tridiagonal(on_diag, off_diag_upper, off_diag_lower)
 
+        if self.hermitian or self.hermitize_tridiagonal:
+            hamiltonian = 0.5 * (hamiltonian + hamiltonian.T.conj())
+            
         # Allow Hermitian solution even for non-Hermitian solver if the Hamiltonian is Hermitian
-        if self.hermitian:
+        if self.hermitian or self.hermitize_tridiagonal:
             eigvals, eigvecs = util.eig(hamiltonian, hermitian=self.hermitian)
         else:
             eigvals, eigvecs_tuple = util.eig_lr(hamiltonian, hermitian=self.hermitian)
@@ -426,7 +430,7 @@ class MBLGF(BaseMBL):
 
         # Unorthogonalise the eigenvectors
         metric_inv = self.orthogonalisation_metric_inv
-        if self.hermitian:
+        if self.hermitian or self.hermitize_tridiagonal:
             eigvecs[: self.nphys] = metric_inv @ eigvecs[: self.nphys]
         else:
             eigvecs[:, : self.nphys] = np.array(
