@@ -250,6 +250,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         self,
         energies: Array,
         chempot: float | Array,
+        ordering: Ordering = Ordering.ORDERED,
         invert: bool = True,
         **kwargs: Any,
     ) -> Array:
@@ -265,6 +266,7 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         Args:
             energies: Energies of the poles.
             chempot: Chemical potential.
+            ordering: Time ordering of the resolvent.
             invert: Whether to apply the inversion in the resolvent formula.
 
         Returns:
