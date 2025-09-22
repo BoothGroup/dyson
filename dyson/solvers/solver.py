@@ -1,94 +1,185 @@
-"""
-Solver base class.
-"""
+"""Base class for Dyson equation solvers."""
 
-import numpy as np
+from __future__ import annotations
 
-from dyson import Lehmann, default_log, init_logging
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+from rich import box
+from rich.table import Table
+
+from dyson import console, printing
+from dyson.representations.enums import RepresentationEnum
+from dyson.representations.lehmann import Lehmann
+from dyson.typing import Array
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from dyson.expressions.expression import BaseExpression
+    from dyson.representations.dynamic import Dynamic
+    from dyson.representations.spectral import Spectral
 
 
-class BaseSolver:
-    """
-    Base class for all solvers.
-    """
+class BaseSolver(ABC):
+    """Base class for Dyson equation solvers."""
 
-    def __init__(self, *args, **kwargs):
-        self.log = kwargs.pop("log", default_log)
-        if self.log is None:
-            self.log = default_log
-        init_logging(self.log)
-        self.log.info("")
-        self.log.info("%s", self.__class__.__name__)
-        self.log.info("%s", "*" * len(self.__class__.__name__))
+    _options: set[str] = set()
 
-        # Check all the arguments have now been consumed:
-        if len(kwargs):
-            for key, val in kwargs.items():
-                self.log.warn("Argument `%s` invalid" % key)
+    def __init_subclass__(cls, *args: Any, **kwargs: Any) -> None:
+        """Initialise a subclass of :class:`BaseSolver`."""
 
-    def kernel(self, *args, **kwargs):
+        def wrap_init(init: Any) -> Any:
+            """Wrapper to call __post_init__ after __init__."""
+
+            def wrapped_init(self: BaseSolver, *args: Any, **kwargs: Any) -> None:
+                init(self, *args, **kwargs)
+                if init.__name__ == "__init__":
+                    self.__log_init__()
+                    self.__post_init__()
+
+            return wrapped_init
+
+        def wrap_kernel(kernel: Any) -> Any:
+            """Wrapper to call __post_kernel__ after kernel."""
+
+            def wrapped_kernel(self: BaseSolver, *args: Any, **kwargs: Any) -> Any:
+                result = kernel(self, *args, **kwargs)
+                if kernel.__name__ == "kernel":
+                    self.__post_kernel__()
+                return result
+
+            return wrapped_kernel
+
+        cls.__init__ = wrap_init(cls.__init__)  # type: ignore[method-assign]
+        cls.kernel = wrap_kernel(cls.kernel)  # type: ignore[method-assign]
+
+    def __log_init__(self) -> None:
+        """Hook called after :meth:`__init__` for logging purposes."""
+        printing.init_console()
+        console.print("")
+
+        # Print the solver name
+        console.print(f"[method]{self.__class__.__name__}[/method]")
+
+        # Print the options table
+        table = Table(box=box.SIMPLE)
+        table.add_column("Option")
+        table.add_column("Value", style="input")
+        for key in sorted(self._options):
+            if not hasattr(self, key):
+                raise ValueError(f"Option {key} not set in {self.__class__.__name__}")
+            value = getattr(self, key)
+            if hasattr(value, "__name__"):
+                name = value.__name__
+            else:
+                name = str(value)
+            table.add_row(key, name)
+        console.print(table)
+
+    def __post_init__(self) -> None:
+        """Hook called after :meth:`__init__`."""
+        pass
+
+    def __post_kernel__(self) -> None:
+        """Hook called after :meth:`kernel`."""
+        pass
+
+    def set_options(self, **kwargs: Any) -> None:
+        """Set options for the solver.
+
+        Args:
+            kwargs: Keyword arguments to set as options.
         """
-        Driver function. Classes inheriting the `BaseSolver` should
-        implement `_kernel`, which is called by this function. If
-        the solver has a `_cache`, this function clears it.
+        for key, val in kwargs.items():
+            if key not in self._options:
+                raise ValueError(f"Unknown option for {self.__class__.__name__}: {key}")
+            if isinstance(getattr(self, key), RepresentationEnum):
+                # Casts string to the appropriate enum type if the default value is an enum
+                val = getattr(self, key).__class__(val)
+            setattr(self, key, val)
+
+    @abstractmethod
+    def kernel(self) -> Any:
+        """Run the solver."""
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_self_energy(
+        cls,
+        static: Array,
+        self_energy: Lehmann,
+        overlap: Array | None = None,
+        **kwargs: Any,
+    ) -> BaseSolver:
+        """Create a solver from a self-energy.
+
+        Args:
+            static: Static part of the self-energy.
+            self_energy: Self-energy.
+            overlap: Overlap matrix for the physical space.
+            kwargs: Additional keyword arguments for the solver.
+
+        Returns:
+            Solver instance.
+
+        Notes:
+            This method will extract the appropriate quantities or functions from the self-energy
+            to instantiate the solver. In some cases, additional keyword arguments may required.
         """
+        pass
 
-        out = self._kernel(*args, **kwargs)
+    @classmethod
+    @abstractmethod
+    def from_expression(cls, expression: BaseExpression, **kwargs: Any) -> BaseSolver:
+        """Create a solver from an expression.
 
-        # Clear the cache if it is used:
-        if hasattr(self, "_cache"):
-            self._cache.clear()
+        Args:
+            expression: Expression to be solved.
+            kwargs: Additional keyword arguments for the solver.
 
-        return out
+        Returns:
+            Solver instance.
 
-    def flag_convergence(self, converged):
-        """Preset logging for convergence message."""
-
-        if converged:
-            self.log.info("Successfully converged.")
-        else:
-            self.log.info("Failed to converge.")
-
-    def get_auxiliaries(self, *args, **kwargs):
+        Notes:
+            This method will extract the appropriate quantities or functions from the expression
+            to instantiate the solver. In some cases, additional keyword arguments may required.
         """
-        Return the auxiliary energies and couplings.
+        pass
+
+    @property
+    @abstractmethod
+    def nphys(self) -> int:
+        """Get the number of physical degrees of freedom."""
+        pass
+
+
+class StaticSolver(BaseSolver):
+    """Base class for static Dyson equation solvers."""
+
+    _options: set[str] = set()
+
+    result: Spectral | None = None
+
+    @abstractmethod
+    def kernel(self) -> Spectral:
+        """Run the solver.
+
+        Returns:
+            The eigenvalues and eigenvectors of the self-energy supermatrix.
         """
+        pass
 
-        raise NotImplementedError
 
-    def get_dyson_orbitals(self, *args, **kwargs):
+class DynamicSolver(BaseSolver):
+    """Base class for dynamic Dyson equation solvers."""
+
+    @abstractmethod
+    def kernel(self) -> Dynamic[Any]:
+        """Run the solver.
+
+        Returns:
+            Dynamic Green's function resulting from the Dyson equation.
         """
-        Return the Dyson orbitals and their energies.
-        """
-
-        eigvals, eigvecs = self.get_eigenfunctions(*args, **kwargs)
-
-        if self.hermitian:
-            eigvecs = eigvecs[: self.nphys]
-        elif isinstance(eigvecs, tuple):
-            eigvecs = (eigvecs[0][: self.nphys], eigvecs[1][: self.nphys])
-        else:
-            eigvecs = (eigvecs[: self.nphys], np.linalg.inv(eigvecs).T.conj()[: self.nphys])
-
-        return eigvals, eigvecs
-
-    def get_eigenfunctions(self, *args, **kwargs):
-        """
-        Return the eigenvalues and eigenfunctions.
-        """
-
-        return self.eigvals, self.eigvecs
-
-    def get_self_energy(self, *args, chempot=0.0, **kwargs):
-        """
-        Get the self-energy in the format of `pyscf.agf2`.
-        """
-
-        return Lehmann(*self.get_auxiliaries(*args, **kwargs), chempot=chempot)
-
-    def get_greens_function(self, *args, chempot=0.0, **kwargs):
-        """
-        Get the Green's function in the format of `pyscf.agf2`.
-        """
-
-        return Lehmann(*self.get_dyson_orbitals(*args, **kwargs), chempot=chempot)
+        pass

@@ -1,148 +1,252 @@
+"""Full configuration interaction (FCI) expressions [1]_.
+
+.. [1] Knowles, P., & Handy, N. (1984). A new determinant-based full configuration
+   interaction method. Chemical Physics Letters, 111(4–5), 315–321.
+   https://doi.org/10.1016/0009-2614(84)85513-x
 """
-FCI expressions.
-"""
 
-import numpy as np
-from pyscf import ao2mo, fci, lib
+from __future__ import annotations
 
-from dyson import default_log, util
-from dyson.expressions import BaseExpression
+import functools
+from typing import TYPE_CHECKING
+
+from pyscf import ao2mo, fci
+
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
+
+if TYPE_CHECKING:
+    from typing import Callable
+
+    from pyscf.gto.mole import Mole
+    from pyscf.scf.hf import RHF
+
+    from dyson.typing import Array
 
 
-def _fci_constructor(δalph, δbeta, func_sq, sign):
-    """Construct FCI expressions classes for a given change in the
-    number of alpha and beta electrons.
-    """
+class BaseFCI(BaseExpression):
+    """Base class for FCI expressions."""
 
-    @util.inherit_docstrings
-    class _FCI(BaseExpression):
+    hermitian_downfolded = True
+    hermitian_upfolded = True
+
+    SIGN: int
+    DELTA_ALPHA: int
+    DELTA_BETA: int
+    STATE_FUNC: Callable[[Array, int, tuple[int, int], int], Array]
+
+    def __init__(
+        self,
+        mol: Mole,
+        e_fci: Array,
+        c_fci: Array,
+        hamiltonian: Array,
+        diagonal: Array,
+        chempot: Array | float = 0.0,
+    ):
+        """Initialise the expression.
+
+        Args:
+            mol: Molecule object.
+            e_fci: FCI eigenvalues.
+            c_fci: FCI eigenvectors.
+            hamiltonian: Hamiltonian matrix.
+            diagonal: Diagonal of the FCI Hamiltonian.
+            chempot: Chemical potential.
         """
-        FCI expressions.
+        self._mol = mol
+        self._e_fci = e_fci
+        self._c_fci = c_fci
+        self._hamiltonian = hamiltonian
+        self._diagonal = diagonal
+        self._chempot = chempot
+
+    @classmethod
+    def from_fci(cls, ci: fci.FCI, h1e: Array, h2e: Array) -> BaseFCI:
+        """Create an expression from an FCI object.
+
+        Args:
+            ci: FCI object.
+            h1e: One-electron Hamiltonian matrix.
+            h2e: Two-electron Hamiltonian matrix.
+
+        Returns:
+            Expression object.
         """
+        if ci.mol is None:
+            raise ValueError("FCI object must be initialised with a molecule.")
+        nelec = (ci.mol.nelec[0] + cls.DELTA_ALPHA, ci.mol.nelec[1] + cls.DELTA_BETA)
+        hamiltonian = ci.absorb_h1e(h1e, h2e, ci.mol.nao, nelec, 0.5)
+        diagonal = ci.make_hdiag(h1e, h2e, ci.mol.nao, nelec)
+        return cls(
+            ci.mol,
+            ci.eci,
+            ci.ci,
+            hamiltonian,
+            diagonal,
+        )
 
-        hermitian = True
+    @classmethod
+    def from_mf(cls, mf: RHF) -> BaseFCI:
+        """Create an expression from a mean-field object.
 
-        def __init__(
-            self,
-            *args,
-            h1e=None,
-            h2e=None,
-            e_ci=None,
-            c_ci=None,
-            chempot=None,
-            nelec=None,
-            **kwargs,
-        ):
-            if len(args):
-                if nelec is not None:
-                    raise ValueError(
-                        "nelec keyword argument only valid when mean-field object is not " "passed."
-                    )
-                BaseExpression.__init__(self, *args, **kwargs)
-            else:
-                # Allow initialisation without MF object
-                if h1e is None or h2e is None:
-                    raise ValueError(
-                        "h1e and h2e keyword arguments are required to initialise FCI "
-                        "without mean-field object."
-                    )
-                self.log = kwargs.get("log", default_log)
-                self.mf = None
-                self._nelec = nelec
-                self._nmo = h1e.shape[0]
+        Args:
+            mf: Mean-field object.
 
-            if c_ci is None:
-                if h1e is None:
-                    h1e = np.linalg.multi_dot(
-                        (
-                            self.mo_coeff.T,
-                            self.mf.get_hcore(),
-                            self.mo_coeff,
-                        )
-                    )
-                if h2e is None:
-                    h2e = ao2mo.kernel(self.mf._eri, self.mo_coeff)
+        Returns:
+            Expression object.
+        """
+        h1e = mf.mo_coeff.T.conj() @ mf.get_hcore() @ mf.mo_coeff
+        h2e = ao2mo.kernel(mf._eri, mf.mo_coeff)  # pylint: disable=protected-access
+        ci = fci.direct_spin1.FCI(mf.mol)
+        ci.verbose = 0
+        ci.kernel(h1e, h2e, mf.mol.nao, mf.mol.nelec)
+        return cls.from_fci(ci, h1e, h2e)
 
-                ci = fci.direct_spin1.FCI()
-                ci.verbose = 0
-                e_ci, c_ci = ci.kernel(h1e, h2e, self.nmo, (self.nalph, self.nbeta))
+    def apply_hamiltonian(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector.
 
-            assert e_ci is not None
-            assert c_ci is not None
-            assert h1e is not None
-            assert h2e is not None
+        Args:
+            vector: Vector to apply Hamiltonian to.
 
-            self.e_ci = e_ci
-            self.c_ci = c_ci
-            self.chempot = e_ci if chempot is None else chempot
+        Returns:
+            Output vector.
+        """
+        nelec = (self.nocc + self.DELTA_ALPHA, self.nocc + self.DELTA_BETA)
+        result = fci.direct_spin1.contract_2e(
+            self.hamiltonian,
+            vector,
+            self.nphys,
+            nelec,
+            self.link_index,
+        )
+        result -= (self.e_fci + self.chempot) * vector
+        return self.SIGN * result
 
-            self.link_index = (
-                fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nalph + δalph),
-                fci.cistring.gen_linkstr_index_trilidx(range(self.nmo), self.nbeta + δbeta),
-            )
+    def diagonal(self) -> Array:
+        """Get the diagonal of the Hamiltonian.
 
-            self.hamiltonian = fci.direct_spin1.absorb_h1e(
-                h1e,
-                h2e,
-                self.nmo,
-                (self.nalph + δalph, self.nbeta + δbeta),
-                0.5,
-            )
+        Returns:
+            Diagonal of the Hamiltonian.
+        """
+        return self.SIGN * (self._diagonal - (self.e_fci + self.chempot))
 
-            self.diag = fci.direct_spin1.make_hdiag(
-                h1e,
-                h2e,
-                self.nmo,
-                (self.nalph + δalph, self.nbeta + δbeta),
-            )
+    def get_excitation_vector(self, orbital: int) -> Array:
+        r"""Obtain the vector corresponding to a fermionic operator acting on the ground state.
 
-        def diagonal(self):
-            return sign * self.diag
+        This vector is a generalisation of
 
-        def apply_hamiltonian(self, vector):
-            hvec = fci.direct_spin1.contract_2e(
-                self.hamiltonian,
-                vector,
-                self.nmo,
-                (self.nalph + δalph, self.nbeta + δbeta),
-                self.link_index,
-            )
-            hvec -= self.chempot * vector
+        .. math::
+            f_i^{\pm} \left| \Psi_0 \right>
 
-            return sign * hvec.ravel()
+        where :math:`f_i^{\pm}` is the fermionic creation or annihilation operator, or a product
+        thereof, depending on the particular expression and what Green's function it corresponds to.
 
-        def get_wavefunction(self, orb):
-            wfn = func_sq(self.c_ci, self.nmo, (self.nalph, self.nbeta), orb)
-            return wfn.ravel()
+        The vector defines the excitaiton manifold probed by the Green's function corresponding to
+        the expression.
 
-        # Override properties to allow initialisation without a mean-field
+        Args:
+            orbital: Orbital index.
 
-        @property
-        def nmo(self):
-            if self.mf is None:
-                return self._nmo
-            return self.mo_coeff.shape[-1]
+        Returns:
+            Excitation vector.
+        """
+        return self.STATE_FUNC(
+            self.c_fci,
+            self.nphys,
+            (self.nocc, self.nocc),
+            orbital,
+        ).ravel()
 
-        @property
-        def nocc(self):
-            if self.mf is None:
-                return self._nelec // 2
-            return np.sum(self.mo_occ > 0)
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
+        """Build the self-energy moments.
 
-        @property
-        def nvir(self):
-            if self.mf is None:
-                return self.nmo - self.nocc
-            return np.sum(self.mo_occ == 0)
+        Args:
+            nmom: Number of moments to compute.
+            reduction: Reduction method to apply to the moments.
 
-    return _FCI
+        Returns:
+            Moments of the self-energy.
+        """
+        raise NotImplementedError("Self-energy moments not implemented for FCI.")
+
+    @property
+    def mol(self) -> Mole:
+        """Molecule object."""
+        return self._mol
+
+    @property
+    def e_fci(self) -> Array:
+        """FCI eigenvalues."""
+        return self._e_fci
+
+    @property
+    def c_fci(self) -> Array:
+        """FCI eigenvectors."""
+        return self._c_fci
+
+    @property
+    def hamiltonian(self) -> Array:
+        """Hamiltonian matrix."""
+        return self._hamiltonian
+
+    @property
+    def chempot(self) -> Array | float:
+        """Chemical potential."""
+        return self._chempot
+
+    @functools.cached_property
+    def link_index(self) -> tuple[Array, Array]:
+        """Index helpers."""
+        nelec = (self.nocc + self.DELTA_ALPHA, self.nocc + self.DELTA_BETA)
+        return (
+            fci.cistring.gen_linkstr_index_trilidx(range(self.nphys), nelec[0]),
+            fci.cistring.gen_linkstr_index_trilidx(range(self.nphys), nelec[1]),
+        )
+
+    @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return False
+
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        link_index = self.link_index
+        return len(link_index[0]) * len(link_index[1]) - self.nsingle
 
 
-FCI_1h = _fci_constructor(-1, 0, fci.addons.des_a, -1)
+class FCI_1h(BaseFCI):  # pylint: disable=invalid-name
+    """FCI expressions for the hole Green's function."""
 
-FCI_1p = _fci_constructor(1, 0, fci.addons.cre_a, 1)
+    SIGN = -1
+    DELTA_ALPHA = -1
+    DELTA_BETA = 0
+    STATE_FUNC = staticmethod(fci.addons.des_a)
 
-FCI = {
-    "1h": FCI_1h,
-    "1p": FCI_1p,
-}
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc
+
+
+class FCI_1p(BaseFCI):  # pylint: disable=invalid-name
+    """FCI expressions for the particle Green's function."""
+
+    SIGN = 1
+    DELTA_ALPHA = 1
+    DELTA_BETA = 0
+    STATE_FUNC = staticmethod(fci.addons.cre_a)
+
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nvir
+
+
+class FCI(ExpressionCollection):
+    """Collection of FCI expressions for different parts of the Green's function."""
+
+    _hole = FCI_1h
+    _particle = FCI_1p
+    _name = "FCI"

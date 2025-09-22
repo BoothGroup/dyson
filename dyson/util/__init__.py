@@ -1,6 +1,43 @@
-from dyson.util.misc import *
-from dyson.util.spectra import *
-from dyson.util.logging import *
-from dyson.util.linalg import *
-from dyson.util.moments import *
-from dyson.util.energy import *
+"""Utility functions.
+
+Submodules
+----------
+
+.. autosummary::
+    :toctree:
+
+    linalg
+    moments
+    energy
+    misc
+
+"""
+
+from dyson.util.misc import catch_warnings, cache_by_id, get_mean_field
+from dyson.util.linalg import (
+    einsum,
+    orthonormalise,
+    biorthonormalise,
+    biorthonormalise_with_overlap,
+    eig,
+    eig_lr,
+    matrix_power,
+    hermi_sum,
+    scaled_error,
+    as_diagonal,
+    as_trace,
+    unit_vector,
+    null_space_basis,
+    concatenate_paired_vectors,
+    unpack_vectors,
+    block_diag,
+    set_subspace,
+    rotate_subspace,
+)
+from dyson.util.moments import (
+    se_moments_to_gf_moments,
+    gf_moments_to_se_moments,
+    build_block_tridiagonal,
+    get_chebyshev_scaling_parameters,
+)
+from dyson.util.energy import gf_moments_galitskii_migdal

@@ -1,83 +1,129 @@
-"""
-Moment utilities.
-"""
+"""Moment utilities."""
 
-import numpy as np
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING
+
+from dyson import numpy as np
+from dyson.util.linalg import einsum, matrix_power
+
+if TYPE_CHECKING:
+    from dyson.typing import Array
 
 
-def se_moments_to_gf_moments(se_static, se_moments):
-    """
-    Convert moments of the self-energy to those of the Green's
-    function. The first m moments of the self-energy, along with
-    the static part, are sufficient to define the first m+2 moments
-    of the Green's function. See Eqns 2.103-105 of Backhouse's thesis.
+def se_moments_to_gf_moments(
+    static: Array, se_moments: Array, overlap: Array | None = None, check_error: bool = True
+) -> Array:
+    """Convert moments of the self-energy to those of the Green's function.
 
-    Parameters
-    ----------
-    se_static : numpy.ndarray (n, n)
-        Static part of the self-energy.
-    se_moments : numpy.ndarray (m, n, n)
-        Moments of the self-energy.
+    Args:
+        static: Static part of the self-energy.
+        se_moments: Moments of the self-energy.
+        overlap: The overlap matrix (zeroth moment of the Green's function). If ``None``, the zeroth
+            moment of the Green's function is assumed to be the identity matrix.
+        check_error: Whether to check the errors in the orthogonalisation of the moments.
 
-    Returns
-    -------
-    gf_moments : numpy.ndarray (m+2, n, n)
+    Returns:
         Moments of the Green's function.
+
+    Notes:
+        The first :math:`m` moments of the self-energy, along with the static part, are sufficient
+        to define the first :math:`m+2` moments of the Green's function.
     """
-
     nmom, nphys, _ = se_moments.shape
-    gf_moments = np.zeros((nmom + 2, nphys, nphys), dtype=se_moments.dtype)
 
+    # Orthogonalise the moments
+    if overlap is not None:
+        hermitian = np.allclose(overlap, overlap.T.conj())
+        orth, error_orth = matrix_power(
+            overlap, -0.5, hermitian=hermitian, return_error=check_error
+        )
+        unorth, error_unorth = matrix_power(
+            overlap, 0.5, hermitian=hermitian, return_error=check_error
+        )
+        if check_error:
+            assert error_orth is not None and error_unorth is not None
+            error = max(error_orth, error_unorth)
+            if error > 1e-10:
+                warnings.warn(
+                    "Space contributing non-zero weight to the zeroth moments "
+                    f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                    UserWarning,
+                    2,
+                )
+        static = orth @ static @ orth
+        se_moments = einsum("npq,ip,qj->nij", se_moments, orth, orth)
+
+    # Get the powers of the static part
+    powers = [np.eye(static.shape[-1], dtype=static.dtype), static]
+    for i in range(2, nmom + 2):
+        powers.append(powers[i - 1] @ static)
+    gf_moments = np.zeros(
+        (nmom + 2, nphys, nphys), dtype=np.result_type(se_moments.dtype, powers[0].dtype)
+    )
+
+    # Perform the recursion
     for i in range(nmom + 2):
-        gf_moments[i] += np.linalg.matrix_power(se_static, i)
+        gf_moments[i] += powers[i]
         for n in range(i - 1):
             for m in range(i - n - 1):
                 k = i - n - m - 2
-                gf_moments[i] += np.linalg.multi_dot(
-                    (
-                        np.linalg.matrix_power(se_static, n),
-                        se_moments[m],
-                        gf_moments[k],
-                    )
-                )
+                gf_moments[i] += powers[n] @ se_moments[m] @ gf_moments[k]
+
+    # Unorthogonalise the moments
+    if overlap is not None:
+        gf_moments = einsum("npq,ip,qj->nij", gf_moments, unorth, unorth)
 
     return gf_moments
 
 
-def gf_moments_to_se_moments(gf_moments):
+def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tuple[Array, Array]:
+    """Convert moments of the Green's function to those of the self-energy.
+
+    Args:
+        gf_moments: Moments of the Green's function.
+        check_error: Whether to check the errors in the orthogonalisation of the moments.
+
+    Returns:
+        static: Static part of the self-energy.
+        moments: Moments of the self-energy.
+
+    Notes:
+        The first :math:`m+2` moments of the Green's function are sufficient to define the first
+        :math:`m` moments of the self-energy, along with the static part.
     """
-    Convert moments of the Green's function to those of the
-    self-energy. The first m+2 moments of the Green's function
-    are sufficient to define the first m moments of the self-energy,
-    along with the static part. See Eqns 2.103-105 of Backhouse's
-    thesis.
-
-    Parameters
-    ----------
-    gf_moments : numpy.ndarray (m+2, n, n)
-        Moments of the Green's function.
-
-    Returns
-    -------
-    se_static : numpy.ndarray (n, n)
-        Static part of the self-energy.
-    se_moments : numpy.ndarray (m, n, n)
-        Moments of the self-energy.
-    """
-
     nmom, nphys, _ = gf_moments.shape
-
     if nmom < 2:
         raise ValueError(
-            "At least 2 moments of the Green's function are required to "
-            "find those of the self-energy."
+            "Need at least 2 moments of the Green's function to compute those of the self-energy."
         )
 
-    if not np.allclose(gf_moments[0], np.eye(nphys)):
-        raise ValueError("The first moment of the Green's function must be the identity.")
+    # Orthogonalise the moments
+    ident = np.allclose(gf_moments[0], np.eye(nphys))
+    if not ident:
+        hermitian = np.allclose(gf_moments[0], gf_moments[0].T.conj())
+        orth, error_orth = matrix_power(
+            gf_moments[0], -0.5, hermitian=hermitian, return_error=check_error
+        )
+        unorth, error_unorth = matrix_power(
+            gf_moments[0], 0.5, hermitian=hermitian, return_error=check_error
+        )
+        if check_error:
+            assert error_orth is not None and error_unorth is not None
+            error = max(error_orth, error_unorth)
+            if error > 1e-10:
+                warnings.warn(
+                    "Space contributing non-zero weight to the zeroth moments "
+                    f"({max(error_orth, error_unorth)}) was removed during moment conversion.",
+                    UserWarning,
+                    2,
+                )
+        gf_moments = einsum("npq,ip,qj->nij", gf_moments, orth, orth)
 
-    se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
+    # Get the static part and the moments of the self-energy
     se_static = gf_moments[1]
+    se_moments = np.zeros((nmom - 2, nphys, nphys), dtype=gf_moments.dtype)
 
     # Invert the recurrence relations:
     #
@@ -88,145 +134,90 @@ def gf_moments_to_se_moments(gf_moments):
     # with the constraint that m != n. This case is F^{0} \Sigma_{n} G_{0}
     # which is equal to the desired LHS.
 
+    # Get the powers of the static part
+    powers = [np.eye(nphys, dtype=gf_moments.dtype), se_static]
+    for i in range(2, nmom):
+        powers.append(powers[i - 1] @ se_static)
+
+    # Perform the recursion
     for i in range(nmom - 2):
-        se_moments[i] = gf_moments[i + 2].copy()
-        se_moments[i] -= np.linalg.matrix_power(se_static, i + 2)
+        se_moments[i] = gf_moments[i + 2] - powers[i + 2]
         for l in range(i + 1):
             for m in range(i + 1 - l):
                 k = i - l - m
                 if m != i:
-                    se_moments[i] -= np.linalg.multi_dot(
-                        (
-                            np.linalg.matrix_power(se_static, l),
-                            se_moments[m],
-                            gf_moments[k],
-                        )
-                    )
+                    se_moments[i] -= powers[l] @ se_moments[m] @ gf_moments[k]
+
+    # Unorthogonalise the moments
+    if not ident:
+        se_static = unorth @ se_static @ unorth
+        se_moments = einsum("npq,ip,qj->nij", se_moments, unorth, unorth)
 
     return se_static, se_moments
 
 
-def build_block_tridiagonal(on_diagonal, off_diagonal_upper, off_diagonal_lower=None):
-    """
-    Build a block tridiagonal matrix.
+def build_block_tridiagonal(
+    on_diagonal: list[Array],
+    off_diagonal_upper: list[Array],
+    off_diagonal_lower: list[Array] | None = None,
+) -> Array:
+    """Build a block tridiagonal matrix.
 
-    Parameters
-    ----------
-    on_diagonal : numpy.ndarray (m+1, n, n)
-        On-diagonal blocks.
-    off_diagonal_upper : numpy.ndarray (m, n, n)
-        Off-diagonal blocks for the upper half of the matrix.
-    off_diagonal_lower : numpy.ndarray (m, n, n), optional
-        Off-diagonal blocks for the lower half of the matrix. If
-        `None`, use the transpose of `off_diagonal_upper`.
-    """
+    Args:
+        on_diagonal: On-diagonal blocks.
+        off_diagonal_upper: Off-diagonal blocks for the upper half of the matrix.
+        off_diagonal_lower: Off-diagonal blocks for the lower half of the matrix. If
+            ``None``, use the transpose of ``off_diagonal_upper``.
 
+    Returns:
+        A block tridiagonal matrix with the given blocks.
+
+    Notes:
+        The number of on-diagonal blocks should be one greater than the number of off-diagonal
+        blocks.
+    """
+    on_diagonal = [np.atleast_2d(matrix) for matrix in on_diagonal]
+    off_diagonal_upper = [np.atleast_2d(matrix) for matrix in off_diagonal_upper]
+    if off_diagonal_lower is not None:
+        off_diagonal_lower = [np.atleast_2d(matrix) for matrix in off_diagonal_lower]
+    if len(on_diagonal) == 0:
+        return np.zeros((0, 0))
     zero = np.zeros_like(on_diagonal[0])
-
     if off_diagonal_lower is None:
-        off_diagonal_lower = [m.T.conj() for m in off_diagonal_upper]
+        off_diagonal_lower = [matrix.T.conj() for matrix in off_diagonal_upper]
 
-    m = np.block(
-        [
-            [
-                (
-                    on_diagonal[i]
-                    if i == j
-                    else (
-                        off_diagonal_upper[j]
-                        if j == i - 1
-                        else off_diagonal_lower[i] if i == j - 1 else zero
-                    )
-                )
-                for j in range(len(on_diagonal))
-            ]
-            for i in range(len(on_diagonal))
-        ]
+    def _block(i: int, j: int) -> Array:
+        """Return the block at position (i, j)."""
+        if i == j:
+            return on_diagonal[i]
+        elif j == i - 1:
+            return off_diagonal_upper[j]
+        elif i == j - 1:
+            return off_diagonal_lower[i]
+        return zero
+
+    # Construct the block tridiagonal matrix
+    matrix = np.block(
+        [[_block(i, j) for j in range(len(on_diagonal))] for i in range(len(on_diagonal))]
     )
 
-    return m
+    return matrix
 
 
-def matvec_to_greens_function(matvec, nmom, bra, ket=None):
+def get_chebyshev_scaling_parameters(
+    min_value: float, max_value: float, epsilon: float = 1e-3
+) -> tuple[float, float]:
+    """Get the Chebyshev scaling parameters.
+
+    Args:
+        min_value: Minimum value of the range.
+        max_value: Maximum value of the range.
+        epsilon: Small value to avoid division by zero.
+
+    Returns:
+        A tuple containing the scaling factor and the shift.
     """
-    Build a set of moments using the matrix-vector product for a
-    given Hamiltonian and a bra and ket vector.
-
-    Parameters
-    ----------
-    matvec : callable
-        Matrix-vector product function, takes a vector as input.
-    nmom : int
-        Number of moments to compute.
-    bra : numpy.ndarray (n, m)
-        Bra vector.
-    ket : numpy.ndarray (n, m), optional
-        Ket vector, if `None` then use the bra.
-    """
-
-    nphys, nconf = bra.shape
-    moments = np.zeros((nmom, nphys, nphys))
-
-    if ket is None:
-        ket = bra
-    ket = ket.copy()
-
-    for n in range(nmom):
-        moments[n] = np.dot(bra, ket.T.conj())
-        if n != (nmom - 1):
-            for i in range(nphys):
-                ket[i] = matvec(ket[i])
-
-    return moments
-
-
-matvec_to_greens_function_monomial = matvec_to_greens_function
-
-
-def matvec_to_greens_function_chebyshev(matvec, nmom, scale_factors, bra, ket=None):
-    """
-    Build a set of Chebyshev moments using the matrix-vector product
-    for a given Hamiltonian and a bra and ket vector.
-
-    Parameters
-    ----------
-    matvec : callable
-        Matrix-vector product function, takes a vector as input.
-    nmom : int
-        Number of moments to compute.
-    scale_factors : tuple of int
-        Factors to scale the Hamiltonian as `(H - b) / a`, in order
-        to keep the spectrum within [-1, 1]. These are typically
-        defined as
-            `a = (emax - emin) / (2 - eps)`
-            `b = (emax + emin) / 2`
-        where `emin` and `emax` are the minimum and maximum eigenvalues
-        of H, and `eps` is a small number.
-    bra : numpy.ndarray (n, m)
-        Bra vector.
-    ket : numpy.ndarray (n, m), optional
-        Ket vector, if `None` then use the bra.
-    """
-
-    nphys, nconf = bra.shape
-    moments = np.zeros((nmom, nphys, nphys))
-    a, b = scale_factors
-
-    if ket is None:
-        ket = bra
-
-    ket0 = ket.copy()
-    ket1 = np.zeros_like(ket0)
-    for i in range(nphys):
-        ket1[i] = (matvec(ket0[i]) - b * ket0[i]) / a
-
-    moments[0] = np.dot(bra, ket0.T.conj())
-
-    for n in range(1, nmom):
-        moments[n] = np.dot(bra, ket1.T.conj())
-        if n != (nmom - 1):
-            for i in range(nphys):
-                ket2i = 2.0 * (matvec(ket1[i]) - b * ket1[i]) / a - ket0[i]
-                ket0[i], ket1[i] = ket1[i], ket2i
-
-    return moments
+    return (
+        (max_value - min_value) / (2.0 - epsilon),
+        (max_value + min_value) / 2.0,
+    )

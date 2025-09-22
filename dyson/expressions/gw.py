@@ -1,155 +1,252 @@
-"""
-GW expressions.
+"""GW approximation expressions [1]_ [2]_ [3]_.
+
+.. [1] Hedin, L. (1965). New Method for Calculating the One-Particle Green’s Function with
+   Application to the Electron-Gas Problem. Physical Review, 139(3A), A796–A823.
+   https://doi.org/10.1103/physrev.139.a796
+
+.. [2] Aryasetiawan, F., & Gunnarsson, O. (1998). The GW method. Reports on Progress
+   in Physics, 61(3), 237–312. https://doi.org/10.1088/0034-4885/61/3/002
+
+.. [3] Zhu, T., & Chan, G. K. (2021). All-Electron Gaussian-Based G0W0 for valence and core
+   excitation energies of periodic systems. Journal of Chemical Theory and Computation, 17(2),
+   727–741. https://doi.org/10.1021/acs.jctc.0c00704
+
 """
 
-import numpy as np
-from pyscf import agf2, ao2mo, lib
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from pyscf import gw, lib
+
+from dyson import numpy as np
 from dyson import util
-from dyson.expressions import BaseExpression
+from dyson.expressions.expression import BaseExpression, ExpressionCollection
+from dyson.representations.enums import Reduction
+
+if TYPE_CHECKING:
+    from pyscf.gto.mole import Mole
+    from pyscf.scf.hf import RHF
+
+    from dyson.typing import Array
 
 
-@util.inherit_docstrings
-class GW_Dyson(BaseExpression):
-    """
-    GW expressions without a non-Dyson approximation.
-    """
+class BaseGW_Dyson(BaseExpression):
+    """Base class for GW expressions for the Dyson Green's function."""
 
-    hermitian = True
-    polarizability = "drpa"
+    hermitian_downfolded = True
+    hermitian_upfolded = False
 
-    def __init__(self, *args, **kwargs):
-        BaseExpression.__init__(self, *args, **kwargs)
+    def __init__(
+        self,
+        mol: Mole,
+        gw_obj: gw.GW,
+        eris: Array | None = None,
+    ) -> None:
+        """Initialise the expression.
 
-        try:
-            from momentGW import GW
+        Args:
+            mol: Molecule object.
+            gw_obj: GW object from PySCF.
+            eris: Density fitted electron repulsion integrals from PySCF.
+        """
+        self._mol = mol
+        self._gw = gw_obj
+        self._eris = eris if eris is not None else gw_obj.ao2mo()
 
-            self._gw = GW(self.mf)
-            self._gw.mo_occ = self.mo_occ
-            self._gw.mo_coeff = self.mo_coeff
-            self._gw.mo_energy = self.mo_energy
-            self._gw.polarizability = self.polarizability
-        except ImportError as e:
-            raise ImportError("momentGW is required for GW expressions.")
+        if getattr(self._gw._scf, "xc", "hf") != "hf":
+            raise NotImplementedError(
+                "GW expressions currently only support Hartree--Fock mean-field objects."
+            )
 
-    def get_static_part(self):
-        static = self._gw.build_se_static(self._gw.ao2mo())
+    @classmethod
+    def from_mf(cls, mf: RHF) -> BaseGW_Dyson:
+        """Create an expression from a mean-field object.
 
-        return static
+        Args:
+            mf: Mean-field object.
 
-    def apply_hamiltonian(self, vector, static=None):
-        # From Bintrim & Berkelbach
+        Returns:
+            Expression object.
+        """
+        return cls.from_gw(gw.GW(mf))
 
-        if static is None:
-            static = self.get_static_part()
+    @classmethod
+    def from_gw(cls, gw: gw.GW) -> BaseGW_Dyson:
+        """Create an expression from a GW object.
 
-        i = slice(None, self.nocc)
-        a = slice(self.nocc, self.nmo)
-        ija = slice(self.nmo, self.nmo + self.nocc * self.nocc * self.nvir)
-        iab = slice(self.nmo + self.nocc * self.nocc * self.nvir, None)
+        Args:
+            gw: GW object.
 
-        Lpq = self._gw.ao2mo(self.mo_coeff)
-        Lia = Lpq[:, i, a]
-        Lai = Lpq[:, a, i]
-        Lij = Lpq[:, i, i]
-        Lab = Lpq[:, a, a]
+        Returns:
+            Expression object.
+        """
+        return cls(gw._scf.mol, gw)
 
-        nocc, nvir = Lia.shape[1:]
+    def build_se_moments(self, nmom: int, reduction: Reduction = Reduction.NONE) -> Array:
+        """Build the self-energy moments.
 
-        vi = vector[i]
-        va = vector[a]
-        vija = vector[ija].reshape(nocc, nocc, nvir)
-        viab = vector[iab].reshape(nocc, nvir, nvir)
+        Args:
+            nmom: Number of moments to compute.
+            reduction: Reduction method to apply to the moments.
 
-        eija = lib.direct_sum("i+j-a->ija", self.mo_energy[i], self.mo_energy[i], self.mo_energy[a])
-        eiab = lib.direct_sum("a+b-i->iab", self.mo_energy[a], self.mo_energy[a], self.mo_energy[i])
+        Returns:
+            Moments of the self-energy.
+        """
+        raise NotImplementedError("Self-energy moments not implemented for GW.")
 
-        r = np.zeros_like(vector)
+    def get_excitation_vector(self, orbital: int) -> Array:
+        r"""Obtain the vector corresponding to a fermionic operator acting on the ground state.
 
-        if self.polarizability == "dtda":
-            r[i] += lib.einsum("ij,j->i", static[i, i], vi)
-            r[i] += lib.einsum("ib,b->i", static[i, a], va)
-            r[i] += lib.einsum("Qik,Qcl,klc->i", Lij, Lai, vija)
-            r[i] += lib.einsum("Qid,Qkc,kcd->i", Lia, Lia, viab)
+        This vector is a generalisation of
 
-            r[a] += lib.einsum("aj,j->a", static[a, i], vi)
-            r[a] += lib.einsum("ab,b->a", static[a, a], va)
-            r[a] += lib.einsum("Qak,Qcl,klc->a", Lai, Lai, vija)
-            r[a] += lib.einsum("Qad,Qkc,kcd->a", Lab, Lia, viab)
+        .. math::
+            f_i^{\pm} \left| \Psi_0 \right>
 
-            r[ija] += lib.einsum("Qki,Qaj,k->ija", Lij, Lai, vi).ravel()
-            r[ija] += lib.einsum("Qbi,Qaj,b->ija", Lai, Lai, va).ravel()
-            r[ija] += lib.einsum("ija,ija->ija", eija, vija).ravel()
-            r[ija] -= lib.einsum("Qja,Qcl,ilc->ija", Lia, Lai, vija).ravel()
+        where :math:`f_i^{\pm}` is the fermionic creation or annihilation operator, or a product
+        thereof, depending on the particular expression and what Green's function it corresponds to.
 
-            r[iab] += lib.einsum("Qjb,Qia,j->iab", Lia, Lia, vi).ravel()
-            r[iab] += lib.einsum("Qcb,Qia,c->iab", Lab, Lia, va).ravel()
-            r[iab] += lib.einsum("iab,iab->iab", eiab, viab).ravel()
-            r[iab] += lib.einsum("Qai,Qkc,kcb->iab", Lai, Lia, viab).ravel()
+        The vector defines the excitaiton manifold probed by the Green's function corresponding to
+        the expression.
 
-        elif self.polarizability == "drpa":
-            raise NotImplementedError
+        Args:
+            orbital: Orbital index.
 
-        return r
+        Returns:
+            Excitation vector.
+        """
+        return util.unit_vector(self.shape[0], orbital)
 
-    def diagonal(self, static=None):
-        # From Bintrim & Berkelbach
+    @property
+    def nsingle(self) -> int:
+        """Number of configurations in the singles sector."""
+        return self.nocc + self.nvir
 
-        if static is None:
-            static = self.get_static_part()
+    @property
+    def nconfig(self) -> int:
+        """Number of configurations."""
+        return self.nocc * self.nocc * self.nvir + self.nvir * self.nvir * self.nocc
 
-        i = slice(None, self.nocc)
-        a = slice(self.nocc, self.nmo)
-        ija = slice(self.nmo, self.nmo + self.nocc * self.nocc * self.nvir)
-        iab = slice(self.nmo + self.nocc * self.nocc * self.nvir, None)
+    @property
+    def mol(self) -> Mole:
+        """Molecule object."""
+        return self._mol
 
-        integrals = self._gw.ao2mo()
-        Lpq = integrals.Lpx
-        Lia = integrals.Lia
-        Lia = Lpq[:, i, a]
-        Lai = Lpq[:, a, i]
-        Lij = Lpq[:, i, i]
-        Lab = Lpq[:, a, a]
+    @property
+    def gw(self) -> gw.GW:
+        """GW object."""
+        return self._gw
 
-        nocc, nvir = Lia.shape[1:]
+    @property
+    def eris(self) -> Array:
+        """Density fitted electron repulsion integrals."""
+        return self._eris
 
-        eija = lib.direct_sum("i+j-a->ija", self.mo_energy[i], self.mo_energy[i], self.mo_energy[a])
-        eiab = lib.direct_sum("a+b-i->iab", self.mo_energy[a], self.mo_energy[a], self.mo_energy[i])
-
-        diag = np.zeros((self.nmo + eija.size + eiab.size,))
-
-        if self.polarizability == "dtda":
-            diag[i] += np.diag(static[i, i])
-
-            diag[a] += np.diag(static[a, a])
-
-            diag[ija] += eija.ravel()
-            diag[ija] -= lib.einsum("Qja,Qaj,ii->ija", Lia, Lai, np.eye(nocc)).ravel()
-
-            diag[iab] += eiab.ravel()
-            diag[iab] += lib.einsum("Qai,Qia,bb->iab", Lai, Lia, np.eye(nvir)).ravel()
-
-        elif self.polarizability == "drpa":
-            raise NotImplementedError
-
-        return diag
-
-    def get_wavefunction(self, orb):
-        nija = self.nocc * self.nocc * self.nvir
-        nabi = self.nocc * self.nvir * self.nvir
-
-        r = np.zeros((self.nmo + nija + nabi,))
-        r[orb] = 1.0
-
-        return r
-
-    def build_se_moments(self, nmom):
-        integrals = self._gw.ao2mo()
-        moments = self._gw.build_se_moments(nmom, integrals)
-
-        return moments
+    @property
+    def non_dyson(self) -> bool:
+        """Whether the expression produces a non-Dyson Green's function."""
+        return False
 
 
-GW = {
-    "Dyson": GW_Dyson,
-}
+class TDAGW_Dyson(BaseGW_Dyson):
+    """GW expressions with Tamm--Dancoff (TDA) approximation for the Dyson Green's function."""
+
+    def apply_hamiltonian(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        # Get the slices for each sector
+        o1 = slice(None, self.nocc)
+        v1 = slice(self.nocc, self.nocc + self.nvir)
+        o2 = slice(self.nocc + self.nvir, self.nocc + self.nvir + self.nocc * self.nocc * self.nvir)
+        v2 = slice(self.nocc + self.nvir + self.nocc * self.nocc * self.nvir, None)
+
+        # Get the blocks of the ERIs
+        Lia = self.eris[:, o1, v1]
+        Lai = self.eris[:, v1, o1]
+        Lij = self.eris[:, o1, o1]
+        Lab = self.eris[:, v1, v1]
+
+        # Get the blocks of the vector
+        vector_o1 = vector[o1]
+        vector_v1 = vector[v1]
+        vector_o2 = vector[o2].reshape(self.nocc, self.nocc, self.nvir)
+        vector_v2 = vector[v2].reshape(self.nocc, self.nvir, self.nvir)
+
+        # Get the energy denominators
+        mo_energy = self.gw._scf.mo_energy if self.gw.mo_energy is None else self.gw.mo_energy
+        e_ija = lib.direct_sum("i+j-a->ija", mo_energy[o1], mo_energy[o1], mo_energy[v1])
+        e_iab = lib.direct_sum("a+b-i->iab", mo_energy[v1], mo_energy[v1], mo_energy[o1])
+
+        # Perform the contractions
+        r_o1 = mo_energy[o1] * vector_o1
+        r_o1 += util.einsum("Qik,Qcl,klc->i", Lij, Lai, vector_o2) * 2
+        r_o1 += util.einsum("Qid,Qkc,kcd->i", Lia.conj(), Lia.conj(), vector_v2) * 2
+
+        r_v1 = mo_energy[v1] * vector_v1
+        r_v1 += util.einsum("Qak,Qcl,klc->a", Lai, Lai, vector_o2) * 2
+        r_v1 += util.einsum("Qad,Qkc,kcd->a", Lab.conj(), Lia.conj(), vector_v2) * 2
+
+        r_o2 = util.einsum("Qki,Qaj,k->ija", Lij.conj(), Lai.conj(), vector_o1)
+        r_o2 += util.einsum("Qbi,Qaj,b->ija", Lai.conj(), Lai.conj(), vector_v1)
+        r_o2 += util.einsum("ija,ija->ija", e_ija, vector_o2)
+        r_o2 -= util.einsum("Qja,Qlc,ilc->ija", Lia, Lia, vector_o2) * 2
+
+        r_v2 = util.einsum("Qjb,Qia,j->iab", Lia, Lia, vector_o1)
+        r_v2 += util.einsum("Qcb,Qia,c->iab", Lab, Lia, vector_v1)
+        r_v2 += util.einsum("iab,iab->iab", e_iab, vector_v2)
+        r_v2 += util.einsum("Qia,Qkc,kcb->iab", Lia, Lia, vector_v2) * 2
+
+        return np.concatenate([r_o1, r_v1, r_o2.ravel(), r_v2.ravel()])
+
+    def apply_hamiltonian_left(self, vector: Array) -> Array:
+        """Apply the Hamiltonian to a vector on the left.
+
+        Args:
+            vector: Vector to apply Hamiltonian to.
+
+        Returns:
+            Output vector.
+        """
+        raise NotImplementedError("Left application of Hamiltonian is not implemented for TDA-GW.")
+
+    def diagonal(self) -> Array:
+        """Get the diagonal of the Hamiltonian.
+
+        Returns:
+            Diagonal of the Hamiltonian.
+        """
+        # Get the slices for each sector
+        o1 = slice(None, self.nocc)
+        v1 = slice(self.nocc, None)
+
+        # Get the blocks of the ERIs
+        Lia = self.eris[:, o1, v1]
+        Lai = self.eris[:, v1, o1]
+
+        # Get the energy denominators
+        mo_energy = self.gw._scf.mo_energy if self.gw.mo_energy is None else self.gw.mo_energy
+        e_ija = lib.direct_sum("i+j-a->ija", mo_energy[o1], mo_energy[o1], mo_energy[v1])
+        e_iab = lib.direct_sum("a+b-i->iab", mo_energy[v1], mo_energy[v1], mo_energy[o1])
+
+        # Build the diagonal
+        diag_o1 = mo_energy[o1].copy()
+        diag_v1 = mo_energy[v1].copy()
+        diag_o2 = e_ija.ravel()
+        diag_o2 -= util.einsum("Qja,Qaj,ii->ija", Lia, Lai, np.eye(self.nocc)).ravel()
+        diag_v2 = e_iab.ravel()
+        diag_v2 += util.einsum("Qai,Qia,bb->iab", Lai, Lia, np.eye(self.nvir)).ravel()
+
+        return np.concatenate([diag_o1, diag_v1, diag_o2, diag_v2])
+
+
+class TDAGW(ExpressionCollection):
+    """Collection of TDAGW expressions for different parts of the Green's function."""
+
+    _dyson = TDAGW_Dyson
+    _name = "TDA-GW"

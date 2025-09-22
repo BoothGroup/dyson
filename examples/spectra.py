@@ -1,0 +1,76 @@
+"""Comparison of spectra from different solvers."""
+
+import matplotlib.pyplot as plt
+import numpy
+from pyscf import gto, scf
+
+from dyson.expressions import ADC2
+from dyson.grids import GridRF
+from dyson.plotting import format_axes_spectral_function, plot_dynamic
+from dyson.solvers import CPGF, MBLGF, MBLSE, CorrectionVector, Downfolded, Exact
+
+# Get a molecule and mean-field from PySCF
+mol = gto.M(atom="Li 0 0 0; Li 0 0 1.64", basis="sto3g", verbose=0)
+mf = scf.RHF(mol)
+mf.kernel()
+
+# Define a grid for the spectra
+grid = GridRF.from_uniform(-3.0, 3.0, 256, eta=1e-1)
+
+# Get a complete self-energy (identity overlap) to solve for demonstration purposes
+exp_h = ADC2.h.from_mf(mf)
+exp_p = ADC2.p.from_mf(mf)
+exact_h = Exact.from_expression(exp_h)
+exact_h.kernel()
+exact_p = Exact.from_expression(exp_p)
+exact_p.kernel()
+result = exact_h.result.combine(exact_p.result)
+static = result.get_static_self_energy()
+self_energy = result.get_self_energy()
+
+# Solve the self-energy using each static solver -- since ADC(2) is non-Dyson, we can just add
+# the Green's function rather than using the spectral combination utility
+spectra = {}
+for key, solver_cls, kwargs in [
+    ("Exact", Exact, dict()),
+    ("Downfolded", Downfolded, dict()),
+    ("MBLSE(1)", MBLSE, dict(max_cycle=1)),
+    ("MBLGF(1)", MBLGF, dict(max_cycle=1)),
+]:
+    solver = solver_cls.from_self_energy(static, self_energy, **kwargs)
+    solver.kernel()
+    gf = solver.result.get_greens_function()
+    spectra[key] = (1 / numpy.pi) * (
+        grid.evaluate_lehmann(gf, ordering="advanced", reduction="trace", component="imag")
+    )
+
+# Solve the self-energy using each dynamic solver
+for key, solver_cls, kwargs in [
+    ("CorrectionVector", CorrectionVector, dict()),
+    ("CPGF(256)", CPGF, dict(max_cycle=256)),
+]:
+    solver = solver_cls.from_self_energy(
+        static,
+        self_energy,
+        grid=grid,
+        ordering="advanced",
+        reduction="trace",
+        component="imag",
+        **kwargs,
+    )
+    gf = solver.kernel()
+    spectra[key] = (1 / numpy.pi) * gf
+
+# Plot the spectra
+fig, ax = plt.subplots()
+for i, (key, spectrum) in enumerate(spectra.items()):
+    plot_dynamic(
+        spectrum,
+        fmt=f"C{i}",
+        label=key,
+        energy_unit="eV",
+        ax=ax,
+    )
+format_axes_spectral_function(grid, ax=ax, energy_unit="eV")
+plt.legend()
+plt.show()
