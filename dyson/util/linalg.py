@@ -611,7 +611,19 @@ def random_rank_k(N: int,
                   rfac: float = 1, 
                   cfac: float = 0, 
                   hermitian: bool =True) -> Array:
-    """Generate a random NxM matrix of rank k."""
+    """Generate a random NxM matrix of rank k.
+
+    Args:
+        N: Number of rows.
+        M: Number of columns.
+        rank: Rank of the matrix. If ``None``, use ``min(N, M)``.
+        rfac: Scale factor for the real part of the matrix.
+        cfac: Scale factor for the imaginary part of the matrix.
+        hermitian: Whether to generate a Hermitian matrix. If ``True``, ``N`` must equal ``M``.
+
+    Returns:
+        A random NxM matrix of rank k.
+    """
 
     if rank == None:
         rank = min(N, M)
@@ -631,7 +643,16 @@ def random_rank_k(N: int,
     return mat
 
 def random_unitary(N: int, rfac: float = 1, cfac: float = 0) -> Array:
-    """Generate a random NxN unitary matrix."""
+    """Generate a random NxN unitary matrix.
+
+    Args:
+        N: Size of the matrix.
+        rfac: Scale factor for the real part of the matrix.
+        cfac: Scale factor for the imaginary part of the matrix.
+
+    Returns:
+        A random NxN unitary matrix.
+    """
     mat = np.random.random((N, N)) * rfac + 1j * cfac * np.random.random((N, N))
     q, r = np.linalg.qr(mat)
     assert np.allclose(q @ q.T.conj(), np.eye(N))
@@ -642,7 +663,17 @@ def random_degenerate(N: int,
                       rfac: float = 1, 
                       cfac: float = 1, 
                       hermitian: bool = True) -> tuple[Array, Array, Array, Array]:
-    """Generate a random NxN degenerate matrix with at most degen unique eigenvalues."""
+    """Generate a random NxN degenerate matrix with at most degen unique eigenvalues.
+    Args:
+        N: Size of the matrix.
+        degen: Size of list to draw eigenvalues from.
+        rfac: Scale factor for the real part of the eigenvalues.
+        cfac: Scale factor for the imaginary part of the eigenvalues.
+        hermitian: Whether to generate a Hermitian matrix.
+
+    Returns:
+        A random NxN degenerate matrix, its eigenvalues, and its left- and right-hand eigenvectors.
+    """
     
     if hermitian:
         evals = rfac * np.random.random(degen) - 0.5
