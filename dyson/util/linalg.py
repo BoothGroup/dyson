@@ -179,9 +179,12 @@ def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> t
     real_approx = np.round(eigvals.real, decimals=decimals)
     imag_approx = np.round(eigvals.imag, decimals=decimals)
     idx = np.lexsort((eigvals.imag, eigvals.real, imag_approx, real_approx))
+    idx = np.lexsort((eigvals.imag, eigvals.real, np.abs(eigvals)))
     eigvals = eigvals[idx]
     eigvecs = eigvecs[:, idx]
     return eigvals, eigvecs
+
+
 
 
 @cache_by_id
@@ -217,7 +220,7 @@ def eig(matrix: Array, hermitian: bool = True, overlap: Array | None = None) -> 
 
 #@cache_by_id
 def eig_lr(
-    matrix: Array, hermitian: bool = True, overlap: Array | None = None, left: Literal["inv", "biorth", "none"] = "biorth"
+    matrix: Array, hermitian: bool = True, overlap: Array | None = None, left: Literal["inv", "biorth", "none"] = None
 ) -> tuple[Array, tuple[Array, Array]]:
     """Compute the eigenvalues left- and right-hand eigenvectors of a matrix.
 
@@ -230,6 +233,11 @@ def eig_lr(
     Returns:
         The eigenvalues and biorthogonal left- and right-hand eigenvectors of the matrix.
     """
+
+    # Set default method for left-hand eigenvectors to minimize error in eigenvectors based on library
+    if left is None:
+        left = 'inv' if AVOID_SCIPY_EIG else 'biorth'
+        
     # Find the eigenvalues and eigenvectors
     eigvals_left: Array | None = None
     if AVOID_SCIPY_EIG and hermitian:
@@ -302,14 +310,14 @@ def null_space_basis(
     if method == "eig-compliment":
         null = np.eye(matrix.shape[1]) - matrix 
         # Diagonalise projector onto nullspace 
-        weights, (left, right) = eig_lr(null, hermitian=hermitian, biorth=False)
+        weights, (left, right) = eig_lr(null, hermitian=hermitian, left='inv')
         mask = np.abs((1 - np.abs(weights))) < threshold
         left = left[:, mask]
         right = right[:, mask]
 
     elif method == "eig":        
         # Diagonalise matrix to find the null space basis
-        weights, (left, right) = eig_lr(matrix, hermitian=hermitian, biorth=False)
+        weights, (left, right) = eig_lr(matrix, hermitian=hermitian, left='inv')
         mask = np.abs(weights) < threshold
         left = left[:, mask]
         right = right[:, mask]
@@ -595,3 +603,62 @@ def rotate_subspace(vectors: Array, rotation: Array) -> Array:
     size = rotation.shape[0]
     subspace = rotation @ vectors[:size]
     return set_subspace(vectors, subspace)
+
+
+def random_rank_k(N: int, 
+                  M: int, 
+                  rank: int | None = None, 
+                  rfac: float = 1, 
+                  cfac: float = 0, 
+                  hermitian: bool =True) -> Array:
+    """Generate a random NxM matrix of rank k."""
+
+    if rank == None:
+        rank = min(N, M)
+    if N!=M and hermitian:
+        raise ValueError("For hermitian matrices, N must equal M.")
+    
+    matl = np.random.random((N, rank)) + 1j * cfac * np.random.random((N, rank))
+    matr = matl.T.conj() if hermitian else np.random.random((rank, M)) + 1j * cfac * np.random.random((rank, M))
+
+    dtype = np.complex128 if cfac!=0 else np.float64
+    mat = np.array(matl @ matr, dtype=dtype)
+
+    assert np.linalg.matrix_rank(mat) == rank
+    if hermitian:
+        assert np.allclose(mat.T.conj(), mat) 
+
+    return mat
+
+def random_unitary(N: int, rfac: float = 1, cfac: float = 0) -> Array:
+    """Generate a random NxN unitary matrix."""
+    mat = np.random.random((N, N)) * rfac + 1j * cfac * np.random.random((N, N))
+    q, r = np.linalg.qr(mat)
+    assert np.allclose(q @ q.T.conj(), np.eye(N))
+    return q
+
+def random_degenerate(N: int, 
+                      degen: int, 
+                      rfac: float = 1, 
+                      cfac: float = 1, 
+                      hermitian: bool = True) -> tuple[Array, Array, Array, Array]:
+    """Generate a random NxN degenerate matrix with at most degen unique eigenvalues."""
+    
+    if hermitian:
+        evals = rfac * np.random.random(degen) - 0.5
+    else:
+        evals = cfac * (np.random.random(degen) - 0.5) * 1j
+        evals += rfac * (np.random.random(degen) - 0.5)
+    evals = np.random.choice(evals, size=N, replace=True)
+
+    if hermitian:
+        u = random_unitary(N, rfac=rfac, cfac=cfac)
+        mat = u.T.conj() @ np.diag(evals) @ u
+        assert np.allclose(mat.T.conj(), mat)
+        return mat, evals, u.T.conj(), u
+    else:
+        u = random_rank_k(N, N, rank=N, rfac=rfac, cfac=cfac, hermitian=False)
+        v = np.linalg.inv(u)
+        mat = u @ np.diag(evals) @ v
+        assert np.allclose(u @ v, np.eye(N))
+        return mat, evals, u, v
