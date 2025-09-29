@@ -23,10 +23,10 @@ einsum = functools.partial(np.einsum, optimize=True)
 On some platforms, mixing :mod:`numpy` and :mod:`scipy` eigenvalue solvers can lead to performance
 issues, likely from repeating warm-up overhead from conflicting BLAS and/or LAPACK libraries.
 """
-AVOID_SCIPY_EIG: bool = True
+AVOID_SCIPY_EIG: bool = False
 
 """Default biorthonormalisation method."""
-BIORTH_METHOD: Literal["lu", "eig", "eig-balanced"] = "lu"
+BIORTH_METHOD: Literal["lu", "eig", "eig-balanced"] = "eig-balanced"
 
 
 def is_orthonormal(vectors_left: Array, vectors_right: Array | None = None) -> bool:
@@ -104,8 +104,10 @@ def biorthonormalise_with_overlap(
     elif method == "lu":
         l, u = scipy.linalg.lu(overlap, permute_l=True)
         try:
-            left = left @ np.linalg.inv(l).T.conj()
-            right = right @ np.linalg.inv(u)
+            linv = scipy.linalg.solve_triangular(l, np.eye(l.shape[0]), lower=True)
+            uinv = scipy.linalg.solve_triangular(u, np.eye(u.shape[0]), lower=False)
+            left = left @ linv.T.conj()
+            right = right @ uinv
         except np.linalg.LinAlgError as e:
             warnings.warn(
                 f"Inverse of LU decomposition failed with error: {e}. "
@@ -183,8 +185,6 @@ def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> t
     eigvals = eigvals[idx]
     eigvecs = eigvecs[:, idx]
     return eigvals, eigvecs
-
-
 
 
 @cache_by_id
@@ -662,7 +662,7 @@ def random_degenerate(N: int,
                       degen: int, 
                       rfac: float = 1, 
                       cfac: float = 1, 
-                      hermitian: bool = True) -> tuple[Array, Array, Array, Array]:
+                      hermitian: bool = True) -> Array:
     """Generate a random NxN degenerate matrix with at most degen unique eigenvalues.
     Args:
         N: Size of the matrix.
@@ -686,10 +686,39 @@ def random_degenerate(N: int,
         u = random_unitary(N, rfac=rfac, cfac=cfac)
         mat = u.T.conj() @ np.diag(evals) @ u
         assert np.allclose(mat.T.conj(), mat)
-        return mat, evals, u.T.conj(), u
+        return mat
     else:
         u = random_rank_k(N, N, rank=N, rfac=rfac, cfac=cfac, hermitian=False)
         v = np.linalg.inv(u)
         mat = u @ np.diag(evals) @ v
         assert np.allclose(u @ v, np.eye(N))
-        return mat, evals, u, v
+        return mat
+    
+def random_from_evals(evals: Array, rfac: float = 1, cfac: float = 0, hermitian: bool = True) -> Array:
+    """Generate a random matrix from a given set of eigenvalues.
+
+    Args:
+        evals: The eigenvalues to be used.
+        rfac: Scale factor for the real part of the matrix.
+        cfac: Scale factor for the imaginary part of the matrix.
+        hermitian: Whether to generate a Hermitian matrix. If ``True``, ``N`` must equal ``M``.
+
+    Returns:
+        A random matrix with the given eigenvalues.
+    """
+    N = evals.shape[0]
+    if hermitian and not np.allclose(evals.imag, 0):
+        raise ValueError("Eigenvalues must be real for hermitian matrices.")
+    if hermitian:
+        u = random_unitary(N, rfac=rfac, cfac=cfac)
+        mat = u.T.conj() @ np.diag(evals) @ u
+        assert np.allclose(mat.T.conj(), mat)
+        return mat
+    else:
+        u = random_rank_k(N, N, rank=N, rfac=rfac, cfac=cfac, hermitian=False)
+        v = np.linalg.inv(u)
+        mat = u @ np.diag(evals) @ v
+        assert np.allclose(u @ v, np.eye(N))
+        return mat
+
+    
