@@ -306,8 +306,8 @@ def null_space_basis(
         else:
             hermitian = np.allclose(matrix, matrix.T.conj())
 
-
-    if method == "eig-compliment":
+    print(method)
+    if method == "eig-complement":
         null = np.eye(matrix.shape[1]) - matrix 
         # Diagonalise projector onto nullspace 
         weights, (left, right) = eig_lr(null, hermitian=hermitian, left='inv')
