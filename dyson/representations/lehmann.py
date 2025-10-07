@@ -140,10 +140,28 @@ class Lehmann(BaseRepresentation):
         """Get the energies."""
         return self._energies
 
+    @energies.setter
+    def energies(self, value: Array) -> None:
+        """Set the energies."""
+        if value.shape != self._energies.shape:
+            raise ValueError(
+                f"Cannot change number of energies from {self._energies.shape[0]} to {value.shape[0]}."
+            )   
+        self._energies = value
+
     @property
     def couplings(self) -> Array:
         """Get the couplings."""
         return self._couplings
+
+    @couplings.setter
+    def couplings(self, value: Array) -> None:
+        """Set the couplings."""
+        if value.shape != self._couplings.shape:
+            raise ValueError(
+                f"Cannot change shape of couplings from {self._couplings.shape} to {value.shape}."
+            )
+        self._couplings = value
 
     @property
     def chempot(self) -> float:
