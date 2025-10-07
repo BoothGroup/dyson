@@ -149,6 +149,11 @@ class Lehmann(BaseRepresentation):
     def chempot(self) -> float:
         """Get the chemical potential."""
         return self._chempot
+    
+    @chempot.setter
+    def chempot(self, value: float) -> None:
+        """Set the chemical potential."""
+        self._chempot = value
 
     @property
     def hermitian(self) -> bool:
