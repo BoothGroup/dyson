@@ -303,7 +303,7 @@ class Spectral(BaseRepresentation):
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)
 
     def combine(self, *args: Spectral, chempot: float | None = None) -> Spectral:
-        """Combine multiple spectral representations.
+        """Combine multiple spectral representations by concatenating self-energies.
 
         Args:
             args: Spectral representations to combine.
@@ -360,8 +360,8 @@ class Spectral(BaseRepresentation):
 
         return result
     
-    def my_combine(self, *args: Spectral, chempot: float | None = None) -> Spectral:
-        """Combine multiple spectral representations. 
+    def combine_dyson(self, *args: Spectral, chempot: float | None = None, ns_method: Literal["qr", "svd"] = 'svd') -> Spectral:
+        """Combine multiple spectral representations by concatenating Dyson orbitals. 
 
         Args:
             args: Spectral representations to combine.
@@ -371,7 +371,6 @@ class Spectral(BaseRepresentation):
         Returns:
             Combined spectral representation.
         """
-        # TODO: just concatenate the eigenvectors...?
         args = (self, *args)
         if len(set(arg.nphys for arg in args)) != 1:
             raise ValueError(
@@ -412,16 +411,12 @@ class Spectral(BaseRepresentation):
         energies = np.concatenate(energies, axis=0)
 
         if hermitian:
+            print('Hermitian')
             orbitals = np.concatenate(left, axis=1)
             # Check orthonormality 
             #assert np.allclose(orbitals.T.conj()@orbitals - np.eye(orbitals.shape[1]), 0)
 
-            # Find a basis for the null space:
-
-            ovlp = np.linalg.inv(orbitals @ orbitals.T.conj())
-            null_space = np.eye(orbitals.shape[1]) - orbitals.T.conj() @ ovlp  @ orbitals
-            w, rest = np.linalg.eigh(null_space)
-            rest = rest[:, np.abs(w) > 0.5]
+            rest = util.null_space_basis(orbitals, hermitian=hermitian, method=ns_method)[0]
             # Combine vectors:
             vectors = np.block([orbitals.T, rest]).T
 
@@ -432,32 +427,26 @@ class Spectral(BaseRepresentation):
             left = np.concatenate(left, axis=1)
             right = np.concatenate(right, axis=1)
 
+            #rest_l = util.null_space_basis(left.T.conj(), hermitian=hermitian, method=ns_method)[0]  
+            #rest_r = util.null_space_basis(right, hermitian=hermitian, method=ns_method)[1]
 
-            # Biothogonalise
-            # mat = left @ right.T.conj()
-            # import scipy
-            # l, r  = scipy.linalg.lu(mat, permute_l=True)
-            # left =  np.linalg.inv(l) @ left
-            # right = np.linalg.inv(r) @ right
+            if ns_method in ['svd', 'qr']:
+                _, rest_r = util.null_space_basis(right, hermitian=hermitian, method=ns_method)
+                _, rest_l = util.null_space_basis(left, hermitian=hermitian, method=ns_method)
+            elif ns_method in ['eig', 'eig-complement']:
+                rest_l, rest_r = util.null_space_basis( left.conj().T @ right, hermitian=hermitian, method=ns_method)
             
-            ovlp = left @ right.conj().T
-            null = np.eye(left.shape[1]) - left.T.conj()  @ right
-            w, rest_l = np.linalg.eig(null)
-            rest_r = np.linalg.inv(rest_l).T.conj()
-            import scipy
-            w, rest_r, rest_l = scipy.linalg.eig(null, left=True, right=True)
-            
-            #w, (rest_l, rest_r) = util.eig_lr(null, hermitian=hermitian, biorth=False)
-            rest_r = rest_r[:, np.abs(w)>0.5]
-            rest_l = rest_l[:, np.abs(w)>0.5]
-            rest_l, rest_r = util.biorthonormalise(rest_l, rest_r)
+            #mat = left.T.conj() @ right
+            #rest_l, rest_r = util.null_space_basis(mat, hermitian=hermitian, method=ns_method)
 
+            #rest_l, rest_r = util.biorthonormalise(rest_l, rest_r)
+            print("L R - I : %s"%np.linalg.norm(rest_l.T.conj() @ rest_r - np.eye(rest_l.shape[1])))
             vectors_l = np.block([left.T, rest_l]).T
             vectors_r = np.block([right.T, rest_r]).T
             vectors = np.array([vectors_l, vectors_r])
 
 
-        return Spectral(energies, vectors, nphys, sort=False) 
+        return Spectral(energies, vectors, nphys, sort=True) 
     
 
     def combine_from_poles(self, *args: Spectral, chempot: float | None = None, hermitize=True, tol=1e-12, use_svd=True) -> Spectral:
@@ -500,6 +489,34 @@ class Spectral(BaseRepresentation):
 
         return Spectral.from_poles(energies, residues, chempot=chempot, assume_non_degenerate=True, tol=tol, use_svd=use_svd)
     
+    def hermitize(self, tol: float = 1e-12) -> Spectral:
+        """ Convert a non-hermitian spectral representation to a hermitian one by hermitizing the
+            corresponding Green's function.
+
+            Args:
+                tol: Tolerance for considering eigenvalues as positive.
+            
+            Returns:
+                Hermitian spectral representation.
+
+            Raises:
+                ValueError: If the spectral representation is already Hermitian.
+        """
+        if self.hermitian:
+            raise ValueError("Spectral representation is already Hermitian.")
+
+        gf = self.get_greens_function()
+        gfh = gf.hermitize(tol=tol)
+        nphys = gfh.couplings.shape[0]
+        orthogonalisation_metric = util.linalg.matrix_power(gfh.moment(0), -0.5)[0]
+        couplings = orthogonalisation_metric @ gfh.couplings
+
+        null = util.linalg.null_space_basis(couplings)[1]
+        eigvecs = np.vstack((couplings, null.T))
+        eigvecs[:nphys, :] = np.linalg.inv(orthogonalisation_metric) @ eigvecs[:nphys, :]
+        
+        return Spectral(gfh.energies, eigvecs, nphys, chempot=gfh.chempot)
+
     @cached_property
     def overlap(self) -> Array:
         """Get the overlap matrix (the zeroth moment of the Green's function)."""

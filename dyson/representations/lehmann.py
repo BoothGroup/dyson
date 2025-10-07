@@ -881,6 +881,40 @@ class Lehmann(BaseRepresentation):
 
         return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
 
+    def hermitize(self, tol: float = 1e-12) -> Lehmann:
+        """Convert a non-Hermitian Lehmann representation to a Hermitian one.
+
+        Args:
+            tol: Tolerance for discarding small eigenvalues of residues.
+
+        Returns:
+            A new Lehmann representation that is Hermitian.
+
+        Raises:
+            ValueError: If the Lehmann representation is already Hermitian.
+        """
+        if self.hermitian:  # type: ignore[unreachable]
+            raise ValueError("Lehmann representation is already Hermitian.")
+        
+        energies = self.energies.real
+        coup_l, coup_r = self.unpack_couplings()
+        naux = energies.shape[0]
+        new_coups = []
+        new_energies = []
+        for a in range(naux):
+            mat = 0.5 * (np.outer(coup_l[:,a].conj(), coup_r[:,a]) + np.outer(coup_r[:,a].conj(), coup_l[:,a]))
+            val, vec = np.linalg.eigh(mat)
+            idx = val > tol
+            vec = vec[:,idx]
+            vec = vec @ np.diag(np.sqrt(val[idx]))
+            new_coups.append(vec)
+            new_energies.append([energies[a] for _ in range(idx.sum())])
+
+        new_coups = np.hstack(new_coups)
+        new_energies = np.hstack(new_energies)
+
+        return Lehmann(new_energies, new_coups, chempot=self.chempot) 
+
     def __eq__(self, other: object) -> bool:
         """Check if two spectral representations are equal."""
         if not isinstance(other, Lehmann):
