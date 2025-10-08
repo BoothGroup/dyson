@@ -140,38 +140,15 @@ class Lehmann(BaseRepresentation):
         """Get the energies."""
         return self._energies
 
-    @energies.setter
-    def energies(self, value: Array) -> None:
-        """Set the energies."""
-        if value.shape != self._energies.shape:
-            raise ValueError(
-                f"Cannot change number of energies from {self._energies.shape[0]} to {value.shape[0]}."
-            )   
-        self._energies = value
-
     @property
     def couplings(self) -> Array:
         """Get the couplings."""
         return self._couplings
 
-    @couplings.setter
-    def couplings(self, value: Array) -> None:
-        """Set the couplings."""
-        if value.shape != self._couplings.shape:
-            raise ValueError(
-                f"Cannot change shape of couplings from {self._couplings.shape} to {value.shape}."
-            )
-        self._couplings = value
-
     @property
     def chempot(self) -> float:
         """Get the chemical potential."""
         return self._chempot
-    
-    @chempot.setter
-    def chempot(self, value: float) -> None:
-        """Set the chemical potential."""
-        self._chempot = value
 
     @property
     def hermitian(self) -> bool:
@@ -262,7 +239,7 @@ class Lehmann(BaseRepresentation):
         """
         return self.mask(self.energies >= self.chempot, deep=deep)
 
-    def copy(self, chempot: float | None = None, deep: bool = True) -> Lehmann:
+    def copy(self, energies: Array | None = None, couplings: Array | None = None, chempot: float | None = None, deep: bool = True) -> Lehmann:
         """Return a copy of the Lehmann representation.
 
         Args:
@@ -273,8 +250,10 @@ class Lehmann(BaseRepresentation):
         Returns:
             A new Lehmann representation.
         """
-        energies = self.energies
-        couplings = self.couplings
+        if energies is None:
+            energies = self.energies
+        if couplings is None:
+            couplings = self.couplings
         if chempot is None:
             chempot = self.chempot
 
