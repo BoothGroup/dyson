@@ -272,7 +272,7 @@ class Lehmann(BaseRepresentation):
             energies = energies.copy()
             couplings = couplings.copy()
 
-        return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
+        return self.__class__(energies, couplings, chempot=chempot, sort=False)
 
     def rotate_couplings(self, rotation: Array | tuple[Array, Array]) -> Lehmann:
         r"""Rotate the couplings and return a new Lehmann representation.
