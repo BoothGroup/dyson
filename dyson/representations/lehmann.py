@@ -262,7 +262,7 @@ class Lehmann(BaseRepresentation):
         """
         return self.mask(self.energies >= self.chempot, deep=deep)
 
-    def copy(self, chempot: float | None = None, deep: bool = True) -> Lehmann:
+    def copy(self, energies: Array | None = None, couplings: Array | None = None, chempot: float | None = None, deep: bool = True) -> Lehmann:
         """Return a copy of the Lehmann representation.
 
         Args:
@@ -273,8 +273,20 @@ class Lehmann(BaseRepresentation):
         Returns:
             A new Lehmann representation.
         """
-        energies = self.energies
-        couplings = self.couplings
+        if energies is None:
+            energies = self.energies
+        elif energies.shape != self.energies.shape:
+            raise ValueError(
+                f"Energies must have shape {self.energies.shape}, but got {energies.shape}."
+            )
+        
+        if couplings is None:
+            couplings = self.couplings
+        elif couplings.shape != self.couplings.shape:
+            raise ValueError(
+                f"Couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
+            )
+        
         if chempot is None:
             chempot = self.chempot
 
@@ -283,7 +295,7 @@ class Lehmann(BaseRepresentation):
             energies = energies.copy()
             couplings = couplings.copy()
 
-        return self.__class__(energies, couplings, chempot=self.chempot, sort=False)
+        return self.__class__(energies, couplings, chempot=chempot, sort=False)
 
     def rotate_couplings(self, rotation: Array | tuple[Array, Array]) -> Lehmann:
         r"""Rotate the couplings and return a new Lehmann representation.
