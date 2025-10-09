@@ -252,8 +252,18 @@ class Lehmann(BaseRepresentation):
         """
         if energies is None:
             energies = self.energies
+        elif energies.shape != self.energies.shape:
+            raise ValueError(
+                f"Energies must have shape {self.energies.shape}, but got {energies.shape}."
+            )
+        
         if couplings is None:
             couplings = self.couplings
+        elif couplings.shape != self.couplings.shape:
+            raise ValueError(
+                f"Couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
+            )
+        
         if chempot is None:
             chempot = self.chempot
 
