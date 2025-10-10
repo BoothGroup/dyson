@@ -264,7 +264,7 @@ class Lehmann(BaseRepresentation):
             energies = self.energies
         elif energies.shape != self.energies.shape:
             raise ValueError(
-                f"Energies must have shape {self.energies.shape}, but got {energies.shape}."
+                f"energies must have shape {self.energies.shape}, but got {energies.shape}."
             )
 
         if couplings is None:
