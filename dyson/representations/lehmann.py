@@ -239,12 +239,20 @@ class Lehmann(BaseRepresentation):
         """
         return self.mask(self.energies >= self.chempot, deep=deep)
 
-    def copy(self, energies: Array | None = None, couplings: Array | None = None, chempot: float | None = None, deep: bool = True) -> Lehmann:
+    def copy(self, 
+             energies: Array | None = None,
+             couplings: Array | None = None,
+             chempot: float | None = None,
+             deep: bool = True) -> Lehmann:
         """Return a copy of the Lehmann representation.
 
         Args:
-            chempot: The chemical potential to use for the copy. If ``None``, the original
-                chemical potential is used.
+            chempot: The chemical potential to use for the new ``Lehmann``. 
+                If ``None``, the original chemical potential is used.
+            couplings: The couplings to use for the new ``Lehmann``. 
+                If ``None``, the original couplings are used.
+            eneriges: The energies to use for the new ``Lehmann``. 
+                If ``None``, the original energies are used.
             deep: Whether to return a deep copy of the energies and couplings.
 
         Returns:
