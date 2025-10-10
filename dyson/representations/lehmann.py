@@ -271,7 +271,7 @@ class Lehmann(BaseRepresentation):
             couplings = self.couplings
         elif couplings.shape != self.couplings.shape:
             raise ValueError(
-                f"Couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
+                f"couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
             )
 
         if chempot is None:
