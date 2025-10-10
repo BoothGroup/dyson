@@ -247,12 +247,12 @@ class Lehmann(BaseRepresentation):
         """Return a copy of the Lehmann representation.
 
         Args:
-            chempot: The chemical potential to use for the new ``Lehmann``. 
-                If ``None``, the original chemical potential is used.
+            energies: The energies to use for the new ``Lehmann``. 
+                If ``None``, the original energies are used.
             couplings: The couplings to use for the new ``Lehmann``. 
                 If ``None``, the original couplings are used.
-            eneriges: The energies to use for the new ``Lehmann``. 
-                If ``None``, the original energies are used.
+            chempot: The chemical potential to use for the new ``Lehmann``. 
+                If ``None``, the original chemical potential is used.
             deep: Whether to return a deep copy of the energies and couplings.
 
         Returns:
