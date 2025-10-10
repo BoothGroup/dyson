@@ -708,7 +708,9 @@ class Lehmann(BaseRepresentation):
         weights = util.einsum("pk,pk->k", right, left.conj()) * occupancy
         return weights
 
-    def as_orbitals(self, occupancy: float = 1.0, mo_coeff: Array | None = None) -> tuple[
+    def as_orbitals(
+        self, occupancy: float = 1.0, mo_coeff: Array | None = None
+    ) -> tuple[
         Array,
         Array,
         Array,
