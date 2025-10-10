@@ -225,7 +225,9 @@ class Dynamic(BaseRepresentation, Generic[_TGrid]):
                     "representation."
                 )
 
-        return self.__class__(grid, array, hermitian=self.hermitian)
+        return self.__class__(
+            grid, array, hermitian=self.hermitian, reduction=reduction, component=component
+        )
 
     def as_dynamic(
         self, component: Component | None = None, reduction: Reduction | None = None

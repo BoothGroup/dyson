@@ -13,7 +13,7 @@ from dyson.grids.grid import BaseGrid
 from dyson.representations.enums import Component, Ordering, Reduction
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Iterable
 
     from dyson.representations.dynamic import Dynamic
     from dyson.representations.lehmann import Lehmann
@@ -88,6 +88,26 @@ class BaseFrequencyGrid(BaseGrid):
         return Dynamic(
             self, array, reduction=reduction, component=component, hermitian=lehmann.hermitian
         )
+
+    def evaluate_tail(
+        self,
+        moments: Iterable[Array],
+        ordering: Ordering = Ordering.ORDERED,
+    ) -> Array:
+        """Evaluate the tail (high frequency) on the grid, via a moment expansion.
+
+        Args:
+            moments: Moments of the tail expansion.
+
+        Returns:
+            Values of the tail expansion on the grid.
+        """
+        resolvent = self.resolvent(np.array(0.0), 0.0, ordering=ordering, invert=True)
+        tail = sum(
+            util.einsum("...,w->w...", moment, resolvent ** (i + 1))
+            for i, moment in enumerate(moments)
+        )
+        return tail
 
     @property
     def domain(self) -> str:
@@ -292,10 +312,6 @@ class ImaginaryFrequencyGrid(BaseFrequencyGrid):
         """
         if beta is None:
             beta = cls.beta
-        #separation = 2.0 * np.pi / beta
-        #start = 0.5 * separation
-        #stop = (num - 0.5) * separation
-        #points = np.linspace(start, stop, num, endpoint=True)
         points = (2 * np.arange(num) + 1) * np.pi / beta
         return cls(points, beta=beta)
 

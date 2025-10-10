@@ -6,10 +6,10 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from dyson import numpy as np
-from dyson.representations.enums import Component, Reduction, RepresentationEnum
+from dyson.representations.enums import Component, Reduction, RepresentationEnum, Ordering
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Iterable
 
     from dyson.representations.dynamic import Dynamic
     from dyson.representations.lehmann import Lehmann
@@ -67,6 +67,22 @@ class BaseGrid(ABC):
 
         Returns:
             Lehmann representation, realised on the grid.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate_tail(
+        self,
+        moments: Iterable[Array],
+        ordering: Ordering = Ordering.ORDERED,
+    ) -> Array:
+        """Evaluate the tail on the grid, via a moment expansion.
+
+        Args:
+            moments: Moments of the tail expansion.
+
+        Returns:
+            Values of the tail expansion on the grid.
         """
         pass
 
