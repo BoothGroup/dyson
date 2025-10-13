@@ -479,7 +479,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
 
         # If there are no auxiliary states, return the physical matrix
         if self.naux == 0:
@@ -514,7 +514,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
 
         # Build the supermatrix diagonal
         diagonal = np.concatenate((np.diag(physical), energies))
@@ -559,7 +559,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
         if vector.shape[0] != (self.nphys + self.naux):
             raise ValueError(
                 f"Vector shape {vector.shape} does not match supermatrix shape "
