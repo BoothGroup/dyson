@@ -479,14 +479,14 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
+            energies = energies - chempot
 
         # If there are no auxiliary states, return the physical matrix
         if self.naux == 0:
             return physical
 
         # Build the supermatrix
-        diag = np.diag(energies - chempot)
-        matrix = np.block([[physical, right], [left.T.conj(), diag]])
+        matrix = np.block([[physical, right], [left.T.conj(), np.diag(energies)]])
 
         return matrix
 
