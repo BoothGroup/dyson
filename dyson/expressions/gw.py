@@ -21,6 +21,7 @@ from pyscf import gw, lib
 
 from dyson import numpy as np
 from dyson import util
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 from dyson.representations.enums import Reduction
 
@@ -151,6 +152,7 @@ class BaseGW_Dyson(BaseExpression):
 class TDAGW_Dyson(BaseGW_Dyson):
     """GW expressions with Tamm--Dancoff (TDA) approximation for the Dyson Green's function."""
 
+    @cast_returned_array
     def apply_hamiltonian(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector.
 
@@ -215,6 +217,7 @@ class TDAGW_Dyson(BaseGW_Dyson):
         """
         raise NotImplementedError("Left application of Hamiltonian is not implemented for TDA-GW.")
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 

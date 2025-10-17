@@ -38,7 +38,6 @@ def project_eigenvectors(
         is defined by the null space of the projector formed by the outer product of these vectors.
     """
     hermitian = ket is None
-    nphys = bra.shape[0]
     if not hermitian and eigvecs.ndim == 2:
         raise ValueError(
             "bra and ket both passed implying a non-hermitian system, but eigvecs is 2D."
@@ -70,8 +69,8 @@ def project_eigenvectors(
     left, right = util.biorthonormalise(left, right)
 
     # Return the physical vectors to the original basis
-    left[:, :nphys] = left[:, :nphys] @ unorth.T.conj()
-    right[:, :nphys] = right[:, :nphys] @ unorth
+    left = util.rotate_subspace(left.T, unorth.conj()).T
+    right = util.rotate_subspace(right.T, unorth.T).T
 
     # Rotate the eigenvectors
     eigvecs = np.array([left.T.conj() @ eigvecs[0], right.T.conj() @ eigvecs[1]])

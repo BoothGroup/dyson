@@ -6,9 +6,8 @@ import functools
 import warnings
 from typing import TYPE_CHECKING, cast
 
-import scipy.linalg
-
 from dyson import numpy as np
+from dyson import scipy
 from dyson.util import cache_by_id
 
 if TYPE_CHECKING:
@@ -175,7 +174,7 @@ def _sort_eigvals(eigvals: Array, eigvecs: Array, threshold: float = 1e-11) -> t
         first ordering based on the rounded real and imaginary parts of the eigenvalues, and then
         sorting by the true real and imaginary parts.
     """
-    decimals = round(-np.log10(threshold))
+    decimals = int(round(-np.log10(threshold)))
     real_approx = np.round(eigvals.real, decimals=decimals)
     imag_approx = np.round(eigvals.imag, decimals=decimals)
     idx = np.lexsort((eigvals.imag, eigvals.real, imag_approx, real_approx))

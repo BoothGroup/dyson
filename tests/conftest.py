@@ -8,6 +8,7 @@ import pytest
 from pyscf import gto, scf
 
 from dyson import numpy as np
+from dyson._backend import _BACKENDS, set_backend
 from dyson.expressions import ADC2, CCSD, FCI, HF, TDAGW, ADC2x
 from dyson.representations.lehmann import Lehmann
 from dyson.representations.spectral import Spectral
@@ -73,6 +74,8 @@ def pytest_generate_tests(metafunc):  # type: ignore
             expressions.append(method)
             ids.append(name)
         metafunc.parametrize("expression_method", expressions, ids=ids)
+    if "backend" in metafunc.fixturenames:
+        metafunc.parametrize("backend", list(_BACKENDS.keys()), scope="session")
 
 
 class Helper:
@@ -126,6 +129,13 @@ class Helper:
         return Helper.are_equal_arrays(
             greens_function.moment(0), np.eye(greens_function.nphys), tol=tol
         )
+
+
+@pytest.fixture(scope="session")
+def backend(request) -> str:
+    """Fixture to set the backend for the tests."""
+    set_backend(request.param)
+    return request.param
 
 
 @pytest.fixture(scope="session")

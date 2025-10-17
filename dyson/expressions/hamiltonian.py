@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from dyson import numpy as np
 from dyson import util
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression
 from dyson.representations.enums import Reduction
 
@@ -37,8 +38,8 @@ class Hamiltonian(BaseExpression):
                 :meth:`~dyson.expressions.expression.BaseExpression.get_excitation_ket`.
         """
         self._hamiltonian = hamiltonian
-        self._bra = bra
-        self._ket = ket
+        self._bra = np.asarray(bra) if bra is not None else None
+        self._ket = np.asarray(ket) if bra is not None else None
 
         if isinstance(hamiltonian, np.ndarray):
             self.hermitian_upfolded = np.allclose(hamiltonian, hamiltonian.T.conj())
@@ -58,6 +59,7 @@ class Hamiltonian(BaseExpression):
         """
         raise NotImplementedError("Cannot create Hamiltonian expression from mean-field object.")
 
+    @cast_returned_array
     def apply_hamiltonian(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector.
 
@@ -69,6 +71,7 @@ class Hamiltonian(BaseExpression):
         """
         return self._hamiltonian @ vector
 
+    @cast_returned_array
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
 
@@ -80,6 +83,7 @@ class Hamiltonian(BaseExpression):
         """
         return vector @ self._hamiltonian
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -88,6 +92,7 @@ class Hamiltonian(BaseExpression):
         """
         return self._hamiltonian.diagonal()
 
+    @cast_returned_array
     def build_matrix(self) -> Array:
         """Build the Hamiltonian matrix.
 

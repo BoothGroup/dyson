@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from pyscf import ao2mo, fci
 
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 from dyson.representations.enums import Reduction
 
@@ -103,6 +104,7 @@ class BaseFCI(BaseExpression):
         ci.kernel(h1e, h2e, mf.mol.nao, mf.mol.nelec)
         return cls.from_fci(ci, h1e, h2e)
 
+    @cast_returned_array
     def apply_hamiltonian(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector.
 
@@ -123,6 +125,7 @@ class BaseFCI(BaseExpression):
         result -= (self.e_fci + self.chempot) * vector
         return self.SIGN * result
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -131,6 +134,7 @@ class BaseFCI(BaseExpression):
         """
         return self.SIGN * (self._diagonal - (self.e_fci + self.chempot))
 
+    @cast_returned_array
     def get_excitation_vector(self, orbital: int) -> Array:
         r"""Obtain the vector corresponding to a fermionic operator acting on the ground state.
 

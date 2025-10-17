@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 
+from dyson import numpy as np
 from dyson.solvers import AufbauPrinciple, AuxiliaryShift
 
 from .conftest import _get_central_result
