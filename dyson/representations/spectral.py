@@ -343,11 +343,19 @@ class Spectral(BaseRepresentation):
         right = np.zeros((nphys, 0))
         for arg in args:
             energies_i, couplings_i = arg.get_auxiliaries()
+            # print(couplings_i.shape)
+            # overlap = arg.get_overlap()
+            # orth = util.matrix_power(overlap, -0.5, hermitian=False)[0]
+            # unorth = util.matrix_power(overlap, 0.5, hermitian=False)[0]
+
             energies = np.concatenate([energies, energies_i])
             if arg.hermitian:
+                #couplings_i = orth @ couplings_i
                 left = np.concatenate([left, couplings_i], axis=1)
             else:
                 left_i, right_i = util.unpack_vectors(couplings_i)
+                #left_i = orth @ left_i
+                #right_i = unorth @ right_i
                 left = np.concatenate([left, left_i], axis=1)
                 right = np.concatenate([right, right_i], axis=1)
         couplings = np.array([left, right]) if not args[0].hermitian else left
