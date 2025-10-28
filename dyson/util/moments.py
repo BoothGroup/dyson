@@ -78,7 +78,7 @@ def se_moments_to_gf_moments(
     return gf_moments
 
 
-def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tuple[Array, Array]:
+def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True, orth_basis=False) -> tuple[Array, Array]:
     """Convert moments of the Green's function to those of the self-energy.
 
     Args:
@@ -149,7 +149,7 @@ def gf_moments_to_se_moments(gf_moments: Array, check_error: bool = True) -> tup
                     se_moments[i] -= powers[l] @ se_moments[m] @ gf_moments[k]
 
     # Unorthogonalise the moments
-    if not ident:
+    if not ident and not orth_basis:
         se_static = unorth @ se_static @ unorth
         se_moments = einsum("npq,ip,qj->nij", se_moments, unorth, unorth)
 

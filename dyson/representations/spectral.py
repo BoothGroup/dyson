@@ -419,7 +419,7 @@ class Spectral(BaseRepresentation):
         energies = np.concatenate(energies, axis=0)
 
         if hermitian:
-            print('Hermitian')
+            #print('Hermitian')
             orbitals = np.concatenate(left, axis=1)
             # Check orthonormality 
             #assert np.allclose(orbitals.T.conj()@orbitals - np.eye(orbitals.shape[1]), 0)
@@ -448,7 +448,7 @@ class Spectral(BaseRepresentation):
             #rest_l, rest_r = util.null_space_basis(mat, hermitian=hermitian, method=ns_method)
 
             #rest_l, rest_r = util.biorthonormalise(rest_l, rest_r)
-            print("L R - I : %s"%np.linalg.norm(rest_l.T.conj() @ rest_r - np.eye(rest_l.shape[1])))
+            #print("L R - I : %s"%np.linalg.norm(rest_l.T.conj() @ rest_r - np.eye(rest_l.shape[1])))
             vectors_l = np.block([left.T, rest_l]).T
             vectors_r = np.block([right.T, rest_r]).T
             vectors = np.array([vectors_l, vectors_r])
