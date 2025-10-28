@@ -262,12 +262,22 @@ class Lehmann(BaseRepresentation):
         """
         return self.mask(self.energies >= self.chempot, deep=deep)
 
-    def copy(self, energies: Array | None = None, couplings: Array | None = None, chempot: float | None = None, deep: bool = True) -> Lehmann:
+    def copy(
+        self,
+        energies: Array | None = None,
+        couplings: Array | None = None,
+        chempot: float | None = None,
+        deep: bool = True,
+    ) -> Lehmann:
         """Return a copy of the Lehmann representation.
 
         Args:
-            chempot: The chemical potential to use for the copy. If ``None``, the original
-                chemical potential is used.
+            energies: The energies to use for the new ``Lehmann``.
+                If ``None``, the original energies are used.
+            couplings: The couplings to use for the new ``Lehmann``.
+                If ``None``, the original couplings are used.
+            chempot: The chemical potential to use for the new ``Lehmann``.
+                If ``None``, the original chemical potential is used.
             deep: Whether to return a deep copy of the energies and couplings.
 
         Returns:
@@ -277,16 +287,16 @@ class Lehmann(BaseRepresentation):
             energies = self.energies
         elif energies.shape != self.energies.shape:
             raise ValueError(
-                f"Energies must have shape {self.energies.shape}, but got {energies.shape}."
+                f"energies must have shape {self.energies.shape}, but got {energies.shape}."
             )
-        
+
         if couplings is None:
             couplings = self.couplings
         elif couplings.shape != self.couplings.shape:
             raise ValueError(
-                f"Couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
+                f"couplings must have shape {self.couplings.shape}, but got {couplings.shape}."
             )
-        
+
         if chempot is None:
             chempot = self.chempot
 
@@ -492,7 +502,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
 
         # If there are no auxiliary states, return the physical matrix
         if self.naux == 0:
@@ -527,7 +537,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
 
         # Build the supermatrix diagonal
         diagonal = np.concatenate((np.diag(physical), energies))
@@ -572,7 +582,7 @@ class Lehmann(BaseRepresentation):
         if chempot:
             if chempot is True:
                 chempot = self.chempot
-            energies -= chempot
+            energies = energies - chempot
         if vector.shape[0] != (self.nphys + self.naux):
             raise ValueError(
                 f"Vector shape {vector.shape} does not match supermatrix shape "
