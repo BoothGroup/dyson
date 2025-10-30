@@ -257,10 +257,15 @@ class Spectral(BaseRepresentation):
             )
         nphys = args[0].nphys
 
-        # Sum the overlap and static self-energy matrices -- double counting is not an issue
-        # with shared static parts because the overlap matrix accounts for the separation
+        # Sum the overlap and static self-energy matrices
         static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
         overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
+
+        # Orthogonalise under the metric of the overlap matrix
+        hermitian = all(arg.hermitian for arg in args)
+        orth, _ = util.matrix_power(overlap, -0.5, hermitian=hermitian, return_error=False)
+        static = orth @ static @ orth
+        overlap = orth @ overlap @ orth
 
         # Check the chemical potentials
         if chempot is None:
