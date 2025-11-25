@@ -238,13 +238,23 @@ class Spectral(BaseRepresentation):
             chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)
 
-    def combine(self, *args: Spectral, chempot: float | None = None) -> Spectral:
-        """Combine multiple spectral representations.
+    def combine(
+        self,
+        *args: Spectral,
+        chempot: float | None = None,
+        overlap: Array | None = None,
+        static: Array | None = None,
+    ) -> Spectral:
+        """Combine multiple spectral representations by concatenating self-energies.
 
         Args:
             args: Spectral representations to combine.
             chempot: Chemical potential to be used in the Lehmann representations of the self-energy
                 and Green's function.
+            overlap: Overlap matrix for the physical space. If ``None``, the overlap matrices of the
+                inputs are summed.
+            static: Static part of the self-energy. If ``None``, the static parts of the inputs are
+                summed.
 
         Returns:
             Combined spectral representation.
@@ -259,8 +269,17 @@ class Spectral(BaseRepresentation):
 
         # Sum the overlap and static self-energy matrices -- double counting is not an issue
         # with shared static parts because the overlap matrix accounts for the separation
-        static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
-        overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
+        if overlap is None:
+            overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
+
+        if static is None:
+            static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
+
+        # Orthogonalise under the metric of the overlap matrix
+        hermitian = all(arg.hermitian for arg in args)
+        orth, _ = util.matrix_power(overlap, -0.5, hermitian=hermitian, return_error=False)
+        static = orth @ static @ orth
+        overlap = orth @ overlap @ orth
 
         # Check the chemical potentials
         if chempot is None:
