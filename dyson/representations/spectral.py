@@ -280,7 +280,7 @@ class Spectral(BaseRepresentation):
         orth, _ = util.matrix_power(overlap, -0.5, hermitian=hermitian, return_error=False)
         static = orth @ static @ orth
         overlap = orth @ overlap @ orth
-        
+
         # Check the chemical potentials
         if chempot is None:
             if any(arg.chempot is not None for arg in args):
