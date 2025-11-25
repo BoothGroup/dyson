@@ -238,8 +238,8 @@ class Spectral(BaseRepresentation):
             chempot = 0.0
         return Lehmann(*self.get_dyson_orbitals(), chempot=chempot)
 
-    def combine(self, *args: Spectral, chempot: float | None = None) -> Spectral:
-        """Combine multiple spectral representations.
+    def combine(self, *args: Spectral, chempot: float | None = None, static: Array | None = None, overlap: Array | None = None) -> Spectral:
+        """Combine multiple spectral representations by concatenating self-energies.
 
         Args:
             args: Spectral representations to combine.
@@ -259,8 +259,8 @@ class Spectral(BaseRepresentation):
 
         # Sum the overlap and static self-energy matrices -- double counting is not an issue
         # with shared static parts because the overlap matrix accounts for the separation
-        static = sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
-        overlap = sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
+        static = static if static is not None else sum([arg.get_static_self_energy() for arg in args], np.zeros((nphys, nphys)))
+        overlap = overlap if overlap is not None else sum([arg.get_overlap() for arg in args], np.zeros((nphys, nphys)))
 
         # Check the chemical potentials
         if chempot is None:
