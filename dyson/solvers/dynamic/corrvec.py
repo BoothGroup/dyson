@@ -13,6 +13,7 @@ from scipy.sparse.linalg import LinearOperator, lgmres
 
 from dyson import console, printing
 from dyson import numpy as np
+from dyson._backend import _BACKEND
 from dyson.grids.frequency import RealFrequencyGrid
 from dyson.representations.dynamic import Dynamic
 from dyson.representations.enums import Component, Ordering, Reduction
@@ -26,7 +27,11 @@ if TYPE_CHECKING:
     from dyson.representations.lehmann import Lehmann
     from dyson.typing import Array
 
-# TODO: Can we use DIIS?
+if _BACKEND == "jax" and not TYPE_CHECKING:
+    # No LGMRES in JAX, so use GMRES
+    from dyson import scipy
+
+    lgmres = scipy.sparse.linalg.gmres
 
 
 class CorrectionVector(DynamicSolver):

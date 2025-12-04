@@ -122,9 +122,7 @@ Submodules
 
 __version__ = "1.0.0"
 
-import numpy
-import scipy
-
+from dyson._backend import set_backend, numpy, scipy
 from dyson.printing import console, quiet
 from dyson.representations import Lehmann, Spectral, Dynamic
 from dyson.solvers import (

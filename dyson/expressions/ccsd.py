@@ -21,6 +21,7 @@ from pyscf import cc
 
 from dyson import numpy as np
 from dyson import util
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 from dyson.representations.enums import Reduction
 
@@ -63,10 +64,10 @@ class BaseCCSD(BaseExpression):
             imds: Intermediate integrals.
         """
         self._mol = mol
-        self._t1 = t1
-        self._t2 = t2
-        self._l1 = l1
-        self._l2 = l2
+        self._t1 = np.asarray(t1)
+        self._t2 = np.asarray(t2)
+        self._l1 = np.asarray(l1)
+        self._l2 = np.asarray(l2)
         self._imds = imds
         self._precompute_imds()
 
@@ -199,6 +200,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """Precompute intermediate integrals."""
         self._imds.make_ip()
 
+    @cast_returned_array
     def vector_to_amplitudes(self, vector: Array, *args: Any) -> tuple[Array, Array]:
         """Convert a vector to amplitudes.
 
@@ -211,6 +213,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.vector_to_amplitudes_ip(vector, self.nphys, self.nocc)
 
+    @cast_returned_array
     def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
         """Convert amplitudes to a vector.
 
@@ -223,6 +226,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.amplitudes_to_vector_ip(t1, t2)
 
+    @cast_returned_array
     def apply_hamiltonian_right(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the right.
 
@@ -240,6 +244,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
         """
         return -self.PYSCF_EOM.lipccsd_matvec(self, vector, imds=self._imds)
 
+    @cast_returned_array
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
 
@@ -260,6 +265,7 @@ class CCSD_1h(BaseCCSD):  # pylint: disable=invalid-name
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -367,6 +373,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """Precompute intermediate integrals."""
         self._imds.make_ea()
 
+    @cast_returned_array
     def vector_to_amplitudes(self, vector: Array, *args: Any) -> tuple[Array, Array]:
         """Convert a vector to amplitudes.
 
@@ -379,6 +386,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.vector_to_amplitudes_ea(vector, self.nphys, self.nocc)
 
+    @cast_returned_array
     def amplitudes_to_vector(self, t1: Array, t2: Array) -> Array:
         """Convert amplitudes to a vector.
 
@@ -391,6 +399,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.amplitudes_to_vector_ea(t1, t2)
 
+    @cast_returned_array
     def apply_hamiltonian_right(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the right.
 
@@ -402,6 +411,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
         """
         return self.PYSCF_EOM.eaccsd_matvec(self, vector, imds=self._imds)
 
+    @cast_returned_array
     def apply_hamiltonian_left(self, vector: Array) -> Array:
         """Apply the Hamiltonian to a vector on the left.
 
@@ -416,6 +426,7 @@ class CCSD_1p(BaseCCSD):  # pylint: disable=invalid-name
     apply_hamiltonian = apply_hamiltonian_right
     apply_hamiltonian.__doc__ = BaseCCSD.apply_hamiltonian.__doc__
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 

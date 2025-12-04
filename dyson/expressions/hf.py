@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 from dyson import numpy as np
 from dyson import util
+from dyson._backend import cast_returned_array
 from dyson.expressions.expression import BaseExpression, ExpressionCollection
 from dyson.representations.enums import Reduction
 
@@ -109,6 +110,7 @@ class BaseHF(BaseExpression):
 class HF_1h(BaseHF):  # pylint: disable=invalid-name
     """HF expressions for the hole Green's function."""
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -150,6 +152,7 @@ class HF_1h(BaseHF):  # pylint: disable=invalid-name
 class HF_1p(BaseHF):  # pylint: disable=invalid-name
     """HF expressions for the particle Green's function."""
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
@@ -191,6 +194,7 @@ class HF_1p(BaseHF):  # pylint: disable=invalid-name
 class HF_Dyson(BaseHF):  # pylint: disable=invalid-name
     """HF expressions for the Dyson Green's function."""
 
+    @cast_returned_array
     def diagonal(self) -> Array:
         """Get the diagonal of the Hamiltonian.
 
